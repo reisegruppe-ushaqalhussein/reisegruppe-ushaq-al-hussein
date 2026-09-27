@@ -5,10 +5,10 @@ import {
   ChevronLeft,
   CircleDollarSign,
   HeartHandshake,
-  Kaaba,
   Landmark,
   MapPin,
   MessageCircle,
+  MoonStar,
   Newspaper,
   Phone,
   Plane,
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
 
 const trips = [
   { ar: "زيارة العراق", de: "Pilgerreise in den Irak", detailAr: "النجف · كربلاء · الكاظمية · سامراء", detailDe: "Nadschaf · Kerbela · Kadhimiya · Samarra", icon: Landmark },
-  { ar: "العمرة", de: "Umra", detailAr: "مكة المكرمة · المدينة المنورة", detailDe: "Mekka · Medina", icon: Kaaba },
+  { ar: "العمرة", de: "Umra", detailAr: "مكة المكرمة · المدينة المنورة", detailDe: "Mekka · Medina", icon: MoonStar },
   { ar: "زيارة إيران", de: "Pilgerreise in den Iran", detailAr: "مشهد · قم · طهران", detailDe: "Maschhad · Qom · Teheran", icon: MapPin },
   { ar: "الحج", de: "Hadsch", detailAr: "برنامج متكامل لخدمة ضيوف الرحمن", detailDe: "Umfassendes Programm für die Pilger", icon: Users },
 ];
@@ -77,7 +77,7 @@ function Index() {
 
           <div className="mt-auto text-center">
             <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full border border-secondary/60 bg-primary/65 shadow-lg backdrop-blur-sm">
-              <Kaaba className="h-8 w-8 text-secondary" aria-hidden="true" />
+              <MoonStar className="h-8 w-8 text-secondary" aria-hidden="true" />
             </div>
             <p className="mb-2 text-sm font-semibold text-secondary"><Pair ar="معاً في طريق الزيارة" de="Gemeinsam auf dem Weg der Ziyara" align="center" /></p>
             <h1 className="mx-auto max-w-3xl text-3xl font-extrabold leading-[1.45] sm:text-5xl">

@@ -17,16 +17,19 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">الصفحة غير موجودة</h2>
+        <p className="mt-1 text-sm font-medium text-foreground">Seite nicht gefunden</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          الصفحة المطلوبة غير متاحة أو تم نقلها.
+          <span className="mt-1 block">Die gesuchte Seite ist nicht verfügbar oder wurde verschoben.</span>
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            <span>العودة للرئيسية</span>
+            <span className="ms-2 text-xs opacity-75">Zur Startseite</span>
           </Link>
         </div>
       </div>
@@ -45,10 +48,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          تعذّر تحميل الصفحة
         </h1>
+        <p className="mt-1 text-sm font-medium text-foreground">Diese Seite konnte nicht geladen werden</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          حدث خطأ. حاول التحديث أو العودة إلى الصفحة الرئيسية.
+          <span className="mt-1 block">Ein Fehler ist aufgetreten. Versuchen Sie es erneut oder kehren Sie zur Startseite zurück.</span>
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -58,13 +63,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            <span>حاول مجدداً</span>
+            <span className="ms-2 text-xs opacity-75">Erneut versuchen</span>
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            <span>العودة للرئيسية</span>
+            <span className="ms-2 text-xs opacity-75">Zur Startseite</span>
           </a>
         </div>
       </div>
@@ -106,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ar" dir="rtl">
       <head>
         <HeadContent />
       </head>
