@@ -19,7 +19,7 @@
  */
 
 @theme inline {
-  --font-sans: "Noto Sans Arabic", "Noto Sans", sans-serif;
+  --font-sans: "Cairo", sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -170,4 +170,29 @@
 
 @utility gold-line {
   background: linear-gradient(90deg, transparent, var(--color-secondary), transparent);
+}
+
+@utility screen-enter {
+  animation: screen-enter 240ms ease-out both;
+}
+
+@keyframes screen-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .screen-enter {
+    animation: none;
+  }
 }
