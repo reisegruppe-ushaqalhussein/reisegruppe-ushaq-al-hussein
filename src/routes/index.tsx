@@ -17,7 +17,7 @@ import {
   Soup,
   Sparkles,
   Star,
-  Suitcase,
+  Luggage,
 } from "lucide-react";
 import shrineImage from "@/assets/karbala-shrine.jpg";
 
@@ -202,7 +202,7 @@ function Index() {
         </header>
 
         <section id="trips" className="scroll-mt-4 px-4 py-10">
-          <SectionHeading ar="الرحلات المتاحة" de="Verfügbare Reisen" icon={Suitcase} />
+          <SectionHeading ar="الرحلات المتاحة" de="Verfügbare Reisen" icon={Luggage} />
           <div className="space-y-3">
             {trips.map((trip) => {
               const Icon = trip.icon;
@@ -319,7 +319,7 @@ function Index() {
       <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto grid h-20 w-full max-w-[420px] grid-cols-5 border-t border-border bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-2xl backdrop-blur-md" aria-label="التنقل الرئيسي | Hauptnavigation">
         {[
           { href: "#home", ar: "الرئيسية", de: "Start", icon: Home },
-          { href: "#trips", ar: "الرحلات", de: "Reisen", icon: Suitcase },
+          { href: "#trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
           { href: "#registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
           { href: "#contacts", ar: "التواصل", de: "Kontakt", icon: Phone },
           { href: "#news", ar: "الأخبار", de: "Aktuelles", icon: Megaphone },
