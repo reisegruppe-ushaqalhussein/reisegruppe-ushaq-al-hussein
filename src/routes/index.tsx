@@ -30,6 +30,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import shrineImage from "@/assets/karbala-shrine.jpg";
+import iraqInvitation from "@/assets/invitation_iraq_2026-12.jpg.asset.json";
+import winterInvitation from "@/assets/invitation_winter_new_year_2026-12.jpg.asset.json";
+import umrahInvitation from "@/assets/invitation_umrah_2027-01.jpg.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,7 +51,7 @@ export const Route = createFileRoute("/")({
 const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
 
 type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations";
-type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
 function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
@@ -61,11 +64,11 @@ function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
 }
 
 const trips = [
-  { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Ziyara zu Imam Hussein (as)", date: "01.12 – 09.12.2026", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, open: true, poster: true },
-  { id: "winter", ar: "زيارة عطلة الشتاء / رأس السنة", de: "Ziyara in den Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, open: true, poster: true },
-  { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01 – 22.01.2027", statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: MoonStar, open: true, poster: true },
-  { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Ziyara zu Imam Rida (as)", date: null, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben", icon: Sparkles, open: false, poster: false },
-  { id: "hajj", ar: "الحج", de: "Hadsch", date: null, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben", icon: Star, open: false, poster: false },
+  { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Ziyara zu Imam Hussein (as)", date: "01.12 – 09.12.2026", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, open: true, image: iraqInvitation.url },
+  { id: "winter", ar: "زيارة عطلة الشتاء / رأس السنة", de: "Ziyara in den Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, open: true, image: winterInvitation.url },
+  { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01 – 22.01.2027", statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: MoonStar, open: true, image: umrahInvitation.url },
+  { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Ziyara zu Imam Rida (as)", date: null, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben", icon: Sparkles, open: false, image: null },
+  { id: "hajj", ar: "الحج", de: "Hadsch", date: null, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben", icon: Star, open: false, image: null },
 ];
 
 const contacts = [
@@ -181,8 +184,8 @@ function TripsView() {
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg p-0" dir="rtl">
           {selected && (
             <>
-              {selected.poster ? (
-                <img src={shrineImage} alt={`دعوة ${selected.ar} | Einladung ${selected.de}`} className="aspect-[4/3] w-full rounded-t-lg object-cover" />
+              {selected.image ? (
+                <img src={selected.image} alt={`دعوة ${selected.ar} | Einladung ${selected.de}`} className="max-h-[58vh] w-full rounded-t-lg bg-muted object-contain" />
               ) : (
                 <div className="grid aspect-[4/2] place-items-center rounded-t-lg bg-primary text-secondary"><selected.icon className="h-12 w-12" aria-hidden="true" /></div>
               )}
