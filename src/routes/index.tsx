@@ -479,19 +479,18 @@ function splitGermanText(value: string) {
 }
 
 function DuasView({ duas }: { duas: SiteContent["duas"] }) {
-  const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, ...splitGermanText(d.textDe) })), [duas]);
-  const byId = (id: string) => managedEntries.find((entry) => entry.id === id);
-  const ashura = byId("ashura") ?? readerEntries.arbayn;
-  const warith = byId("warith") ?? readerEntries.arbayn;
+  const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [duas]);
+  const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const shrines: Shrine[] = [
-    { id: "karbala", ar: "كربلاء المقدسة", de: "Heiliges Kerbela", image: shrineImage, entries: [ashura, warith, readerEntries.arbayn] },
-    { id: "najaf", ar: "النجف الأشرف", de: "Heiliges Nadschaf", image: najafShrine, entries: [readerEntries.imamAli] },
-    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Heiliges al-Kazimiyya", image: kazimiyyaShrine, entries: [readerEntries.kazimayn] },
-    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: [readerEntries.askari] },
-    { id: "mashhad", ar: "مشهد المقدسة", de: "Heiliges Maschhad", image: mashhadShrine, entries: [readerEntries.imamRida] },
-    { id: "qom", ar: "قم المقدسة", de: "Heiliges Qom", image: qomShrine, entries: [readerEntries.masumeh] },
-    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: [readerEntries.prophet] },
+    { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela", image: shrineImage, entries: inCat("karbala") },
+    { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf", image: najafShrine, entries: [readerEntries.imamAli, ...inCat("najaf")] },
+    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Al-Kazimiyya", image: kazimiyyaShrine, entries: [readerEntries.kazimayn, ...inCat("kazimiyya")] },
+    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: [readerEntries.askari, ...inCat("samarra")] },
+    { id: "mashhad", ar: "مشهد المقدسة", de: "Maschhad", image: mashhadShrine, entries: [readerEntries.imamRida, ...inCat("mashhad")] },
+    { id: "qom", ar: "قم المقدسة", de: "Qom", image: qomShrine, entries: [readerEntries.masumeh, ...inCat("qom")] },
+    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: [readerEntries.prophet, ...inCat("mecca-medina")] },
   ];
+  const generalEntries = inCat("general");
   const [shrine, setShrine] = useState<Shrine | null>(null);
   const [reader, setReader] = useState<ReaderItem | null>(null);
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
@@ -508,7 +507,7 @@ function DuasView({ duas }: { duas: SiteContent["duas"] }) {
           </Button>
         ))}
       </div>
-      {managedEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة" de="Allgemeine Bittgebete" /><div className="space-y-3">{managedEntries.filter((entry) => !["ashura", "warith"].includes(entry.id)).map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
+      {generalEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة والتعقيبات" de="Allgemeine Bittgebete" /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
     </div>
   );
 }
