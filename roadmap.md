@@ -5,3 +5,7 @@
 - [x] Add bilingual trip detail dialogs and registration actions.
 - [x] Apply Cairo typography and muted German subtext.
 - [x] Upload and connect the three supplied invitation posters to their matching trip dialogs.
+- [x] Separate general visit types from dated upcoming trips.
+- [x] Keep flight, accommodation, gatherings, and food details exclusive to the Iraq visit.
+- [x] Add the temporary bilingual program notice to every dated trip.
+- [x] Add the bilingual visa and departure-airports card to the home screen.
