@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Lock, Plus, Save, Trash2 } from "lucide-react";
+import { Home, KeyRound, Lock, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { checkAdminPassword, getSiteContent, saveSiteContent } from "@/lib/site-content.functions";
+import { changeAdminPassword, checkAdminPassword, getSiteContent, saveSiteContent } from "@/lib/site-content.functions";
 import type { SiteContent } from "@/lib/site-content";
 
 export const Route = createFileRoute("/admin")({
@@ -57,6 +57,20 @@ function AdminPage() {
   const check = useServerFn(checkAdminPassword);
   const load = useServerFn(getSiteContent);
   const save = useServerFn(saveSiteContent);
+  const changePw = useServerFn(changeAdminPassword);
+  const [newPw, setNewPw] = useState("");
+  const [newPw2, setNewPw2] = useState("");
+  const [pwStatus, setPwStatus] = useState<"idle" | "short" | "mismatch" | "saved" | "failed">("idle");
+
+  async function onChangePw() {
+    if (newPw.length < 6) return setPwStatus("short");
+    if (newPw !== newPw2) return setPwStatus("mismatch");
+    try {
+      const res = await changePw({ data: { password, newPassword: newPw } });
+      if (!res.ok) return setPwStatus("failed");
+      setPassword(newPw); setNewPw(""); setNewPw2(""); setPwStatus("saved");
+    } catch { setPwStatus("failed"); }
+  }
   const [password, setPassword] = useState("");
   const [content, setContent] = useState<SiteContent | null>(null);
   const [error, setError] = useState(false);
@@ -87,6 +101,9 @@ function AdminPage() {
     <div className="min-h-screen bg-muted">
       <main className="mx-auto min-h-screen w-full max-w-[520px] bg-background pb-28">
         <header className="bg-primary px-5 py-6 text-center text-primary-foreground">
+          <Link to="/" className="mb-4 flex h-11 items-center justify-center gap-2 rounded-md bg-secondary text-sm font-bold text-secondary-foreground shadow-sm hover:bg-secondary/90">
+            <Home className="h-4 w-4" aria-hidden="true" />العودة للرئيسية <span lang="de" className="text-xs italic opacity-80">| Zur Startseite</span>
+          </Link>
           <p className="text-sm font-extrabold">حملة عشاق الحسين (ع) — ألمانيا</p>
           <div className="gold-line mx-auto my-3 h-px w-24" />
           <h1 className="font-bold">لوحة الإدارة</h1>
@@ -106,6 +123,15 @@ function AdminPage() {
           </form>
         ) : (
           <div className="space-y-4 px-4 py-5">
+            <Section ar="التنبيه العاجل" de="Eilmeldung">
+              <Field multiline ar="نص التنبيه (عربي)" de="Text (Arabisch)" value={content.alert.ar} onChange={(v) => update((c) => { c.alert.ar = v; return c; })} />
+              <Field multiline ltr ar="نص التنبيه (ألماني)" de="Text (Deutsch)" value={content.alert.de} onChange={(v) => update((c) => { c.alert.de = v; return c; })} />
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={content.alert.active} onChange={(e) => update((c) => { c.alert.active = e.target.checked; return c; })} className="h-4 w-4 accent-secondary" />
+                <L ar="إظهار التنبيه للزوار" de="Für Besucher anzeigen" />
+              </label>
+            </Section>
+
             <Section ar="الرحلات والتواريخ" de="Reisen & Termine">
               {content.trips.map((t, i) => (
                 <div key={t.id} className="space-y-3 rounded-md border border-border p-3">
@@ -145,6 +171,30 @@ function AdminPage() {
                 </div>
               ))}
               <Button variant="outline" onClick={() => update((c) => { c.news.unshift({ ar: "", de: "", bodyAr: "", bodyDe: "" }); return c; })} className="w-full"><Plus />إضافة إعلان جديد <span className="text-xs italic">| Neue Meldung</span></Button>
+            </Section>
+
+            <Section ar="الأدعية والزيارات" de="Bittgebete & Ziyarat">
+              {content.duas.map((d, i) => (
+                <div key={d.id} className="space-y-3 rounded-md border border-border p-3">
+                  <Field ar="الاسم (عربي)" de="Name (Arabisch)" value={d.ar} onChange={(v) => update((c) => { c.duas[i]!.ar = v; return c; })} />
+                  <Field ltr ar="الاسم (ألماني)" de="Name (Deutsch)" value={d.de} onChange={(v) => update((c) => { c.duas[i]!.de = v; return c; })} />
+                  <Field multiline ar="النص العربي" de="Arabischer Text" value={d.textAr} onChange={(v) => update((c) => { c.duas[i]!.textAr = v; return c; })} />
+                  <Field multiline ltr ar="الكتابة اللاتينية / الترجمة" de="Transliteration / Übersetzung" value={d.textDe} onChange={(v) => update((c) => { c.duas[i]!.textDe = v; return c; })} />
+                  <Field ltr ar="رابط PDF أو Google Drive" de="PDF- oder Google-Drive-Link" value={d.link} onChange={(v) => update((c) => { c.duas[i]!.link = v; return c; })} />
+                  <Button variant="outline" size="sm" onClick={() => update((c) => { c.duas.splice(i, 1); return c; })} className="text-destructive"><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
+                </div>
+              ))}
+              <Button variant="outline" onClick={() => update((c) => { c.duas.push({ id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "" }); return c; })} className="w-full"><Plus />إضافة دعاء / زيارة <span className="text-xs italic">| Neues Bittgebet</span></Button>
+            </Section>
+
+            <Section ar="تغيير كلمة السر" de="Passwort ändern">
+              <label className="block"><L ar="كلمة السر الجديدة" de="Neues Passwort" /><input type="password" autoComplete="new-password" value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwStatus("idle"); }} className={inputCls} /></label>
+              <label className="block"><L ar="تأكيد كلمة السر" de="Passwort bestätigen" /><input type="password" autoComplete="new-password" value={newPw2} onChange={(e) => { setNewPw2(e.target.value); setPwStatus("idle"); }} className={inputCls} /></label>
+              {pwStatus === "short" && <p className="text-sm text-destructive">6 أحرف على الأقل <span lang="de" className="italic">| Mindestens 6 Zeichen</span></p>}
+              {pwStatus === "mismatch" && <p className="text-sm text-destructive">كلمتا السر غير متطابقتين <span lang="de" className="italic">| Passwörter stimmen nicht überein</span></p>}
+              {pwStatus === "failed" && <p className="text-sm text-destructive">تعذّر التغيير <span lang="de" className="italic">| Änderung fehlgeschlagen</span></p>}
+              {pwStatus === "saved" && <p className="text-sm text-success-foreground">تم تغيير كلمة السر <span lang="de" className="italic">| Passwort geändert</span></p>}
+              <Button variant="outline" onClick={onChangePw} className="w-full"><KeyRound />حفظ كلمة السر <span className="text-xs italic">| Passwort speichern</span></Button>
             </Section>
           </div>
         )}

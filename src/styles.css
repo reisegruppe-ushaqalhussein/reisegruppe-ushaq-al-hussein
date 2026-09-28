@@ -196,3 +196,12 @@
     animation: none;
   }
 }
+
+@utility alert-glow {
+  box-shadow: 0 0 0 1px var(--color-secondary), 0 0 18px color-mix(in oklab, var(--color-secondary) 55%, transparent);
+  animation: alert-glow 2.4s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+@keyframes alert-glow {
+  50% { box-shadow: 0 0 0 1px var(--color-secondary), 0 0 6px color-mix(in oklab, var(--color-secondary) 25%, transparent); }
+}
