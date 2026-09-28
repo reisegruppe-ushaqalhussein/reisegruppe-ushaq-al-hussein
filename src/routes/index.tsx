@@ -192,7 +192,7 @@ function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteC
         <span className="min-w-0 flex-1 text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></span>
         <ChevronLeft className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
       </Button>
-      {payment.visible && <PaymentCard payment={payment} />}
+      {payment?.visible && <PaymentCard payment={payment} />}
       <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
           <DialogHeader className="text-right">
@@ -472,7 +472,7 @@ function Index() {
       <main className="mx-auto min-h-screen w-full max-w-[420px] bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
-        {view === "home" && <HomeView go={go} visa={content.visa} payment={content.payment} />}
+        {view === "home" && <HomeView go={go} visa={content.visa} payment={content.payment ?? defaultContent.payment} />}
         {view === "trips" && <TripsView content={content} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView />}
