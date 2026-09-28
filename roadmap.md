@@ -9,3 +9,5 @@
 - [x] Keep flight, accommodation, gatherings, and food details exclusive to the Iraq visit.
 - [x] Add the temporary bilingual program notice to every dated trip.
 - [x] Add the bilingual visa and departure-airports card to the home screen.
+- [x] Clickable visa card, Iraq section reorder, text corrections.
+- [x] Password-protected /admin panel saving trips, hotels, program, visa fees, and news.
