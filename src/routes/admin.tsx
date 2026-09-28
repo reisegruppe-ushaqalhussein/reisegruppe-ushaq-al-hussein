@@ -160,6 +160,18 @@ function AdminPage() {
               <p className="text-xs text-muted-foreground">اتركها فارغة لعرض «سيتم تحديدها لاحقاً» <span lang="de" className="italic">| Leer lassen für „wird noch bekannt gegeben“</span></p>
             </Section>
 
+            <Section ar="طرق الدفع والتحويل" de="Zahlungsmethoden">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={content.payment.visible} onChange={(e) => update((c) => { c.payment.visible = e.target.checked; return c; })} className="h-4 w-4 accent-secondary" />
+                <L ar="إظهار بيانات التحويل للزوار" de="Zahlungsdaten für Besucher anzeigen" />
+              </label>
+              <Field ar="اسم صاحب الحساب" de="Kontoinhaber" value={content.payment.accountName} onChange={(v) => update((c) => { c.payment.accountName = v; return c; })} />
+              <Field ar="اسم البنك" de="Bankname" value={content.payment.bankName} onChange={(v) => update((c) => { c.payment.bankName = v; return c; })} />
+              <Field ltr ar="رقم الحساب الدولي IBAN" de="IBAN" value={content.payment.iban} onChange={(v) => update((c) => { c.payment.iban = v; return c; })} />
+              <Field ltr ar="رمز البنك BIC" de="BIC" value={content.payment.bic} onChange={(v) => update((c) => { c.payment.bic = v; return c; })} />
+              <p className="text-xs text-muted-foreground">القسم مخفي مبدئياً؛ أدخل البيانات الصحيحة ثم فعّل خيار الإظهار. <span lang="de" dir="ltr" className="block italic">Der Bereich ist zunächst ausgeblendet. Tragen Sie die korrekten Daten ein und aktivieren Sie ihn anschließend.</span></p>
+            </Section>
+
             <Section ar="الأخبار والتنبيهات" de="Neuigkeiten & Hinweise">
               {content.news.map((n, i) => (
                 <div key={i} className="space-y-3 rounded-md border border-border p-3">

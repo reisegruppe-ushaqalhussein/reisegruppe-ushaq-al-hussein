@@ -2,6 +2,7 @@ export type TripEntry = { id: string; ar: string; de: string; date: string; visi
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string };
 export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
+export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
 export type SiteContent = {
   duas: DuaEntry[];
   alert: AlertEntry;
@@ -9,6 +10,7 @@ export type SiteContent = {
   hotels: { kadhimiya: string; karbala: string; najaf: string };
   program: { ar: string; de: string };
   visa: { eu: string; nonEu: string };
+  payment: PaymentEntry;
   news: NewsEntry[];
 };
 
@@ -31,6 +33,7 @@ export const defaultContent: SiteContent = {
     de: "Die Programmdetails (Treffpunkt, Abflug, Hotels) werden hier veröffentlicht, sobald sie von Hajj Yasser festgelegt werden.",
   },
   visa: { eu: "", nonEu: "" },
+  payment: { visible: false, accountName: "", bankName: "", iban: "", bic: "" },
   news: [
     { ar: "فتح باب التسجيل لزيارة العتبات المقدسة", de: "Anmeldung für den Besuch der heiligen Stätten geöffnet", bodyAr: "يمكنكم الآن التسجيل في الرحلات المعلنة عبر استمارة التسجيل.", bodyDe: "Sie können sich jetzt über das Anmeldeformular für die angekündigten Reisen anmelden." },
     { ar: "تفاصيل السكن والفنادق جاهزة", de: "Unterkunfts- und Hoteldetails stehen fest", bodyAr: "تم إعداد برنامج السكن بين الكاظمية وكربلاء والنجف.", bodyDe: "Das Unterkunftsprogramm für Kadhimiya, Kerbela und Najaf steht fest." },
@@ -47,6 +50,7 @@ export function mergeContent(data: unknown): SiteContent {
     hotels: { ...defaultContent.hotels, ...(d.hotels ?? {}) },
     program: { ...defaultContent.program, ...(d.program ?? {}) },
     visa: { ...defaultContent.visa, ...(d.visa ?? {}) },
+    payment: { ...defaultContent.payment, ...(d.payment ?? {}) },
     news: Array.isArray(d.news) ? d.news : defaultContent.news,
   };
 }
