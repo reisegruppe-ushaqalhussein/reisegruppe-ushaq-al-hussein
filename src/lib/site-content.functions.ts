@@ -18,7 +18,7 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
 });
 
 export const checkAdminPassword = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ password: z.string().max(200) }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200) }).parse(d))
   .handler(async ({ data }) => ({ ok: passwordMatches(data.password) }));
 
 const s = z.string().max(2000);
@@ -31,7 +31,7 @@ const contentSchema = z.object({
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ password: z.string().max(200), content: contentSchema }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200), content: contentSchema }).parse(d))
   .handler(async ({ data }) => {
     if (!passwordMatches(data.password)) return { ok: false as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
