@@ -9,6 +9,7 @@ import {
   HandHeart,
   Home,
   Hotel,
+  IdCard,
   Landmark,
   Luggage,
   Megaphone,
@@ -63,12 +64,17 @@ function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
   );
 }
 
-const trips = [
-  { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Ziyara zu Imam Hussein (as)", date: "01.12 – 09.12.2026", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, open: true, image: iraqInvitation.url },
-  { id: "winter", ar: "زيارة عطلة الشتاء / رأس السنة", de: "Ziyara in den Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, open: true, image: winterInvitation.url },
-  { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01 – 22.01.2027", statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: MoonStar, open: true, image: umrahInvitation.url },
-  { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Ziyara zu Imam Rida (as)", date: null, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben", icon: Sparkles, open: false, image: null },
-  { id: "hajj", ar: "الحج", de: "Hadsch", date: null, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben", icon: Star, open: false, image: null },
+const upcomingTrips = [
+  { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Zyarat Imam Hussein (as)", date: "01.12 – 09.12.2026", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, image: iraqInvitation.url },
+  { id: "winter", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Zyarat Imam Hussein (as) Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, image: winterInvitation.url },
+  { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01 – 22.01.2027", statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: MoonStar, image: umrahInvitation.url },
+];
+
+const generalTrips = [
+  { id: "iraq", ar: "زيارة العراق", de: "Irak-Reise", icon: Landmark, statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
+  { id: "umrah", ar: "العمرة", de: "Umrah", icon: MoonStar, statusAr: "زيارة عامة", statusDe: "Allgemeine Reiseart" },
+  { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Zyarat Imam Rida (as)", icon: Sparkles, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
+  { id: "hajj", ar: "الحج", de: "Hadsch", icon: Star, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
 ];
 
 const contacts = [
@@ -152,33 +158,77 @@ function HomeView({ go }: { go: (view: View) => void }) {
           </Button>
         ))}
       </div>
+
+      <section className="mt-5 rounded-lg border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></h2>
+            <div className="mt-4 space-y-2 text-sm">
+              <Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" />
+              <Pair ar="• جواز أوروبي — سيتم تحديد رسوم الفيزا لاحقاً." de="• EU-Reisepass — Visumgebühr wird noch bekannt gegeben." />
+              <Pair ar="• جواز غير أوروبي — سيتم تحديد رسوم الفيزا لاحقاً." de="• Nicht-EU-Reisepass — Visumgebühr wird noch bekannt gegeben." />
+              <div className="border-t border-border pt-3">
+                <Pair ar="المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)." de="Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)." />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
 function TripsView() {
-  const [selected, setSelected] = useState<(typeof trips)[number] | null>(null);
+  const [selected, setSelected] = useState<(typeof upcomingTrips)[number] | null>(null);
+  const [iraqOpen, setIraqOpen] = useState(false);
   return (
     <div className="screen-enter px-4 py-7">
-      <ScreenTitle icon={Luggage} ar="الرحلات المتاحة" de="Verfügbare Reisen" />
-      <div className="space-y-3">
-        {trips.map((trip) => {
+      <ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" />
+      <div className="grid grid-cols-2 gap-3">
+        {generalTrips.map((trip) => {
           const Icon = trip.icon;
-          return (
-            <Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card">
-              <span className="flex w-full items-start gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span>
-                <span className="min-w-0 flex-1">
-                  <Pair ar={trip.ar} de={trip.de} />
-                  {trip.date && <span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span>}
-                  <span className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${trip.open ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}`}>{trip.open && <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />}<Pair ar={trip.statusAr} de={trip.statusDe} /></span>
-                </span>
-                <ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
-              </span>
-            </Button>
-          );
+          const content = <><span className="grid h-11 w-11 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><Pair ar={trip.ar} de={trip.de} align="center" /><span className="text-xs"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span></>;
+          return trip.id === "iraq" ? <Button key={trip.id} variant="outline" onClick={() => setIraqOpen(true)} className="h-36 flex-col gap-2 whitespace-normal bg-card p-3 shadow-sm hover:border-secondary hover:bg-card">{content}</Button> : <article key={trip.id} className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-sm">{content}</article>;
         })}
       </div>
+
+      <div className="my-7 border-t border-border" />
+      <ScreenTitle icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" />
+      <div className="space-y-3">
+        {upcomingTrips.map((trip) => {
+          const Icon = trip.icon;
+          return <Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span></span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button>;
+        })}
+      </div>
+
+      <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>
+        <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-xl text-primary"><Pair ar="زيارة العراق" de="Irak-Reise" /></DialogTitle>
+            <DialogDescription asChild><div className="pt-2"><Pair ar="زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة." de="Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf." /></div></DialogDescription>
+          </DialogHeader>
+          <section className="mt-2">
+            <h3 className="text-lg text-primary"><Pair ar="تفاصيل الرحلة" de="Reisedetails" /></h3>
+            <div className="mt-4 grid gap-3">
+              <Detail icon={Plane} ar="الطيران" de="Flug" detailAr="الوصول عبر مطار بغداد." detailDe="Ankunft über den Flughafen Bagdad." />
+              <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفنادق في كربلاء والنجف." detailDe="Eine Nacht in Kadhimiya sowie Hotels in Kerbela und Nadschaf." />
+              <Detail icon={BedDouble} ar="المجالس" de="Majlis" detailAr="مجالس حسينية بمرافقة خطيب ورادود." detailDe="Husseinitische Majlis mit Khatib und Radud." />
+              <Detail icon={Soup} ar="الطعام" de="Verpflegung" detailAr="ثلاث وجبات يومياً من المطبخ اللبناني." detailDe="Drei libanesische Mahlzeiten täglich." />
+            </div>
+          </section>
+          <section className="mt-3 border-t border-border pt-5">
+            <h3 className="text-lg text-primary"><Pair ar="أنواع الزيارة ضمن هذه الرحلة" de="Arten der Zyarat bei dieser Reise" /></h3>
+            <div className="mt-4 space-y-4 text-sm">
+              <div><Pair ar="زيارة الإمام الحسين (ع)" de="Zyarat Imam Hussein (as)" /><div className="mt-2"><Pair ar="تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية)." de="Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." /></div></div>
+              <Pair ar="زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة" de="Zyarat Imam Hussein (as) Winterferien / Neujahr" />
+              <Pair ar="زيارة عرفة" de="Zyarat Arafa" />
+              <Pair ar="زيارة الأربعين" de="Zyarat Arbaeen" />
+              <Pair ar="زيارة 15 شعبان" de="Zyarat 15 Shaaban" />
+            </div>
+          </section>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg p-0" dir="rtl">
@@ -194,13 +244,11 @@ function TripsView() {
                   <DialogTitle className="text-xl text-primary"><Pair ar={selected.ar} de={selected.de} /></DialogTitle>
                   <DialogDescription asChild><div>{selected.date && <p dir="ltr" className="mt-2 text-right text-sm font-bold text-foreground">{selected.date}</p>}</div></DialogDescription>
                 </DialogHeader>
-                <div className="mt-5 grid gap-3">
-                  <Detail icon={Plane} ar="الطيران" de="Flug" detailAr="الوصول عبر مطار بغداد." detailDe="Ankunft über den Flughafen Bagdad." />
-                  <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفنادق في كربلاء والنجف." detailDe="Eine Nacht in Kadhimiya sowie Hotels in Kerbela und Nadschaf." />
-                  <Detail icon={BedDouble} ar="المجالس" de="Majlis" detailAr="مجالس حسينية بمرافقة خطيب ورادود." detailDe="Husseinitische Majlis mit Khatib und Radud." />
-                  <Detail icon={Soup} ar="الطعام" de="Verpflegung" detailAr="ثلاث وجبات يومياً من المطبخ اللبناني." detailDe="Drei libanesische Mahlzeiten täglich." />
+                <div className="mt-5 rounded-lg border border-border bg-muted p-4">
+                  <h3 className="text-base text-primary"><Pair ar="برنامج الرحلة لهذا الموعد" de="Reiseprogramm für diesen Termin" /></h3>
+                  <div className="mt-3 text-sm"><Pair ar="سيتم نشر تفاصيل البرنامج (مواعيد التجمع والإنطلاق والفنادق) هنا فور تحديدها من قبل الحاج." de="Die Programmdetails (Treffpunkt, Abflug, Hotels) werden hier veröffentlicht, sobald sie von Hajj Yasser festgelegt wurden." /></div>
                 </div>
-                {selected.open && <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>}
+                <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>
               </div>
             </>
           )}
