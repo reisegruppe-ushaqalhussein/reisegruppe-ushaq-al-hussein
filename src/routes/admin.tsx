@@ -109,11 +109,11 @@ function AdminPage() {
             <Section ar="الرحلات والتواريخ" de="Reisen & Termine">
               {content.trips.map((t, i) => (
                 <div key={t.id} className="space-y-3 rounded-md border border-border p-3">
-                  <Field ar="اسم الرحلة" de="Reisename" value={t.ar} onChange={(v) => update((c) => { c.trips[i].ar = v; return c; })} />
-                  <Field ar="الاسم بالألمانية" de="Name auf Deutsch" ltr value={t.de} onChange={(v) => update((c) => { c.trips[i].de = v; return c; })} />
-                  <Field ar="التاريخ" de="Datum" ltr value={t.date} onChange={(v) => update((c) => { c.trips[i].date = v; return c; })} />
+                  <Field ar="اسم الرحلة" de="Reisename" value={t.ar} onChange={(v) => update((c) => { c.trips[i]!.ar = v; return c; })} />
+                  <Field ar="الاسم بالألمانية" de="Name auf Deutsch" ltr value={t.de} onChange={(v) => update((c) => { c.trips[i]!.de = v; return c; })} />
+                  <Field ar="التاريخ" de="Datum" ltr value={t.date} onChange={(v) => update((c) => { c.trips[i]!.date = v; return c; })} />
                   <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={t.visible} onChange={(e) => update((c) => { c.trips[i].visible = e.target.checked; return c; })} className="h-4 w-4 accent-secondary" />
+                    <input type="checkbox" checked={t.visible} onChange={(e) => update((c) => { c.trips[i]!.visible = e.target.checked; return c; })} className="h-4 w-4 accent-secondary" />
                     <L ar="إظهار للزوار" de="Für Besucher sichtbar" />
                   </label>
                 </div>
@@ -137,10 +137,10 @@ function AdminPage() {
             <Section ar="الأخبار والتنبيهات" de="Neuigkeiten & Hinweise">
               {content.news.map((n, i) => (
                 <div key={i} className="space-y-3 rounded-md border border-border p-3">
-                  <Field ar="العنوان (عربي)" de="Titel (Arabisch)" value={n.ar} onChange={(v) => update((c) => { c.news[i].ar = v; return c; })} />
-                  <Field ltr ar="العنوان (ألماني)" de="Titel (Deutsch)" value={n.de} onChange={(v) => update((c) => { c.news[i].de = v; return c; })} />
-                  <Field multiline ar="النص (عربي)" de="Text (Arabisch)" value={n.bodyAr} onChange={(v) => update((c) => { c.news[i].bodyAr = v; return c; })} />
-                  <Field multiline ltr ar="النص (ألماني)" de="Text (Deutsch)" value={n.bodyDe} onChange={(v) => update((c) => { c.news[i].bodyDe = v; return c; })} />
+                  <Field ar="العنوان (عربي)" de="Titel (Arabisch)" value={n.ar} onChange={(v) => update((c) => { c.news[i]!.ar = v; return c; })} />
+                  <Field ltr ar="العنوان (ألماني)" de="Titel (Deutsch)" value={n.de} onChange={(v) => update((c) => { c.news[i]!.de = v; return c; })} />
+                  <Field multiline ar="النص (عربي)" de="Text (Arabisch)" value={n.bodyAr} onChange={(v) => update((c) => { c.news[i]!.bodyAr = v; return c; })} />
+                  <Field multiline ltr ar="النص (ألماني)" de="Text (Deutsch)" value={n.bodyDe} onChange={(v) => update((c) => { c.news[i]!.bodyDe = v; return c; })} />
                   <Button variant="outline" size="sm" onClick={() => update((c) => { c.news.splice(i, 1); return c; })} className="text-destructive"><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
                 </div>
               ))}
