@@ -6,8 +6,13 @@ import { useEffect, useState, type ComponentType } from "react";
 import {
   ArrowLeft,
   BookOpen,
+  Check,
   Clock,
+  Copy,
+  CreditCard,
   Download,
+  Facebook,
+  Instagram,
   Siren,
   BedDouble,
   CalendarDays,
@@ -21,15 +26,19 @@ import {
   Luggage,
   Megaphone,
   MessageCircle,
+  Mail,
+  Music2,
   MoonStar,
   Phone,
   Plane,
   ScrollText,
+  Share2,
   Soup,
   Sparkles,
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +69,12 @@ export const Route = createFileRoute("/")({
 const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: () => getSiteContent() });
 
 const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
+const officialEmail = "ushaqalhussein.contact@gmail.com";
+const socialLinks = [
+  { href: "https://www.instagram.com/reisegruppe_ushaq_al_hussein", label: "إنستغرام | Instagram", icon: Instagram },
+  { href: "https://www.facebook.com/share/1KF3URwHzk/", label: "فيسبوك | Facebook", icon: Facebook },
+  { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
+];
 
 type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
@@ -137,7 +152,7 @@ function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: s
   );
 }
 
-function HomeView({ go, visa }: { go: (view: View) => void; visa: SiteContent["visa"] }) {
+function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteContent["visa"]; payment: SiteContent["payment"] }) {
   const [visaOpen, setVisaOpen] = useState(false);
   const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
     { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
@@ -177,6 +192,7 @@ function HomeView({ go, visa }: { go: (view: View) => void; visa: SiteContent["v
         <span className="min-w-0 flex-1 text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></span>
         <ChevronLeft className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
       </Button>
+      {payment.visible && <PaymentCard payment={payment} />}
       <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
           <DialogHeader className="text-right">
@@ -220,6 +236,15 @@ function TripsView({ content }: { content: SiteContent }) {
           return <Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span></span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button>;
         })}
       </div>
+
+      <section className="mt-7">
+        <ScreenTitle icon={BookOpen} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
+        <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
+          <FaqItem value="passport" questionAr="ما مدة صلاحية جواز السفر المطلوبة؟" questionDe="Wie lange muss der Reisepass gültig sein?" answerAr="يجب أن يكون جواز السفر صالحاً لمدة لا تقل عن ستة أشهر عند موعد السفر." answerDe="Der Reisepass muss zum Reisezeitpunkt noch mindestens sechs Monate gültig sein." />
+          <FaqItem value="visa" questionAr="هل أحتاج إلى فيزا؟" questionDe="Benötige ich ein Visum?" answerAr="تعتمد الفيزا ورسومها على نوع جواز السفر والوجهة. تُنشر التفاصيل المؤكدة قبل الرحلة." answerDe="Visum und Gebühren richten sich nach Reisepass und Reiseziel. Bestätigte Angaben werden vor der Reise veröffentlicht." />
+          <FaqItem value="baggage" questionAr="ما وزن الأمتعة المسموح؟" questionDe="Wie viel Gepäck ist erlaubt?" answerAr="يُحدد وزن الأمتعة حسب شركة الطيران والحجز، ويُعلن مع البرنامج النهائي للرحلة." answerDe="Die Freigepäckmenge richtet sich nach Fluggesellschaft und Buchung und wird mit dem endgültigen Reiseprogramm bekannt gegeben." />
+        </Accordion>
+      </section>
 
       <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
@@ -287,7 +312,45 @@ function RegistrationView() {
 }
 
 function ContactsView() {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><div className="space-y-3">{contacts.map((contact) => <article key={contact.de} className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.displayPhone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={contact.phone}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button><Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button></div></article>)}</div></div>;
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><SocialLinks showEmail /><div className="mt-5 space-y-3">{contacts.map((contact) => <article key={contact.de} className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.displayPhone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={contact.phone}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button><Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button></div></article>)}</div></div>;
+}
+
+function FaqItem({ value, questionAr, questionDe, answerAr, answerDe }: { value: string; questionAr: string; questionDe: string; answerAr: string; answerDe: string }) {
+  return <AccordionItem value={value}><AccordionTrigger className="gap-3 text-right hover:no-underline"><Pair ar={questionAr} de={questionDe} /></AccordionTrigger><AccordionContent className="text-sm"><Pair ar={answerAr} de={answerDe} /></AccordionContent></AccordionItem>;
+}
+
+function SocialLinks({ showEmail = false }: { showEmail?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const copyEmail = async () => {
+    try { await navigator.clipboard.writeText(officialEmail); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { window.location.href = `mailto:${officialEmail}`; }
+  };
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center justify-center gap-2" dir="ltr">
+        {socialLinks.map(({ href, label, icon: Icon }) => <Button key={href} asChild variant="outline" size="icon" className="h-11 w-11" title={label}><a href={href} target="_blank" rel="noreferrer" aria-label={label}><Icon className="h-5 w-5" /></a></Button>)}
+        <Button asChild variant="outline" size="icon" className="h-11 w-11" title="البريد الإلكتروني | E-Mail"><a href={`mailto:${officialEmail}`} aria-label="البريد الإلكتروني | E-Mail"><Mail className="h-5 w-5" /></a></Button>
+      </div>
+      {showEmail && <div className="mt-4 border-t border-border pt-4"><p dir="ltr" className="break-all text-center text-sm font-semibold text-primary">{officialEmail}</p><div className="mt-3 grid grid-cols-2 gap-2"><Button asChild variant="outline" size="sm"><a href={`mailto:${officialEmail}`}><Mail /><Pair ar="فتح البريد" de="E-Mail öffnen" align="center" /></a></Button><Button variant="outline" size="sm" onClick={copyEmail}>{copied ? <Check /> : <Copy />}<Pair ar={copied ? "تم النسخ" : "نسخ الإيميل"} de={copied ? "Kopiert" : "E-Mail kopieren"} align="center" /></Button></div></div>}
+    </div>
+  );
+}
+
+function PaymentCard({ payment }: { payment: SiteContent["payment"] }) {
+  const [copied, setCopied] = useState(false);
+  const copyIban = async () => {
+    if (!payment.iban) return;
+    try { await navigator.clipboard.writeText(payment.iban.replace(/\s/g, "")); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { setCopied(false); }
+  };
+  return <section className="mt-5 rounded-lg border border-secondary bg-card p-4 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><CreditCard className="h-5 w-5" /></span><h2 className="text-primary"><Pair ar="طرق الدفع والتحويل" de="Zahlungsmethoden" /></h2></div><div className="mt-4 space-y-3 border-t border-border pt-4 text-sm">{payment.accountName && <Pair ar={`اسم الحساب: ${payment.accountName}`} de={`Kontoinhaber: ${payment.accountName}`} />}{payment.bankName && <Pair ar={`اسم البنك: ${payment.bankName}`} de={`Bank: ${payment.bankName}`} />}{payment.iban && <div><p dir="ltr" className="break-all text-right font-bold">IBAN: {payment.iban}</p><Button variant="outline" size="sm" onClick={copyIban} className="mt-2 w-full">{copied ? <Check /> : <Copy />}<Pair ar={copied ? "تم نسخ رقم الحساب" : "نسخ رقم الحساب"} de={copied ? "IBAN kopiert" : "IBAN kopieren"} align="center" /></Button></div>}{payment.bic && <p dir="ltr" className="break-all text-right font-bold">BIC: {payment.bic}</p>}<div className="rounded-md bg-accent p-3 text-primary"><Pair ar="التحويل البنكي الفوري فقط — لا يتوفر خيار التقسيط" de="Nur Sofortüberweisung — Keine Ratenzahlung möglich" /></div></div></section>;
+}
+
+function ShareButton() {
+  const share = () => {
+    const url = window.location.origin;
+    const text = `حملة عشاق الحسين (ع) — ألمانيا\nReisegruppe Ushaq al-Hussein — Deutschland\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  };
+  return <Button variant="outline" onClick={share} className="h-12 w-full"><Share2 /><Pair ar="مشاركة التطبيق" de="App teilen" align="center" /></Button>;
 }
 
 function NewsView({ news }: { news: SiteContent["news"] }) {
@@ -409,14 +472,16 @@ function Index() {
       <main className="mx-auto min-h-screen w-full max-w-[420px] bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
-        {view === "home" && <HomeView go={go} visa={content.visa} />}
+        {view === "home" && <HomeView go={go} visa={content.visa} payment={content.payment} />}
         {view === "trips" && <TripsView content={content} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView />}
         {view === "news" && <NewsView news={content.news} />}
         {view === "donations" && <DonationsView />}
         {view === "duas" && <DuasView duas={content.duas} />}
-        <footer className="px-4 pb-6 pt-2 text-center">
+        <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
+          <ShareButton />
+          <SocialLinks />
           <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary">الإدارة <span lang="de" className="italic">| Verwaltung</span></Link>
         </footer>
       </main>
