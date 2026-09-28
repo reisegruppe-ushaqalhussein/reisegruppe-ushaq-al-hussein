@@ -1,4 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { getSiteContent } from "@/lib/site-content.functions";
+import type { SiteContent } from "@/lib/site-content";
 import { useState, type ComponentType } from "react";
 import {
   ArrowLeft,
@@ -46,8 +49,11 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(contentQuery),
   component: Index,
 });
+
+const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: () => getSiteContent() });
 
 const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
 
@@ -64,11 +70,14 @@ function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
   );
 }
 
-const upcomingTrips = [
-  { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Zyarat Imam Hussein (as)", date: "01.12 – 09.12.2026", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, image: iraqInvitation.url },
-  { id: "winter", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Zyarat Imam Hussein (as) Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, image: winterInvitation.url },
-  { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01 – 22.01.2027", statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: MoonStar, image: umrahInvitation.url },
-];
+const tripMeta: Record<string, { statusAr: string; statusDe: string; icon: IconType; image: string | null }> = {
+  iraq: { statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, image: iraqInvitation.url },
+  winter: { statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", icon: Landmark, image: winterInvitation.url },
+  umrah: { statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: MoonStar, image: umrahInvitation.url },
+};
+const fallbackMeta = { statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: CalendarDays as IconType, image: null };
+type UpcomingTrip = SiteContent["trips"][number] & (typeof tripMeta)[string];
+
 
 const generalTrips = [
   { id: "iraq", ar: "زيارة العراق", de: "Irak-Reise", icon: Landmark, statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
@@ -83,11 +92,6 @@ const contacts = [
   { ar: "الحجة خديجة إسماعيل", de: "Hajje Khadije Ismail", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", displayPhone: "+49 176 63409995", phone: "tel:+4917663409995", whatsapp: "https://wa.me/49017663409995" },
 ];
 
-const news = [
-  { ar: "فتح باب التسجيل لزيارة العتبات المقدسة", de: "Anmeldung für den Besuch der heiligen Stätten geöffnet", bodyAr: "يمكنكم الآن التسجيل في الرحلات المعلنة عبر استمارة التسجيل.", bodyDe: "Sie können sich jetzt über das Anmeldeformular für die angekündigten Reisen anmelden." },
-  { ar: "تفاصيل السكن والفنادق جاهزة", de: "Unterkunfts- und Hoteldetails stehen fest", bodyAr: "تم إعداد برنامج السكن بين الكاظمية وكربلاء والنجف.", bodyDe: "Das Unterkunftsprogramm für Kadhimiya, Kerbela und Nadschaf steht fest." },
-  { ar: "انضمام خطيب حسيني للحملة", de: "Ein Khatib Housseini begleitet die Reisegruppe", bodyAr: "يرافق الحملة خطيب ورادود حسيني لإحياء المجالس خلال الرحلة.", bodyDe: "Ein Khatib und Radud Housseini begleiten die Majlis während der Reise." },
-];
 
 const viewTitles: Record<View, { ar: string; de: string }> = {
   home: { ar: "الرئيسية", de: "Start" },
@@ -128,7 +132,8 @@ function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: s
   );
 }
 
-function HomeView({ go }: { go: (view: View) => void }) {
+function HomeView({ go, visa }: { go: (view: View) => void; visa: SiteContent["visa"] }) {
+  const [visaOpen, setVisaOpen] = useState(false);
   const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
     { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
     { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
@@ -159,28 +164,34 @@ function HomeView({ go }: { go: (view: View) => void }) {
         ))}
       </div>
 
-      <section className="mt-5 rounded-lg border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" aria-hidden="true" /></span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></h2>
-            <div className="mt-4 space-y-2 text-sm">
-              <Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" />
-              <Pair ar="• جواز أوروبي — سيتم تحديد رسوم الفيزا لاحقاً." de="• EU-Reisepass — Visumgebühr wird noch bekannt gegeben." />
-              <Pair ar="• جواز غير أوروبي — سيتم تحديد رسوم الفيزا لاحقاً." de="• Nicht-EU-Reisepass — Visumgebühr wird noch bekannt gegeben." />
-              <div className="border-t border-border pt-3">
-                <Pair ar="المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)." de="Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)." />
-              </div>
+      <Button variant="outline" onClick={() => setVisaOpen(true)} className="mt-5 h-auto w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1 text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></span>
+        <ChevronLeft className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
+      </Button>
+      <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
+        <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-xl text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></DialogTitle>
+            <DialogDescription asChild><div className="pt-2 text-sm text-foreground"><Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" /></div></DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <Pair ar={`• جواز أوروبي — ${visa.eu ? `رسوم الفيزا: ${visa.eu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• EU-Reisepass — ${visa.eu ? `Visumgebühr: ${visa.eu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
+            <Pair ar={`• جواز غير أوروبي — ${visa.nonEu ? `رسوم الفيزا: ${visa.nonEu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• Nicht-EU-Reisepass — ${visa.nonEu ? `Visumgebühr: ${visa.nonEu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
+            <div className="border-t border-border pt-3">
+              <Pair ar="المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)." de="Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)." />
             </div>
           </div>
-        </div>
-      </section>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function TripsView() {
-  const [selected, setSelected] = useState<(typeof upcomingTrips)[number] | null>(null);
+function TripsView({ content }: { content: SiteContent }) {
+  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => t.visible).map((t) => ({ ...t, ...(tripMeta[t.id] ?? fallbackMeta) }));
+  const { hotels, program } = content;
+  const [selected, setSelected] = useState<UpcomingTrip | null>(null);
   const [iraqOpen, setIraqOpen] = useState(false);
   return (
     <div className="screen-enter px-4 py-7">
@@ -209,15 +220,6 @@ function TripsView() {
             <DialogDescription asChild><div className="pt-2"><Pair ar="زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة." de="Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf." /></div></DialogDescription>
           </DialogHeader>
           <section className="mt-2">
-            <h3 className="text-lg text-primary"><Pair ar="تفاصيل الرحلة" de="Reisedetails" /></h3>
-            <div className="mt-4 grid gap-3">
-              <Detail icon={Plane} ar="الطيران" de="Flug" detailAr="الوصول عبر مطار بغداد." detailDe="Ankunft über den Flughafen Bagdad." />
-              <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفنادق في كربلاء والنجف." detailDe="Eine Nacht in Kadhimiya sowie Hotels in Kerbela und Nadschaf." />
-              <Detail icon={BedDouble} ar="المجالس" de="Majlis" detailAr="مجالس حسينية بمرافقة خطيب ورادود." detailDe="Husseinitische Majlis mit Khatib und Radud." />
-              <Detail icon={Soup} ar="الطعام" de="Verpflegung" detailAr="ثلاث وجبات يومياً من المطبخ اللبناني." detailDe="Drei libanesische Mahlzeiten täglich." />
-            </div>
-          </section>
-          <section className="mt-3 border-t border-border pt-5">
             <h3 className="text-lg text-primary"><Pair ar="أنواع الزيارة ضمن هذه الرحلة" de="Arten der Zyarat bei dieser Reise" /></h3>
             <div className="mt-4 space-y-4 text-sm">
               <div><Pair ar="زيارة الإمام الحسين (ع)" de="Zyarat Imam Hussein (as)" /><div className="mt-2"><Pair ar="تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية)." de="Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." /></div></div>
@@ -225,6 +227,16 @@ function TripsView() {
               <Pair ar="زيارة عرفة" de="Zyarat Arafa" />
               <Pair ar="زيارة الأربعين" de="Zyarat Arbaeen" />
               <Pair ar="زيارة 15 شعبان" de="Zyarat 15 Shaaban" />
+            </div>
+          </section>
+          <section className="mt-3 border-t border-border pt-5">
+            <h3 className="text-lg text-primary"><Pair ar="تفاصيل الرحلة" de="Reisedetails" /></h3>
+            <div className="mt-4 grid gap-3">
+              <Detail icon={Plane} ar="الطيران" de="Flug" detailAr="الوصول عبر مطار بغداد." detailDe="Ankunft über den Flughafen Bagdad." />
+              <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفندق في كربلاء، وفندق في النجف." detailDe="Eine Nacht in Kadhimiya, ein Hotel in Kerbela und ein Hotel in Najaf." />
+              {(hotels.kadhimiya || hotels.karbala || hotels.najaf) && <div className="rounded-md bg-muted p-3 text-sm">{hotels.kadhimiya && <Pair ar={`الكاظمية: ${hotels.kadhimiya}`} de={`Kadhimiya: ${hotels.kadhimiya}`} />}{hotels.karbala && <Pair ar={`كربلاء: ${hotels.karbala}`} de={`Kerbela: ${hotels.karbala}`} />}{hotels.najaf && <Pair ar={`النجف: ${hotels.najaf}`} de={`Najaf: ${hotels.najaf}`} />}</div>}
+              <Detail icon={BedDouble} ar="المجالس" de="Majlis" detailAr="مجالس حسينية بمرافقة خطيب ورادود حسيني." detailDe="Husseinitische Majlis mit Khatib und Radud Hosseini." />
+              <Detail icon={Soup} ar="الطعام" de="Verpflegung" detailAr="أكل لبناني بامتياز — ثلاث وجبات يومياً." detailDe="Ausgezeichnete libanesische Küche — drei Mahlzeiten täglich." />
             </div>
           </section>
         </DialogContent>
@@ -246,7 +258,7 @@ function TripsView() {
                 </DialogHeader>
                 <div className="mt-5 rounded-lg border border-border bg-muted p-4">
                   <h3 className="text-base text-primary"><Pair ar="برنامج الرحلة لهذا الموعد" de="Reiseprogramm für diesen Termin" /></h3>
-                  <div className="mt-3 text-sm"><Pair ar="سيتم نشر تفاصيل البرنامج (مواعيد التجمع والإنطلاق والفنادق) هنا فور تحديدها من قبل الحاج." de="Die Programmdetails (Treffpunkt, Abflug, Hotels) werden hier veröffentlicht, sobald sie von Hajj Yasser festgelegt wurden." /></div>
+                  <div className="mt-3 text-sm"><Pair ar={program.ar} de={program.de} /></div>
                 </div>
                 <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>
               </div>
@@ -270,8 +282,8 @@ function ContactsView() {
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><div className="space-y-3">{contacts.map((contact) => <article key={contact.de} className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.displayPhone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={contact.phone}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button><Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button></div></article>)}</div></div>;
 }
 
-function NewsView() {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" /><div className="space-y-3">{news.map((item) => <article key={item.de} className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article>)}</div></div>;
+function NewsView({ news }: { news: SiteContent["news"] }) {
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" /><div className="space-y-3">{news.filter((n) => n.ar || n.de).map((item, i) => <article key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article>)}</div></div>;
 }
 
 function DonationsView() {
@@ -287,18 +299,22 @@ const bottomItems: Array<{ view: Exclude<View, "donations">; ar: string; de: str
 ];
 
 function Index() {
+  const { data: content } = useSuspenseQuery(contentQuery);
   const [view, setView] = useState<View>("home");
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
     <div className="min-h-screen bg-muted">
       <main className="mx-auto min-h-screen w-full max-w-[420px] bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
-        {view === "home" && <HomeView go={go} />}
-        {view === "trips" && <TripsView />}
+        {view === "home" && <HomeView go={go} visa={content.visa} />}
+        {view === "trips" && <TripsView content={content} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView />}
-        {view === "news" && <NewsView />}
+        {view === "news" && <NewsView news={content.news} />}
         {view === "donations" && <DonationsView />}
+        <footer className="px-4 pb-6 pt-2 text-center">
+          <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary">الإدارة <span lang="de" className="italic">| Verwaltung</span></Link>
+        </footer>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-20 w-full max-w-[420px] grid-cols-5 border-t border-border bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-xl backdrop-blur-md" aria-label="التنقل الرئيسي | Hauptnavigation">
         {bottomItems.map(({ view: itemView, ar, de, icon: Icon }) => <Button key={itemView} variant="ghost" onClick={() => go(itemView)} aria-current={view === itemView ? "page" : undefined} className={`h-full min-w-0 flex-col gap-1 rounded-none px-0.5 ${view === itemView ? "bg-accent text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" aria-hidden="true" /><span className="text-[10px] font-bold leading-none">{ar}</span><span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{de}</span></Button>)}
