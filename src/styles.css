@@ -168,6 +168,46 @@
   background: linear-gradient(to top, oklch(0.16 0.06 249 / 0.99), oklch(0.16 0.06 249 / 0.52) 60%, oklch(0.16 0.06 249 / 0.2));
 }
 
+@utility shrine-card-shade {
+  background: linear-gradient(to top, oklch(0.12 0.055 249 / 0.96), oklch(0.12 0.055 249 / 0.08) 72%);
+}
+
+.reader-shell[data-reader-theme="navy"] {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.reader-shell[data-reader-theme="white"] {
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+}
+
+.reader-shell[data-reader-theme="warm"] {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.reader-shell[data-ar-scale="80"] .reader-ar { font-size: 1.05rem; }
+.reader-shell[data-ar-scale="90"] .reader-ar { font-size: 1.18rem; }
+.reader-shell[data-ar-scale="100"] .reader-ar { font-size: 1.3rem; }
+.reader-shell[data-ar-scale="110"] .reader-ar { font-size: 1.43rem; }
+.reader-shell[data-ar-scale="120"] .reader-ar { font-size: 1.56rem; }
+.reader-shell[data-ar-scale="130"] .reader-ar { font-size: 1.69rem; }
+.reader-shell[data-ar-scale="140"] .reader-ar { font-size: 1.82rem; }
+.reader-shell[data-ar-scale="150"] .reader-ar { font-size: 1.95rem; }
+.reader-shell[data-de-scale="80"] .reader-de { font-size: 0.75rem; }
+.reader-shell[data-de-scale="90"] .reader-de { font-size: 0.84rem; }
+.reader-shell[data-de-scale="100"] .reader-de { font-size: 0.94rem; }
+.reader-shell[data-de-scale="110"] .reader-de { font-size: 1.03rem; }
+.reader-shell[data-de-scale="120"] .reader-de { font-size: 1.13rem; }
+.reader-shell[data-de-scale="130"] .reader-de { font-size: 1.22rem; }
+.reader-shell[data-de-scale="140"] .reader-de { font-size: 1.31rem; }
+.reader-shell[data-de-scale="150"] .reader-de { font-size: 1.41rem; }
+
+.reader-theme-swatch[data-swatch="navy"] { background: var(--color-primary); }
+.reader-theme-swatch[data-swatch="white"] { background: var(--color-card); }
+.reader-theme-swatch[data-swatch="warm"] { background: var(--color-background); }
+
 @utility gold-line {
   background: linear-gradient(90deg, transparent, var(--color-secondary), transparent);
 }

@@ -147,9 +147,9 @@ function AdminPage() {
             </Section>
 
             <Section ar="أسماء الفنادق" de="Hotelnamen">
-              <Field ar="الكاظمية" de="Kadhimiya" value={content.hotels.kadhimiya} onChange={(v) => update((c) => { c.hotels.kadhimiya = v; return c; })} />
+              <Field ar="الكاظمية" de="al-Kazimiyya" value={content.hotels.kadhimiya} onChange={(v) => update((c) => { c.hotels.kadhimiya = v; return c; })} />
               <Field ar="كربلاء" de="Kerbela" value={content.hotels.karbala} onChange={(v) => update((c) => { c.hotels.karbala = v; return c; })} />
-              <Field ar="النجف" de="Najaf" value={content.hotels.najaf} onChange={(v) => update((c) => { c.hotels.najaf = v; return c; })} />
+              <Field ar="النجف" de="Nadschaf" value={content.hotels.najaf} onChange={(v) => update((c) => { c.hotels.najaf = v; return c; })} />
             </Section>
 
             <Section ar="تفاصيل البرنامج والفيزا" de="Programm & Visum">

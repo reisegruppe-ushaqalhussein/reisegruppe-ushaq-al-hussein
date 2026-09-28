@@ -13,3 +13,4 @@
 - Keep visual styling token-driven in `src/styles.css` with mobile-first layouts, because the campaign is primarily viewed on phones.
 - Keep the campaign as a single route with in-page view state for its app-like tab navigation, because the requested experience uses dedicated instant screens behind one persistent bottom bar.
 - Editable campaign content, including payment visibility and bank fields, lives in one `site_content` row (id `main`, jsonb) read publicly and written only via a password-checked server function (ADMIN_PASSWORD secret), because the admin panel is a shared-password gate without user accounts.
+- Keep the Ziyarat experience inside the existing `duas` in-page view, with shrine/list/reader subviews and device speech synthesis, because the campaign uses one persistent app shell and has no hosted recitation files.
