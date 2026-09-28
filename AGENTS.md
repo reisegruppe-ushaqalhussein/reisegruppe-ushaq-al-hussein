@@ -12,3 +12,4 @@
 - Keep the public campaign experience Arabic/German only, with Arabic immediately above German, because bilingual parity is a core requirement.
 - Keep visual styling token-driven in `src/styles.css` with mobile-first layouts, because the campaign is primarily viewed on phones.
 - Keep the campaign as a single route with in-page view state for its app-like tab navigation, because the requested experience uses dedicated instant screens behind one persistent bottom bar.
+- Editable campaign content lives in one `site_content` row (id `main`, jsonb) read publicly and written only via a password-checked server function (ADMIN_PASSWORD secret), because the admin panel is a shared-password gate without user accounts.
