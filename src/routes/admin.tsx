@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Home, KeyRound, Lock, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { changeAdminPassword, checkAdminPassword, getSiteContent, saveSiteContent } from "@/lib/site-content.functions";
-import type { SiteContent } from "@/lib/site-content";
+import { duaCategories, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -190,6 +190,12 @@ function AdminPage() {
                 <div key={d.id} className="space-y-3 rounded-md border border-border p-3">
                   <Field ar="الاسم (عربي)" de="Name (Arabisch)" value={d.ar} onChange={(v) => update((c) => { c.duas[i]!.ar = v; return c; })} />
                   <Field ltr ar="الاسم (ألماني)" de="Name (Deutsch)" value={d.de} onChange={(v) => update((c) => { c.duas[i]!.de = v; return c; })} />
+                  <label className="block">
+                    <L ar="التصنيف / المكان" de="Kategorie" />
+                    <select value={duaCategoryOf(d)} onChange={(e) => update((c) => { c.duas[i]!.category = e.target.value as DuaCategory; return c; })} className={inputCls}>
+                      {duaCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.de} ({cat.ar})</option>)}
+                    </select>
+                  </label>
                   <Field multiline ar="النص العربي" de="Arabischer Text" value={d.textAr} onChange={(v) => update((c) => { c.duas[i]!.textAr = v; return c; })} />
                   <Field multiline ltr ar="الكتابة اللاتينية / الترجمة" de="Transliteration / Übersetzung" value={d.textDe} onChange={(v) => update((c) => { c.duas[i]!.textDe = v; return c; })} />
                   <Field ltr ar="رابط PDF أو Google Drive" de="PDF- oder Google-Drive-Link" value={d.link} onChange={(v) => update((c) => { c.duas[i]!.link = v; return c; })} />

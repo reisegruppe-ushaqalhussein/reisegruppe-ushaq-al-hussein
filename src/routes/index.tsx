@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
-import { defaultContent, type SiteContent } from "@/lib/site-content";
+import { defaultContent, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
@@ -464,7 +464,6 @@ type ReaderItem = { id: string; ar: string; de: string; textAr: string; latin: s
 type Shrine = { id: string; ar: string; de: string; image: string; entries: ReaderItem[] };
 
 const readerEntries = {
-  arbayn: { id: "arbayn", ar: "زيارة الأربعين", de: "Ziyarat Arbaʿin", textAr: "السَّلامُ عَلى وَلِيِّ اللهِ وَحَبيبِهِ، السَّلامُ عَلى خَليلِ اللهِ وَنَجيبِهِ.", latin: "As-salāmu ʿalā waliyyillāhi wa ḥabībih, as-salāmu ʿalā khalīlillāhi wa najībih.", translation: "Friede sei mit dem Freund Gottes und Seinem Geliebten. Friede sei mit dem Vertrauten Gottes und Seinem Auserwählten." },
   imamAli: { id: "imam-ali", ar: "زيارة الإمام علي (ع)", de: "Ziyarat Imam Ali (as)", textAr: "السَّلامُ عَلَيْكَ يا أَميرَ الْمُؤْمِنينَ، السَّلامُ عَلَيْكَ يا وَصِيَّ رَسُولِ رَبِّ الْعالَمينَ.", latin: "As-salāmu ʿalayka yā Amīra l-muʾminīn, as-salāmu ʿalayka yā waṣiyya Rasūli Rabbi l-ʿālamīn.", translation: "Friede sei mit dir, o Fürst der Gläubigen. Friede sei mit dir, o Bevollmächtigter des Gesandten des Herrn der Welten." },
   kazimayn: { id: "kazimayn", ar: "زيارة الإمامين الكاظمين (ع)", de: "Ziyarat der beiden Imame al-Kazim (as)", textAr: "السَّلامُ عَلَيْكُما يا وَلِيَّيِ اللهِ، السَّلامُ عَلَيْكُما يا حُجَّتَيِ اللهِ.", latin: "As-salāmu ʿalaykumā yā waliyyayillāh, as-salāmu ʿalaykumā yā ḥujjatayillāh.", translation: "Friede sei mit euch beiden, o Freunde Gottes. Friede sei mit euch beiden, o Beweise Gottes." },
   askari: { id: "askari", ar: "زيارة الإمامين العسكريين (ع)", de: "Ziyarat der beiden Imame al-Askari (as)", textAr: "السَّلامُ عَلَيْكُما يا وَلِيَّيِ اللهِ، السَّلامُ عَلَيْكُما يا حُجَّتَيِ اللهِ وَخالصَتَيْهِ.", latin: "As-salāmu ʿalaykumā yā waliyyayillāh, as-salāmu ʿalaykumā yā ḥujjatayillāhi wa khāliṣatayh.", translation: "Friede sei mit euch beiden, o Freunde Gottes, Seine Beweise und Seine aufrichtigen Diener." },
@@ -479,19 +478,18 @@ function splitGermanText(value: string) {
 }
 
 function DuasView({ duas }: { duas: SiteContent["duas"] }) {
-  const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, ...splitGermanText(d.textDe) })), [duas]);
-  const byId = (id: string) => managedEntries.find((entry) => entry.id === id);
-  const ashura = byId("ashura") ?? readerEntries.arbayn;
-  const warith = byId("warith") ?? readerEntries.arbayn;
+  const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [duas]);
+  const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const shrines: Shrine[] = [
-    { id: "karbala", ar: "كربلاء المقدسة", de: "Heiliges Kerbela", image: shrineImage, entries: [ashura, warith, readerEntries.arbayn] },
-    { id: "najaf", ar: "النجف الأشرف", de: "Heiliges Nadschaf", image: najafShrine, entries: [readerEntries.imamAli] },
-    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Heiliges al-Kazimiyya", image: kazimiyyaShrine, entries: [readerEntries.kazimayn] },
-    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: [readerEntries.askari] },
-    { id: "mashhad", ar: "مشهد المقدسة", de: "Heiliges Maschhad", image: mashhadShrine, entries: [readerEntries.imamRida] },
-    { id: "qom", ar: "قم المقدسة", de: "Heiliges Qom", image: qomShrine, entries: [readerEntries.masumeh] },
-    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: [readerEntries.prophet] },
+    { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela", image: shrineImage, entries: inCat("karbala") },
+    { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf", image: najafShrine, entries: [readerEntries.imamAli, ...inCat("najaf")] },
+    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Al-Kazimiyya", image: kazimiyyaShrine, entries: [readerEntries.kazimayn, ...inCat("kazimiyya")] },
+    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: [readerEntries.askari, ...inCat("samarra")] },
+    { id: "mashhad", ar: "مشهد المقدسة", de: "Maschhad", image: mashhadShrine, entries: [readerEntries.imamRida, ...inCat("mashhad")] },
+    { id: "qom", ar: "قم المقدسة", de: "Qom", image: qomShrine, entries: [readerEntries.masumeh, ...inCat("qom")] },
+    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: [readerEntries.prophet, ...inCat("mecca-medina")] },
   ];
+  const generalEntries = inCat("general");
   const [shrine, setShrine] = useState<Shrine | null>(null);
   const [reader, setReader] = useState<ReaderItem | null>(null);
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
@@ -508,7 +506,7 @@ function DuasView({ duas }: { duas: SiteContent["duas"] }) {
           </Button>
         ))}
       </div>
-      {managedEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة" de="Allgemeine Bittgebete" /><div className="space-y-3">{managedEntries.filter((entry) => !["ashura", "warith"].includes(entry.id)).map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
+      {generalEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة والتعقيبات" de="Allgemeine Bittgebete" /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
     </div>
   );
 }

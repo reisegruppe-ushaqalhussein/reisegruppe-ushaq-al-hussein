@@ -1,6 +1,20 @@
 export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string };
-export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string };
+export type DuaCategory = "karbala" | "najaf" | "kazimiyya" | "samarra" | "mashhad" | "qom" | "mecca-medina" | "general";
+export const duaCategories: Array<{ id: DuaCategory; ar: string; de: string }> = [
+  { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
+  { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf" },
+  { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Al-Kazimiyya" },
+  { id: "samarra", ar: "سامراء", de: "Samarra" },
+  { id: "mashhad", ar: "مشهد المقدسة", de: "Maschhad" },
+  { id: "qom", ar: "قم المقدسة", de: "Qom" },
+  { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina" },
+  { id: "general", ar: "الأدعية العامة والتعقيبات", de: "Allgemeine Bittgebete" },
+];
+export function duaCategoryOf(d: { id: string; category?: DuaCategory }): DuaCategory {
+  return d.category ?? (d.id === "ashura" || d.id === "warith" ? "karbala" : "general");
+}
+export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string; category?: DuaCategory };
 export type AlertEntry = { ar: string; de: string; active: boolean };
 export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
 export type SiteContent = {
