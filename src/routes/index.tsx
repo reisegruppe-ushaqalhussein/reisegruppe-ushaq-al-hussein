@@ -2,9 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
 import type { SiteContent } from "@/lib/site-content";
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import {
   ArrowLeft,
+  BookOpen,
+  Clock,
+  Download,
+  Siren,
   BedDouble,
   CalendarDays,
   ChevronLeft,
@@ -57,7 +61,7 @@ const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: () => g
 
 const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -100,6 +104,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   contacts: { ar: "التواصل", de: "Kontakt" },
   news: { ar: "الأخبار", de: "Neuigkeiten" },
   donations: { ar: "المساهمة", de: "Spenden" },
+  duas: { ar: "الأدعية والزيارات", de: "Bittgebete & Ziyarat" },
 };
 
 function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
@@ -139,6 +144,7 @@ function HomeView({ go, visa }: { go: (view: View) => void; visa: SiteContent["v
     { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
     { view: "contacts", ar: "التواصل", de: "Kontakt", icon: Phone },
     { view: "news", ar: "الأخبار", de: "Neuigkeiten", icon: Megaphone },
+    { view: "duas", ar: "الأدعية والزيارات", de: "Bittgebete & Ziyarat", icon: BookOpen },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
   return (
@@ -156,13 +162,15 @@ function HomeView({ go, visa }: { go: (view: View) => void; visa: SiteContent["v
       </section>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
-        {actions.map(({ view, ar, de, icon: Icon }, index) => (
-          <Button key={view} variant="outline" onClick={() => go(view)} className={`h-32 flex-col gap-3 whitespace-normal bg-card px-3 shadow-sm hover:border-secondary hover:bg-card ${index === actions.length - 1 ? "col-span-2" : ""}`}>
+        {actions.map(({ view, ar, de, icon: Icon }) => (
+          <Button key={view} variant="outline" onClick={() => go(view)} className={`h-32 flex-col gap-3 whitespace-normal bg-card px-3 shadow-sm hover:border-secondary hover:bg-card `}>
             <span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span>
             <Pair ar={ar} de={de} align="center" />
           </Button>
         ))}
       </div>
+
+      <PrayerTimesCard />
 
       <Button variant="outline" onClick={() => setVisaOpen(true)} className="mt-5 h-auto w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" aria-hidden="true" /></span>
@@ -286,11 +294,105 @@ function NewsView({ news }: { news: SiteContent["news"] }) {
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" /><div className="space-y-3">{news.filter((n) => n.ar || n.de).map((item, i) => <article key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article>)}</div></div>;
 }
 
+const prayerNames: Array<{ key: string; ar: string; de: string }> = [
+  { key: "Fajr", ar: "الفجر", de: "Fadschr" },
+  { key: "Sunrise", ar: "الشروق", de: "Sonnenaufgang" },
+  { key: "Dhuhr", ar: "الظهر", de: "Dhuhr" },
+  { key: "Maghrib", ar: "المغرب", de: "Maghrib" },
+];
+const cities = [
+  { id: "Karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
+  { id: "Najaf", ar: "النجف الأشرف", de: "Nadschaf" },
+];
+
+function PrayerTimesCard() {
+  const [city, setCity] = useState(cities[0]!.id);
+  const [times, setTimes] = useState<Record<string, string> | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let off = false;
+    setTimes(null); setFailed(false);
+    fetch(`https://api.aladhan.com/v1/timingsByCity?city=${city}&country=Iraq&method=0`)
+      .then((r) => r.json())
+      .then((j) => { if (!off) setTimes(j?.data?.timings ?? null); })
+      .catch(() => { if (!off) setFailed(true); });
+    return () => { off = true; };
+  }, [city]);
+  return (
+    <section className="mt-5 rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><Clock className="h-5 w-5" aria-hidden="true" /></span>
+        <h2 className="text-primary"><Pair ar="مواقيت الصلاة" de="Gebetszeiten" /></h2>
+      </div>
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        {cities.map((c) => (
+          <Button key={c.id} size="sm" variant={city === c.id ? "default" : "outline"} onClick={() => setCity(c.id)} className="h-auto py-1.5"><Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} /></Button>
+        ))}
+      </div>
+      <div className="grid grid-cols-4 gap-2 text-center">
+        {prayerNames.map((p) => (
+          <div key={p.key} className="rounded-md bg-muted px-1 py-2">
+            <p className="text-[11px] font-bold text-primary">{p.ar}</p>
+            <p lang="de" dir="ltr" className="text-[9px] italic text-muted-foreground">{p.de}</p>
+            <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">{times?.[p.key] ?? (failed ? "—" : "…")}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] text-muted-foreground"><Pair ar="بالتوقيت المحلي للعراق — حسب المذهب الجعفري" de="Ortszeit Irak — nach jaʿfaritischer Berechnung" /></p>
+    </section>
+  );
+}
+
+function AlertBanner({ alert }: { alert: SiteContent["alert"] }) {
+  const [hidden, setHidden] = useState(false);
+  if (!alert.active || (!alert.ar && !alert.de) || hidden) return null;
+  return (
+    <div role="alert" className="alert-glow mx-4 mt-4 flex items-start gap-3 rounded-lg border border-secondary bg-primary p-4 text-primary-foreground">
+      <Siren className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-secondary" aria-hidden="true" />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="mb-1 text-xs font-extrabold text-secondary">تنبيه عاجل <span lang="de" className="italic">| Eilmeldung</span></p>
+        <Pair ar={alert.ar} de={alert.de} inverse />
+      </div>
+      <button onClick={() => setHidden(true)} aria-label="إغلاق | Schließen" className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground">×</button>
+    </div>
+  );
+}
+
+function DuasView({ duas }: { duas: SiteContent["duas"] }) {
+  return (
+    <div className="screen-enter px-4 py-7">
+      <ScreenTitle icon={BookOpen} ar="الأدعية والزيارات" de="Bittgebete & Ziyarat" />
+      <div className="space-y-3">
+        {duas.filter((d) => d.ar || d.de).map((d) => (
+          <details key={d.id} className="group rounded-lg border border-border bg-card p-4 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-4 w-4" aria-hidden="true" /></span>
+              <span className="min-w-0 flex-1 text-primary"><Pair ar={d.ar} de={d.de} /></span>
+              <ChevronLeft className="h-5 w-5 shrink-0 text-secondary transition-transform group-open:-rotate-90" aria-hidden="true" />
+            </summary>
+            <div className="mt-4 space-y-3 border-t border-border pt-4">
+              {d.textAr && <p className="whitespace-pre-line text-lg leading-loose">{d.textAr}</p>}
+              {d.textDe && <p lang="de" dir="ltr" className="whitespace-pre-line text-left text-sm italic text-muted-foreground">{d.textDe}</p>}
+              {d.link ? (
+                <Button asChild className="h-12 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                  <a href={d.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a>
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground"><Pair ar="النسخة الكاملة ستتوفر قريباً" de="Vollständige Fassung folgt in Kürze" /></p>
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DonationsView() {
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /><section className="rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" /><p className="text-sm"><Pair ar="ساهم في تيسير أمر زوار غير قادرين على تغطية تكاليف الزيارة، وفي دعم استمرار الحملة." de="Helfen Sie Pilgern, die ihre Reisekosten nicht selbst tragen können, und unterstützen Sie den Fortbestand der Reisegruppe." inverse /></p><Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href="https://wa.me/49015773055365" target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="للمساهمة تواصل مع الحاج ياسر الدر" de="Für Spenden Hajj Yasser Aldor kontaktieren" align="center" /></a></Button></section></div>;
 }
 
-const bottomItems: Array<{ view: Exclude<View, "donations">; ar: string; de: string; icon: IconType }> = [
+const bottomItems: Array<{ view: Exclude<View, "donations" | "duas">; ar: string; de: string; icon: IconType }> = [
   { view: "home", ar: "الرئيسية", de: "Start", icon: Home },
   { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
   { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
@@ -306,12 +408,14 @@ function Index() {
     <div className="min-h-screen bg-muted">
       <main className="mx-auto min-h-screen w-full max-w-[420px] bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
+        <AlertBanner alert={content.alert} />
         {view === "home" && <HomeView go={go} visa={content.visa} />}
         {view === "trips" && <TripsView content={content} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView />}
         {view === "news" && <NewsView news={content.news} />}
         {view === "donations" && <DonationsView />}
+        {view === "duas" && <DuasView duas={content.duas} />}
         <footer className="px-4 pb-6 pt-2 text-center">
           <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary">الإدارة <span lang="de" className="italic">| Verwaltung</span></Link>
         </footer>
