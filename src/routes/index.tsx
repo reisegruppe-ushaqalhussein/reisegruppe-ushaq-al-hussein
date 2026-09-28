@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
 import { defaultContent, type SiteContent } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
   AlignCenter,
@@ -513,7 +513,7 @@ function DuasView({ duas }: { duas: SiteContent["duas"] }) {
   );
 }
 
-function LayerToggle({ active, onClick, label, children }: { active: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
+function LayerToggle({ active, onClick, label, children }: { active: boolean; onClick: () => void; label: string; children: ReactNode }) {
   return <Button variant={active ? "secondary" : "outline"} size="icon" onClick={onClick} aria-pressed={active} aria-label={label} title={label} className={active ? "" : "bg-transparent opacity-60"}>{children}</Button>;
 }
 
