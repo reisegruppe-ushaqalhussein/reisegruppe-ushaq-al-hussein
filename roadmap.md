@@ -14,3 +14,6 @@
 - [x] Add social links and official email actions to contacts and the footer.
 - [x] Add admin-controlled bank transfer details, hidden by default.
 - [x] Add WhatsApp app sharing and bilingual travel FAQs.
+- [ ] Build the seven-destination Holy Shrines grid and shrine-specific Ziyarat lists.
+- [ ] Add the interactive trilingual reader with display settings and audio controls.
+- [ ] Standardize German place names across public and admin screens.
