@@ -36,7 +36,7 @@ export const defaultContent: SiteContent = {
   payment: { visible: false, accountName: "", bankName: "", iban: "", bic: "" },
   news: [
     { ar: "فتح باب التسجيل لزيارة العتبات المقدسة", de: "Anmeldung für den Besuch der heiligen Stätten geöffnet", bodyAr: "يمكنكم الآن التسجيل في الرحلات المعلنة عبر استمارة التسجيل.", bodyDe: "Sie können sich jetzt über das Anmeldeformular für die angekündigten Reisen anmelden." },
-    { ar: "تفاصيل السكن والفنادق جاهزة", de: "Unterkunfts- und Hoteldetails stehen fest", bodyAr: "تم إعداد برنامج السكن بين الكاظمية وكربلاء والنجف.", bodyDe: "Das Unterkunftsprogramm für Kadhimiya, Kerbela und Najaf steht fest." },
+    { ar: "تفاصيل السكن والفنادق جاهزة", de: "Unterkunfts- und Hoteldetails stehen fest", bodyAr: "تم إعداد برنامج السكن بين الكاظمية وكربلاء والنجف.", bodyDe: "Das Unterkunftsprogramm für al-Kazimiyya, Kerbela und Nadschaf steht fest." },
     { ar: "انضمام خطيب حسيني للحملة", de: "Ein Khatib Hosseini begleitet die Reisegruppe", bodyAr: "يرافق الحملة خطيب ورادود حسيني لإحياء المجالس خلال الرحلة.", bodyDe: "Ein Khatib und Radud Hosseini begleiten die Majlis während der Reise." },
   ],
 };

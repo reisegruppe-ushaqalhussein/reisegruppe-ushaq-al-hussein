@@ -208,6 +208,17 @@
 .reader-theme-swatch[data-swatch="white"] { background: var(--color-card); }
 .reader-theme-swatch[data-swatch="warm"] { background: var(--color-background); }
 
+.reader-progress {
+  appearance: none;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-muted);
+}
+
+.reader-progress::-webkit-progress-bar { background: var(--color-muted); }
+.reader-progress::-webkit-progress-value { background: var(--color-secondary); }
+.reader-progress::-moz-progress-bar { background: var(--color-secondary); }
+
 @utility gold-line {
   background: linear-gradient(90deg, transparent, var(--color-secondary), transparent);
 }
