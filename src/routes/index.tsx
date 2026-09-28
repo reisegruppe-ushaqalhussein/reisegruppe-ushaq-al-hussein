@@ -2,9 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
 import { defaultContent, type SiteContent } from "@/lib/site-content";
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
   ArrowLeft,
+  AlignCenter,
+  AlignRight,
   BookOpen,
   Check,
   Clock,
@@ -31,11 +33,15 @@ import {
   MoonStar,
   Phone,
   Plane,
+  Pause,
+  Play,
+  Settings,
   ScrollText,
   Share2,
   Soup,
   Sparkles,
   Star,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -50,6 +56,12 @@ import shrineImage from "@/assets/karbala-shrine.jpg";
 import iraqInvitation from "@/assets/invitation_iraq_2026-12.jpg.asset.json";
 import winterInvitation from "@/assets/invitation_winter_new_year_2026-12.jpg.asset.json";
 import umrahInvitation from "@/assets/invitation_umrah_2027-01.jpg.asset.json";
+import najafShrine from "@/assets/shrine-najaf.jpg";
+import kazimiyyaShrine from "@/assets/shrine-kazimiyya.jpg";
+import samarraShrine from "@/assets/shrine-samarra.jpg";
+import mashhadShrine from "@/assets/shrine-mashhad.jpg";
+import qomShrine from "@/assets/shrine-qom.jpg";
+import meccaMedinaShrine from "@/assets/shrine-mecca-medina.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -266,8 +278,8 @@ function TripsView({ content }: { content: SiteContent }) {
             <h3 className="text-lg text-primary"><Pair ar="تفاصيل الرحلة" de="Reisedetails" /></h3>
             <div className="mt-4 grid gap-3">
               <Detail icon={Plane} ar="الطيران" de="Flug" detailAr="الوصول عبر مطار بغداد." detailDe="Ankunft über den Flughafen Bagdad." />
-              <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفندق في كربلاء، وفندق في النجف." detailDe="Eine Nacht in Kadhimiya, ein Hotel in Kerbela und ein Hotel in Najaf." />
-              {(hotels.kadhimiya || hotels.karbala || hotels.najaf) && <div className="rounded-md bg-muted p-3 text-sm">{hotels.kadhimiya && <Pair ar={`الكاظمية: ${hotels.kadhimiya}`} de={`Kadhimiya: ${hotels.kadhimiya}`} />}{hotels.karbala && <Pair ar={`كربلاء: ${hotels.karbala}`} de={`Kerbela: ${hotels.karbala}`} />}{hotels.najaf && <Pair ar={`النجف: ${hotels.najaf}`} de={`Najaf: ${hotels.najaf}`} />}</div>}
+               <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفندق في كربلاء، وفندق في النجف." detailDe="Eine Nacht in al-Kazimiyya, ein Hotel in Kerbela und ein Hotel in Nadschaf." />
+               {(hotels.kadhimiya || hotels.karbala || hotels.najaf) && <div className="rounded-md bg-muted p-3 text-sm">{hotels.kadhimiya && <Pair ar={`الكاظمية: ${hotels.kadhimiya}`} de={`al-Kazimiyya: ${hotels.kadhimiya}`} />}{hotels.karbala && <Pair ar={`كربلاء: ${hotels.karbala}`} de={`Kerbela: ${hotels.karbala}`} />}{hotels.najaf && <Pair ar={`النجف: ${hotels.najaf}`} de={`Nadschaf: ${hotels.najaf}`} />}</div>}
               <Detail icon={BedDouble} ar="المجالس" de="Majlis" detailAr="مجالس حسينية بمرافقة خطيب ورادود حسيني." detailDe="Husseinitische Majlis mit Khatib und Radud Hosseini." />
               <Detail icon={Soup} ar="الطعام" de="Verpflegung" detailAr="أكل لبناني بامتياز — ثلاث وجبات يومياً." detailDe="Ausgezeichnete libanesische Küche — drei Mahlzeiten täglich." />
             </div>
@@ -421,34 +433,126 @@ function AlertBanner({ alert }: { alert: SiteContent["alert"] }) {
   );
 }
 
+type ReaderItem = { id: string; ar: string; de: string; textAr: string; latin: string; translation: string; link?: string };
+type Shrine = { id: string; ar: string; de: string; image: string; entries: ReaderItem[] };
+
+const readerEntries = {
+  arbayn: { id: "arbayn", ar: "زيارة الأربعين", de: "Ziyarat Arbaʿin", textAr: "السَّلامُ عَلى وَلِيِّ اللهِ وَحَبيبِهِ، السَّلامُ عَلى خَليلِ اللهِ وَنَجيبِهِ.", latin: "As-salāmu ʿalā waliyyillāhi wa ḥabībih, as-salāmu ʿalā khalīlillāhi wa najībih.", translation: "Friede sei mit dem Freund Gottes und Seinem Geliebten. Friede sei mit dem Vertrauten Gottes und Seinem Auserwählten." },
+  imamAli: { id: "imam-ali", ar: "زيارة الإمام علي (ع)", de: "Ziyarat Imam Ali (as)", textAr: "السَّلامُ عَلَيْكَ يا أَميرَ الْمُؤْمِنينَ، السَّلامُ عَلَيْكَ يا وَصِيَّ رَسُولِ رَبِّ الْعالَمينَ.", latin: "As-salāmu ʿalayka yā Amīra l-muʾminīn, as-salāmu ʿalayka yā waṣiyya Rasūli Rabbi l-ʿālamīn.", translation: "Friede sei mit dir, o Fürst der Gläubigen. Friede sei mit dir, o Bevollmächtigter des Gesandten des Herrn der Welten." },
+  kazimayn: { id: "kazimayn", ar: "زيارة الإمامين الكاظمين (ع)", de: "Ziyarat der beiden Imame al-Kazim (as)", textAr: "السَّلامُ عَلَيْكُما يا وَلِيَّيِ اللهِ، السَّلامُ عَلَيْكُما يا حُجَّتَيِ اللهِ.", latin: "As-salāmu ʿalaykumā yā waliyyayillāh, as-salāmu ʿalaykumā yā ḥujjatayillāh.", translation: "Friede sei mit euch beiden, o Freunde Gottes. Friede sei mit euch beiden, o Beweise Gottes." },
+  askari: { id: "askari", ar: "زيارة الإمامين العسكريين (ع)", de: "Ziyarat der beiden Imame al-Askari (as)", textAr: "السَّلامُ عَلَيْكُما يا وَلِيَّيِ اللهِ، السَّلامُ عَلَيْكُما يا حُجَّتَيِ اللهِ وَخالصَتَيْهِ.", latin: "As-salāmu ʿalaykumā yā waliyyayillāh, as-salāmu ʿalaykumā yā ḥujjatayillāhi wa khāliṣatayh.", translation: "Friede sei mit euch beiden, o Freunde Gottes, Seine Beweise und Seine aufrichtigen Diener." },
+  imamRida: { id: "imam-rida", ar: "زيارة الإمام الرضا (ع)", de: "Ziyarat Imam Rida (as)", textAr: "السَّلامُ عَلَيْكَ يا وَلِيَّ اللهِ وَابْنَ وَلِيِّهِ، السَّلامُ عَلَيْكَ يا حُجَّةَ اللهِ وَابْنَ حُجَّتِهِ.", latin: "As-salāmu ʿalayka yā waliyyallāhi wabna waliyyih, as-salāmu ʿalayka yā ḥujjatallāhi wabna ḥujjatih.", translation: "Friede sei mit dir, o Freund Gottes und Sohn Seines Freundes. Friede sei mit dir, o Beweis Gottes und Sohn Seines Beweises." },
+  masumeh: { id: "masumeh", ar: "زيارة السيدة فاطمة المعصومة (ع)", de: "Ziyarat Sayyida Fatima Masuma (as)", textAr: "السَّلامُ عَلَيْكِ يا بِنْتَ رَسُولِ اللهِ، السَّلامُ عَلَيْكِ يا بِنْتَ فاطِمَةَ وَخَديجَةَ.", latin: "As-salāmu ʿalayki yā binta Rasūlillāh, as-salāmu ʿalayki yā binta Fāṭimata wa Khadīja.", translation: "Friede sei mit dir, o Tochter des Gesandten Gottes. Friede sei mit dir, o Tochter Fatimas und Khadijas." },
+  prophet: { id: "prophet", ar: "زيارة النبي محمد (ص)", de: "Ziyarat des Propheten Muhammad (s)", textAr: "السَّلامُ عَلَيْكَ يا رَسُولَ اللهِ، السَّلامُ عَلَيْكَ يا نَبِيَّ اللهِ، السَّلامُ عَلَيْكَ يا مُحَمَّدُ بْنَ عَبْدِ اللهِ.", latin: "As-salāmu ʿalayka yā Rasūlallāh, as-salāmu ʿalayka yā Nabiyyallāh, as-salāmu ʿalayka yā Muḥammada bna ʿAbdillāh.", translation: "Friede sei mit dir, o Gesandter Gottes. Friede sei mit dir, o Prophet Gottes. Friede sei mit dir, o Muhammad, Sohn Abdullahs." },
+} satisfies Record<string, ReaderItem>;
+
+function splitGermanText(value: string) {
+  const [latin, ...translation] = value.split(/\s+[—–-]\s+/);
+  return { latin: latin ?? "", translation: translation.join(" — ") || value };
+}
+
 function DuasView({ duas }: { duas: SiteContent["duas"] }) {
+  const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, ...splitGermanText(d.textDe) })), [duas]);
+  const byId = (id: string) => managedEntries.find((entry) => entry.id === id);
+  const ashura = byId("ashura") ?? readerEntries.arbayn;
+  const warith = byId("warith") ?? readerEntries.arbayn;
+  const shrines: Shrine[] = [
+    { id: "karbala", ar: "كربلاء المقدسة", de: "Heiliges Kerbela", image: shrineImage, entries: [ashura, warith, readerEntries.arbayn] },
+    { id: "najaf", ar: "النجف الأشرف", de: "Heiliges Nadschaf", image: najafShrine, entries: [readerEntries.imamAli] },
+    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Heiliges al-Kazimiyya", image: kazimiyyaShrine, entries: [readerEntries.kazimayn] },
+    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: [readerEntries.askari] },
+    { id: "mashhad", ar: "مشهد المقدسة", de: "Heiliges Maschhad", image: mashhadShrine, entries: [readerEntries.imamRida] },
+    { id: "qom", ar: "قم المقدسة", de: "Heiliges Qom", image: qomShrine, entries: [readerEntries.masumeh] },
+    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: [readerEntries.prophet] },
+  ];
+  const [shrine, setShrine] = useState<Shrine | null>(null);
+  const [reader, setReader] = useState<ReaderItem | null>(null);
+  if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
+  if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrine(null)} onRead={setReader} />;
   return (
     <div className="screen-enter px-4 py-7">
-      <ScreenTitle icon={BookOpen} ar="الأدعية والزيارات" de="Bittgebete & Ziyarat" />
-      <div className="space-y-3">
-        {duas.filter((d) => d.ar || d.de).map((d) => (
-          <details key={d.id} className="group rounded-lg border border-border bg-card p-4 shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-4 w-4" aria-hidden="true" /></span>
-              <span className="min-w-0 flex-1 text-primary"><Pair ar={d.ar} de={d.de} /></span>
-              <ChevronLeft className="h-5 w-5 shrink-0 text-secondary transition-transform group-open:-rotate-90" aria-hidden="true" />
-            </summary>
-            <div className="mt-4 space-y-3 border-t border-border pt-4">
-              {d.textAr && <p className="whitespace-pre-line text-lg leading-loose">{d.textAr}</p>}
-              {d.textDe && <p lang="de" dir="ltr" className="whitespace-pre-line text-left text-sm italic text-muted-foreground">{d.textDe}</p>}
-              {d.link ? (
-                <Button asChild className="h-12 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
-                  <a href={d.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a>
-                </Button>
-              ) : (
-                <p className="text-xs text-muted-foreground"><Pair ar="النسخة الكاملة ستتوفر قريباً" de="Vollständige Fassung folgt in Kürze" /></p>
-              )}
-            </div>
-          </details>
+      <ScreenTitle icon={BookOpen} ar="العتبات المقدسة" de="Heilige Stätten" />
+      <div className="grid grid-cols-2 gap-3">
+        {shrines.map((item) => (
+          <Button key={item.id} variant="outline" onClick={() => setShrine(item)} className="group relative aspect-[4/5] h-auto overflow-hidden border-0 p-0 shadow-md">
+            <img src={item.image} alt={`${item.ar} | ${item.de}`} loading="lazy" width={768} height={1024} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <span className="shrine-card-shade absolute inset-0" />
+            <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
+          </Button>
         ))}
       </div>
+      {managedEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة" de="Allgemeine Bittgebete" /><div className="space-y-3">{managedEntries.filter((entry) => !["ashura", "warith"].includes(entry.id)).map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
     </div>
   );
+}
+
+function ReaderListButton({ item, onRead }: { item: ReaderItem; onRead: (item: ReaderItem) => void }) {
+  return <Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button>;
+}
+
+function ShrineDetail({ shrine, onBack, onRead }: { shrine: Shrine; onBack: () => void; onRead: (item: ReaderItem) => void }) {
+  return <div className="screen-enter pb-7"><div className="relative h-56 overflow-hidden"><img src={shrine.image} alt={`${shrine.ar} | ${shrine.de}`} loading="lazy" width={768} height={1024} className="h-full w-full object-cover" /><span className="shrine-card-shade absolute inset-0" /><Button variant="secondary" size="icon" onClick={onBack} aria-label="العودة | Zurück" className="absolute right-4 top-4"><ArrowLeft className="rotate-180" /></Button><h2 className="absolute inset-x-5 bottom-5 text-xl text-primary-foreground"><Pair ar={shrine.ar} de={shrine.de} inverse /></h2></div><div className="px-4 pt-6"><ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" /><div className="space-y-3">{shrine.entries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={onRead} />)}</div></div></div>;
+}
+
+function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [arabicScale, setArabicScale] = useState(110);
+  const [germanScale, setGermanScale] = useState(100);
+  const [alignment, setAlignment] = useState<"right" | "center">("right");
+  const [theme, setTheme] = useState<"navy" | "white" | "warm">("warm");
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceName, setVoiceName] = useState("");
+  const timerRef = useRef<number | null>(null);
+  const spokenText = `${item.textAr}. ${item.translation}`;
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("ziyarat-reader-settings") ?? "{}");
+      if (typeof saved.arabicScale === "number") setArabicScale(Math.min(150, Math.max(80, saved.arabicScale)));
+      if (typeof saved.germanScale === "number") setGermanScale(Math.min(150, Math.max(80, saved.germanScale)));
+      if (saved.alignment === "right" || saved.alignment === "center") setAlignment(saved.alignment);
+      if (saved.theme === "navy" || saved.theme === "white" || saved.theme === "warm") setTheme(saved.theme);
+    } catch { /* Keep the reader defaults when saved preferences are invalid. */ }
+  }, []);
+  useEffect(() => {
+    window.localStorage.setItem("ziyarat-reader-settings", JSON.stringify({ arabicScale, germanScale, alignment, theme }));
+  }, [arabicScale, germanScale, alignment, theme]);
+  useEffect(() => {
+    const loadVoices = () => {
+      const next = window.speechSynthesis?.getVoices() ?? [];
+      setVoices(next);
+      if (!voiceName && next[0]) setVoiceName(next[0].name);
+    };
+    loadVoices();
+    window.speechSynthesis?.addEventListener("voiceschanged", loadVoices);
+    return () => { window.speechSynthesis?.removeEventListener("voiceschanged", loadVoices); window.speechSynthesis?.cancel(); if (timerRef.current) window.clearInterval(timerRef.current); };
+  }, [voiceName]);
+  const toggleAudio = () => {
+    if (!("speechSynthesis" in window)) return;
+    if (playing) { window.speechSynthesis.cancel(); setPlaying(false); if (timerRef.current) window.clearInterval(timerRef.current); return; }
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    utterance.voice = voices.find((voice) => voice.name === voiceName) ?? null;
+    utterance.onend = () => { setPlaying(false); setProgress(100); if (timerRef.current) window.clearInterval(timerRef.current); };
+    utterance.onerror = () => { setPlaying(false); if (timerRef.current) window.clearInterval(timerRef.current); };
+    setProgress(0); setPlaying(true); window.speechSynthesis.speak(utterance);
+    const estimate = Math.max(10000, spokenText.length * 80); const started = Date.now();
+    timerRef.current = window.setInterval(() => setProgress(Math.min(96, ((Date.now() - started) / estimate) * 100)), 500);
+  };
+  return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-32" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
+    <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
+    <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}><p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p><div className="my-7 border-t border-current/15" /><p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p><p lang="de" dir="ltr" className={`reader-de mt-5 whitespace-pre-line italic leading-relaxed opacity-75 ${alignment === "center" ? "text-center" : "text-left"}`}>{item.translation}</p>{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
+    <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إعدادات القراءة" de="Leseeinstellungen" /></DialogTitle><DialogDescription><Pair ar="خصّص النص بما يناسب قراءتك." de="Passen Sie die Darstellung an Ihre Leseweise an." /></DialogDescription></DialogHeader><div className="space-y-5 pt-2"><ScaleControl ar="حجم النص العربي" de="Arabische Schriftgröße" value={arabicScale} onChange={setArabicScale} /><ScaleControl ar="حجم النص الألماني" de="Deutsche Schriftgröße" value={germanScale} onChange={setGermanScale} /><div><Pair ar="محاذاة النص" de="Textausrichtung" /><div className="mt-2 grid grid-cols-2 gap-2"><Button variant={alignment === "right" ? "default" : "outline"} onClick={() => setAlignment("right")}><AlignRight /><Pair ar="يمين" de="Rechts" align="center" inverse={alignment === "right"} /></Button><Button variant={alignment === "center" ? "default" : "outline"} onClick={() => setAlignment("center")}><AlignCenter /><Pair ar="وسط" de="Zentriert" align="center" inverse={alignment === "center"} /></Button></div></div><div><Pair ar="خلفية القراءة" de="Lesefläche" /><div className="mt-2 grid grid-cols-3 gap-2"><ThemeButton active={theme === "navy"} theme="navy" ar="كحلي" de="Dunkelblau" onClick={() => setTheme("navy")} /><ThemeButton active={theme === "white"} theme="white" ar="أبيض" de="Weiß" onClick={() => setTheme("white")} /><ThemeButton active={theme === "warm"} theme="warm" ar="دافئ" de="Warm" onClick={() => setTheme("warm")} /></div></div></div></DialogContent></Dialog>
+    <div className="fixed inset-x-0 bottom-20 z-30 mx-auto w-full max-w-[420px] border-t border-border bg-card/95 px-4 py-3 text-card-foreground shadow-xl backdrop-blur-md"><div className="flex items-center gap-3" dir="ltr"><Button size="icon" onClick={toggleAudio} aria-label={playing ? "إيقاف | Pause" : "تشغيل | Abspielen"}>{playing ? <Pause /> : <Play />}</Button><div className="min-w-0 flex-1"><progress aria-label="تقدم القراءة الصوتية | Fortschritt" value={progress} max="100" className="reader-progress h-1.5 w-full" /><div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>{Math.round(progress)}%</span><span><Volume2 className="inline h-3 w-3" /> قراءة صوتية</span></div></div></div><label className="mt-2 block"><span className="sr-only">اختيار القارئ | Stimme auswählen</span><select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs" dir="ltr">{voices.length ? voices.map((voice) => <option key={voice.name} value={voice.name}>{voice.name} ({voice.lang})</option>) : <option>صوت الجهاز | Gerätestimme</option>}</select></label></div>
+  </div>;
+}
+
+function ScaleControl({ ar, de, value, onChange }: { ar: string; de: string; value: number; onChange: (value: number) => void }) {
+  return <div><div className="flex items-center justify-between gap-3"><Pair ar={ar} de={de} /><span dir="ltr" className="text-sm font-bold text-secondary">{value}%</span></div><input aria-label={`${ar} | ${de}`} type="range" min="80" max="150" step="10" value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-3 w-full accent-secondary" /></div>;
+}
+
+function ThemeButton({ active, theme, ar, de, onClick }: { active: boolean; theme: "navy" | "white" | "warm"; ar: string; de: string; onClick: () => void }) {
+  return <Button variant={active ? "default" : "outline"} onClick={onClick} className="h-auto flex-col gap-2 px-1 py-2"><span className="reader-theme-swatch h-6 w-6 rounded-full border border-border" data-swatch={theme} /><Pair ar={ar} de={de} align="center" inverse={active} /></Button>;
 }
 
 function DonationsView() {
