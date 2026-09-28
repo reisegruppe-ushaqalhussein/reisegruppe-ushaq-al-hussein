@@ -1,6 +1,10 @@
 export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string };
+export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string };
+export type AlertEntry = { ar: string; de: string; active: boolean };
 export type SiteContent = {
+  duas: DuaEntry[];
+  alert: AlertEntry;
   trips: TripEntry[];
   hotels: { kadhimiya: string; karbala: string; najaf: string };
   program: { ar: string; de: string };
@@ -9,6 +13,13 @@ export type SiteContent = {
 };
 
 export const defaultContent: SiteContent = {
+  alert: { ar: "", de: "", active: false },
+  duas: [
+    { id: "ashura", ar: "زيارة عاشوراء", de: "Ziyarat Ashura", textAr: "السَّلامُ عَلَيْكَ يا أبا عَبْدِ اللهِ، السَّلامُ عَلَيْكَ يَا ابْنَ رَسُولِ اللهِ...", textDe: "As-salāmu ʿalayka yā Abā ʿAbdillāh, as-salāmu ʿalayka yabna Rasūlillāh... — Friede sei mit dir, o Abu Abdillah, Friede sei mit dir, o Sohn des Gesandten Gottes.", link: "" },
+    { id: "warith", ar: "زيارة وارث", de: "Ziyarat Warith", textAr: "السَّلامُ عَلَيْكَ يا وارِثَ آدَمَ صَفْوَةِ اللهِ...", textDe: "As-salāmu ʿalayka yā wāritha Ādama ṣafwatillāh... — Friede sei mit dir, o Erbe Adams, des Auserwählten Gottes.", link: "" },
+    { id: "tawassul", ar: "دعاء التوسل", de: "Bittgebet Tawassul", textAr: "اللّهُمَّ إنِّي أسْألُكَ وَأتَوَجَّهُ إلَيْكَ بِنَبِيِّكَ نَبِيِّ الرَّحْمَةِ مُحَمَّدٍ...", textDe: "Allāhumma innī asʾaluka wa atawajjahu ilayka bi-nabiyyika nabiyyi r-raḥmati Muḥammad... — O Gott, ich bitte Dich und wende mich an Dich durch Deinen Propheten, den Propheten der Barmherzigkeit, Muhammad.", link: "" },
+    { id: "kumayl", ar: "دعاء كميل", de: "Bittgebet Kumayl", textAr: "اللّهُمَّ إنِّي أسْألُكَ بِرَحْمَتِكَ الَّتي وَسِعَتْ كُلَّ شَيْءٍ...", textDe: "Allāhumma innī asʾaluka bi-raḥmatika llatī wasiʿat kulla shayʾ... — O Gott, ich bitte Dich bei Deiner Barmherzigkeit, die alles umfasst.", link: "" },
+  ],
   trips: [
     { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Zyarat Imam Hussein (as)", date: "01.12 – 09.12.2026", visible: true },
     { id: "winter", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Zyarat Imam Hussein (as) Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", visible: true },
@@ -30,6 +41,8 @@ export const defaultContent: SiteContent = {
 export function mergeContent(data: unknown): SiteContent {
   const d = (data && typeof data === "object" ? data : {}) as Partial<SiteContent>;
   return {
+    duas: Array.isArray(d.duas) ? d.duas : defaultContent.duas,
+    alert: { ...defaultContent.alert, ...(d.alert ?? {}) },
     trips: Array.isArray(d.trips) && d.trips.length ? d.trips : defaultContent.trips,
     hotels: { ...defaultContent.hotels, ...(d.hotels ?? {}) },
     program: { ...defaultContent.program, ...(d.program ?? {}) },
