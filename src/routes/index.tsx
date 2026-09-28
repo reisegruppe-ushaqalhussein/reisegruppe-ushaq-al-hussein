@@ -3,6 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
 import { defaultContent, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
+import { DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -463,50 +464,47 @@ function AlertBanner({ alert }: { alert: SiteContent["alert"] }) {
 type ReaderItem = { id: string; ar: string; de: string; textAr: string; latin: string; translation: string; link?: string };
 type Shrine = { id: string; ar: string; de: string; image: string; entries: ReaderItem[] };
 
-const readerEntries = {
-  imamAli: { id: "imam-ali", ar: "زيارة الإمام علي (ع)", de: "Ziyarat Imam Ali (as)", textAr: "السَّلامُ عَلَيْكَ يا أَميرَ الْمُؤْمِنينَ، السَّلامُ عَلَيْكَ يا وَصِيَّ رَسُولِ رَبِّ الْعالَمينَ.", latin: "As-salāmu ʿalayka yā Amīra l-muʾminīn, as-salāmu ʿalayka yā waṣiyya Rasūli Rabbi l-ʿālamīn.", translation: "Friede sei mit dir, o Fürst der Gläubigen. Friede sei mit dir, o Bevollmächtigter des Gesandten des Herrn der Welten." },
-  kazimayn: { id: "kazimayn", ar: "زيارة الإمامين الكاظمين (ع)", de: "Ziyarat der beiden Imame al-Kazim (as)", textAr: "السَّلامُ عَلَيْكُما يا وَلِيَّيِ اللهِ، السَّلامُ عَلَيْكُما يا حُجَّتَيِ اللهِ.", latin: "As-salāmu ʿalaykumā yā waliyyayillāh, as-salāmu ʿalaykumā yā ḥujjatayillāh.", translation: "Friede sei mit euch beiden, o Freunde Gottes. Friede sei mit euch beiden, o Beweise Gottes." },
-  askari: { id: "askari", ar: "زيارة الإمامين العسكريين (ع)", de: "Ziyarat der beiden Imame al-Askari (as)", textAr: "السَّلامُ عَلَيْكُما يا وَلِيَّيِ اللهِ، السَّلامُ عَلَيْكُما يا حُجَّتَيِ اللهِ وَخالصَتَيْهِ.", latin: "As-salāmu ʿalaykumā yā waliyyayillāh, as-salāmu ʿalaykumā yā ḥujjatayillāhi wa khāliṣatayh.", translation: "Friede sei mit euch beiden, o Freunde Gottes, Seine Beweise und Seine aufrichtigen Diener." },
-  imamRida: { id: "imam-rida", ar: "زيارة الإمام الرضا (ع)", de: "Ziyarat Imam Rida (as)", textAr: "السَّلامُ عَلَيْكَ يا وَلِيَّ اللهِ وَابْنَ وَلِيِّهِ، السَّلامُ عَلَيْكَ يا حُجَّةَ اللهِ وَابْنَ حُجَّتِهِ.", latin: "As-salāmu ʿalayka yā waliyyallāhi wabna waliyyih, as-salāmu ʿalayka yā ḥujjatallāhi wabna ḥujjatih.", translation: "Friede sei mit dir, o Freund Gottes und Sohn Seines Freundes. Friede sei mit dir, o Beweis Gottes und Sohn Seines Beweises." },
-  masumeh: { id: "masumeh", ar: "زيارة السيدة فاطمة المعصومة (ع)", de: "Ziyarat Sayyida Fatima Masuma (as)", textAr: "السَّلامُ عَلَيْكِ يا بِنْتَ رَسُولِ اللهِ، السَّلامُ عَلَيْكِ يا بِنْتَ فاطِمَةَ وَخَديجَةَ.", latin: "As-salāmu ʿalayki yā binta Rasūlillāh, as-salāmu ʿalayki yā binta Fāṭimata wa Khadīja.", translation: "Friede sei mit dir, o Tochter des Gesandten Gottes. Friede sei mit dir, o Tochter Fatimas und Khadijas." },
-  prophet: { id: "prophet", ar: "زيارة النبي محمد (ص)", de: "Ziyarat des Propheten Muhammad (s)", textAr: "السَّلامُ عَلَيْكَ يا رَسُولَ اللهِ، السَّلامُ عَلَيْكَ يا نَبِيَّ اللهِ، السَّلامُ عَلَيْكَ يا مُحَمَّدُ بْنَ عَبْدِ اللهِ.", latin: "As-salāmu ʿalayka yā Rasūlallāh, as-salāmu ʿalayka yā Nabiyyallāh, as-salāmu ʿalayka yā Muḥammada bna ʿAbdillāh.", translation: "Friede sei mit dir, o Gesandter Gottes. Friede sei mit dir, o Prophet Gottes. Friede sei mit dir, o Muhammad, Sohn Abdullahs." },
-} satisfies Record<string, ReaderItem>;
-
 function splitGermanText(value: string) {
   const [latin, ...translation] = value.split(/\s+[—–-]\s+/);
   return { latin: latin ?? "", translation: translation.join(" — ") || value };
 }
 
-function DuasView({ duas }: { duas: SiteContent["duas"] }) {
+type AdminCtx = { password: string; content: SiteContent } | null;
+
+function DuasView({ content }: { content: SiteContent }) {
+  const duas = content.duas;
+  const adminPw = useAdminPassword();
+  const admin: AdminCtx = adminPw ? { password: adminPw, content } : null;
   const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [duas]);
   const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const shrines: Shrine[] = [
     { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela", image: shrineImage, entries: inCat("karbala") },
-    { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf", image: najafShrine, entries: [readerEntries.imamAli, ...inCat("najaf")] },
-    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Al-Kazimiyya", image: kazimiyyaShrine, entries: [readerEntries.kazimayn, ...inCat("kazimiyya")] },
-    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: [readerEntries.askari, ...inCat("samarra")] },
-    { id: "mashhad", ar: "مشهد المقدسة", de: "Maschhad", image: mashhadShrine, entries: [readerEntries.imamRida, ...inCat("mashhad")] },
-    { id: "qom", ar: "قم المقدسة", de: "Qom", image: qomShrine, entries: [readerEntries.masumeh, ...inCat("qom")] },
-    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: [readerEntries.prophet, ...inCat("mecca-medina")] },
+    { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf", image: najafShrine, entries: inCat("najaf") },
+    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Al-Kazimiyya", image: kazimiyyaShrine, entries: inCat("kazimiyya") },
+    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: inCat("samarra") },
+    { id: "mashhad", ar: "مشهد المقدسة", de: "Maschhad", image: mashhadShrine, entries: inCat("mashhad") },
+    { id: "qom", ar: "قم المقدسة", de: "Qom", image: qomShrine, entries: inCat("qom") },
+    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: inCat("mecca-medina") },
   ];
   const generalEntries = inCat("general");
-  const [shrine, setShrine] = useState<Shrine | null>(null);
+  const [shrineId, setShrineId] = useState<string | null>(null);
+  const shrine = shrines.find((s) => s.id === shrineId) ?? null;
   const [reader, setReader] = useState<ReaderItem | null>(null);
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
-  if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrine(null)} onRead={setReader} />;
+  if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={BookOpen} ar="العتبات المقدسة" de="Heilige Stätten" />
       <div className="grid grid-cols-2 gap-3">
         {shrines.map((item) => (
-          <Button key={item.id} variant="outline" onClick={() => setShrine(item)} className="group relative aspect-[4/5] h-auto overflow-hidden border-0 p-0 shadow-md">
+          <Button key={item.id} variant="outline" onClick={() => setShrineId(item.id)} className="group relative aspect-[4/5] h-auto overflow-hidden border-0 p-0 shadow-md">
             <img src={item.image} alt={`${item.ar} | ${item.de}`} loading="lazy" width={768} height={1024} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <span className="shrine-card-shade absolute inset-0" />
             <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
           </Button>
         ))}
       </div>
-      {generalEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة والتعقيبات" de="Allgemeine Bittgebete" /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
+      {generalEntries.length > 0 && <section className="mt-7"><ScreenTitle icon={ScrollText} ar="الأدعية العامة والتعقيبات" de="Allgemeine Bittgebete" /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></section>}
     </div>
   );
 }
@@ -515,12 +513,12 @@ function LayerToggle({ active, onClick, label, children }: { active: boolean; on
   return <Button variant={active ? "secondary" : "outline"} size="icon" onClick={onClick} aria-pressed={active} aria-label={label} title={label} className={active ? "" : "bg-transparent opacity-60"}>{children}</Button>;
 }
 
-function ReaderListButton({ item, onRead }: { item: ReaderItem; onRead: (item: ReaderItem) => void }) {
-  return <Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button>;
+function ReaderListButton({ item, onRead, admin }: { item: ReaderItem; onRead: (item: ReaderItem) => void; admin?: AdminCtx }) {
+  return <div className="space-y-2">{admin && <DuaAdminActions id={item.id} password={admin.password} content={admin.content} />}<Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button></div>;
 }
 
-function ShrineDetail({ shrine, onBack, onRead }: { shrine: Shrine; onBack: () => void; onRead: (item: ReaderItem) => void }) {
-  return <div className="screen-enter pb-7"><div className="relative h-56 overflow-hidden"><img src={shrine.image} alt={`${shrine.ar} | ${shrine.de}`} loading="lazy" width={768} height={1024} className="h-full w-full object-cover" /><span className="shrine-card-shade absolute inset-0" /><Button variant="secondary" size="icon" onClick={onBack} aria-label="العودة | Zurück" className="absolute right-4 top-4"><ArrowLeft className="rotate-180" /></Button><h2 className="absolute inset-x-5 bottom-5 text-xl text-primary-foreground"><Pair ar={shrine.ar} de={shrine.de} inverse /></h2></div><div className="px-4 pt-6"><ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" /><div className="space-y-3">{shrine.entries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={onRead} />)}</div></div></div>;
+function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBack: () => void; onRead: (item: ReaderItem) => void; admin: AdminCtx }) {
+  return <div className="screen-enter pb-7"><div className="relative h-56 overflow-hidden"><img src={shrine.image} alt={`${shrine.ar} | ${shrine.de}`} loading="lazy" width={768} height={1024} className="h-full w-full object-cover" /><span className="shrine-card-shade absolute inset-0" /><Button variant="secondary" size="icon" onClick={onBack} aria-label="العودة | Zurück" className="absolute right-4 top-4"><ArrowLeft className="rotate-180" /></Button><h2 className="absolute inset-x-5 bottom-5 text-xl text-primary-foreground"><Pair ar={shrine.ar} de={shrine.de} inverse /></h2></div><div className="px-4 pt-6"><ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" /><div className="space-y-3">{shrine.entries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={onRead} admin={admin} />)}</div></div></div>;
 }
 
 function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void }) {
@@ -619,7 +617,7 @@ function Index() {
         {view === "contacts" && <ContactsView />}
         {view === "news" && <NewsView news={content.news} />}
         {view === "donations" && <DonationsView />}
-        {view === "duas" && <DuasView duas={content.duas} />}
+        {view === "duas" && <DuasView content={content} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <ShareButton />
           <SocialLinks />

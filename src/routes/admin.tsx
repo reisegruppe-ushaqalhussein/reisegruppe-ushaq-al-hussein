@@ -5,6 +5,7 @@ import { Home, KeyRound, Lock, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { changeAdminPassword, checkAdminPassword, getSiteContent, saveSiteContent } from "@/lib/site-content.functions";
 import { duaCategories, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
+import { ADMIN_KEY } from "@/components/dua-admin";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -68,7 +69,7 @@ function AdminPage() {
     try {
       const res = await changePw({ data: { password, newPassword: newPw } });
       if (!res.ok) return setPwStatus("failed");
-      setPassword(newPw); setNewPw(""); setNewPw2(""); setPwStatus("saved");
+      setPassword(newPw); sessionStorage.setItem(ADMIN_KEY, newPw); setNewPw(""); setNewPw2(""); setPwStatus("saved");
     } catch { setPwStatus("failed"); }
   }
   const [password, setPassword] = useState("");
@@ -81,6 +82,7 @@ function AdminPage() {
     const { ok } = await check({ data: { password } });
     if (!ok) return setError(true);
     setError(false);
+    sessionStorage.setItem(ADMIN_KEY, password);
     setContent(await load());
   }
 
