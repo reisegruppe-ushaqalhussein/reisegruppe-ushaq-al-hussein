@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
 import { defaultContent, type SiteContent } from "@/lib/site-content";
+import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
   ArrowLeft,
@@ -36,6 +37,9 @@ import {
   Pause,
   Play,
   Settings,
+  Globe,
+  Type as TypeIcon,
+  Languages,
   ScrollText,
   Share2,
   Soup,
@@ -93,6 +97,10 @@ type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "t
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
 function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
+  const { lang } = useLang();
+  const alignCls = align === "center" ? "text-center" : "text-right";
+  if (lang === "ar") return <span lang="ar" dir="rtl" className={`block font-bold leading-relaxed ${alignCls}`}>{ar}</span>;
+  if (lang === "de" || lang === "en") return <span lang={lang} dir="ltr" className={`block font-bold leading-snug ${align === "center" ? "text-center" : "text-left"}`}>{lang === "en" ? toEnglish(de) : de}</span>;
   return (
     <span className={`block ${align === "center" ? "text-center" : "text-right"}`}>
       <span lang="ar" dir="rtl" className="block font-bold leading-relaxed">{ar}</span>
@@ -151,8 +159,27 @@ function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
         </div>
         <span className="grid h-9 w-9 place-items-center rounded-md border border-secondary/50 text-secondary"><MoonStar className="h-5 w-5" aria-hidden="true" /></span>
       </div>
+      <LanguageSwitcher />
     </header>
   );
+}
+
+function LanguageSwitcher() {
+  const { lang, setLang } = useLang();
+  const options: { id: AppLang; label: string }[] = [{ id: "both", label: "ع | DE" }, { id: "ar", label: "العربية" }, { id: "de", label: "Deutsch" }, { id: "en", label: "English" }];
+  return (
+    <div className="mt-3 flex items-center justify-center gap-1" role="group" aria-label="اللغة | Sprache">
+      <Languages className="h-4 w-4 text-secondary" aria-hidden="true" />
+      {options.map((o) => <button key={o.id} type="button" onClick={() => setLang(o.id)} aria-pressed={lang === o.id} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${lang === o.id ? "bg-secondary text-secondary-foreground" : "text-primary-foreground/75 hover:bg-primary-foreground/10"}`}>{o.label}</button>)}
+    </div>
+  );
+}
+
+function NavLabel({ ar, de }: { ar: string; de: string }) {
+  const { lang } = useLang();
+  if (lang === "ar") return <span className="text-[10px] font-bold leading-none">{ar}</span>;
+  if (lang === "de" || lang === "en") return <span dir="ltr" className="max-w-full truncate text-[10px] font-bold leading-none">{lang === "en" ? toEnglish(de) : de}</span>;
+  return <><span className="text-[10px] font-bold leading-none">{ar}</span><span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{de}</span></>;
 }
 
 function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: string }) {
@@ -486,6 +513,10 @@ function DuasView({ duas }: { duas: SiteContent["duas"] }) {
   );
 }
 
+function LayerToggle({ active, onClick, label, children }: { active: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
+  return <Button variant={active ? "secondary" : "outline"} size="icon" onClick={onClick} aria-pressed={active} aria-label={label} title={label} className={active ? "" : "bg-transparent opacity-60"}>{children}</Button>;
+}
+
 function ReaderListButton({ item, onRead }: { item: ReaderItem; onRead: (item: ReaderItem) => void }) {
   return <Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button>;
 }
@@ -496,6 +527,9 @@ function ShrineDetail({ shrine, onBack, onRead }: { shrine: Shrine; onBack: () =
 
 function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showAr, setShowAr] = useState(true);
+  const [showLatin, setShowLatin] = useState(true);
+  const [showTr, setShowTr] = useState(true);
   const [arabicScale, setArabicScale] = useState(110);
   const [germanScale, setGermanScale] = useState(100);
   const [alignment, setAlignment] = useState<"right" | "center">("right");
@@ -541,7 +575,12 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   };
   return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-32" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
     <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
-    <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}><p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p><div className="my-7 border-t border-current/15" /><p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p><p lang="de" dir="ltr" className={`reader-de mt-5 whitespace-pre-line italic leading-relaxed opacity-75 ${alignment === "center" ? "text-center" : "text-left"}`}>{item.translation}</p>{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
+    <div className="sticky top-[61px] z-20 flex items-center justify-center gap-2 border-b border-current/10 bg-inherit px-4 py-2">
+      <LayerToggle active={showTr} onClick={() => setShowTr((v) => !v)} label="الترجمة | Übersetzung"><Globe /></LayerToggle>
+      <LayerToggle active={showLatin} onClick={() => setShowLatin((v) => !v)} label="القراءة اللاتينية | Lautschrift"><TypeIcon /></LayerToggle>
+      <LayerToggle active={showAr} onClick={() => setShowAr((v) => !v)} label="النص العربي | Arabisch"><span className="text-base font-extrabold leading-none">ع</span></LayerToggle>
+    </div>
+    <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}>{showAr && <p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p>}{showAr && (showLatin || showTr) && <div className="my-7 border-t border-current/15" />}{showLatin && <p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p>}{showTr && <p lang="de" dir="ltr" className={`reader-de mt-5 whitespace-pre-line italic leading-relaxed opacity-75 ${alignment === "center" ? "text-center" : "text-left"}`}>{item.translation}</p>}{!showAr && !showLatin && !showTr && <p className="py-10 text-center text-sm opacity-60"><Pair ar="فعّل أحد أزرار العرض أعلاه لإظهار النص." de="Aktivieren Sie oben eine Ebene, um den Text anzuzeigen." align="center" /></p>}{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إعدادات القراءة" de="Leseeinstellungen" /></DialogTitle><DialogDescription><Pair ar="خصّص النص بما يناسب قراءتك." de="Passen Sie die Darstellung an Ihre Leseweise an." /></DialogDescription></DialogHeader><div className="space-y-5 pt-2"><ScaleControl ar="حجم النص العربي" de="Arabische Schriftgröße" value={arabicScale} onChange={setArabicScale} /><ScaleControl ar="حجم النص الألماني" de="Deutsche Schriftgröße" value={germanScale} onChange={setGermanScale} /><div><Pair ar="محاذاة النص" de="Textausrichtung" /><div className="mt-2 grid grid-cols-2 gap-2"><Button variant={alignment === "right" ? "default" : "outline"} onClick={() => setAlignment("right")}><AlignRight /><Pair ar="يمين" de="Rechts" align="center" inverse={alignment === "right"} /></Button><Button variant={alignment === "center" ? "default" : "outline"} onClick={() => setAlignment("center")}><AlignCenter /><Pair ar="وسط" de="Zentriert" align="center" inverse={alignment === "center"} /></Button></div></div><div><Pair ar="خلفية القراءة" de="Lesefläche" /><div className="mt-2 grid grid-cols-3 gap-2"><ThemeButton active={theme === "navy"} theme="navy" ar="كحلي" de="Dunkelblau" onClick={() => setTheme("navy")} /><ThemeButton active={theme === "white"} theme="white" ar="أبيض" de="Weiß" onClick={() => setTheme("white")} /><ThemeButton active={theme === "warm"} theme="warm" ar="دافئ" de="Warm" onClick={() => setTheme("warm")} /></div></div></div></DialogContent></Dialog>
     <div className="fixed inset-x-0 bottom-20 z-30 mx-auto w-full max-w-[420px] border-t border-border bg-card/95 px-4 py-3 text-card-foreground shadow-xl backdrop-blur-md"><div className="flex items-center gap-3" dir="ltr"><Button size="icon" onClick={toggleAudio} aria-label={playing ? "إيقاف | Pause" : "تشغيل | Abspielen"}>{playing ? <Pause /> : <Play />}</Button><div className="min-w-0 flex-1"><progress aria-label="تقدم القراءة الصوتية | Fortschritt" value={progress} max="100" className="reader-progress h-1.5 w-full" /><div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>{Math.round(progress)}%</span><span><Volume2 className="inline h-3 w-3" /> قراءة صوتية</span></div></div></div><label className="mt-2 block"><span className="sr-only">اختيار القارئ | Stimme auswählen</span><select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs" dir="ltr">{voices.length ? voices.map((voice) => <option key={voice.name} value={voice.name}>{voice.name} ({voice.lang})</option>) : <option>صوت الجهاز | Gerätestimme</option>}</select></label></div>
   </div>;
@@ -572,7 +611,7 @@ function Index() {
   const [view, setView] = useState<View>("home");
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
-    <div className="min-h-screen bg-muted">
+    <LangProvider><div className="min-h-screen bg-muted">
       <main className="mx-auto min-h-screen w-full max-w-[420px] bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
@@ -586,12 +625,12 @@ function Index() {
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <ShareButton />
           <SocialLinks />
-          <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary">الإدارة <span lang="de" className="italic">| Verwaltung</span></Link>
+          <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary"><Pair ar="الإدارة" de="Verwaltung" align="center" /></Link>
         </footer>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-20 w-full max-w-[420px] grid-cols-5 border-t border-border bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-xl backdrop-blur-md" aria-label="التنقل الرئيسي | Hauptnavigation">
-        {bottomItems.map(({ view: itemView, ar, de, icon: Icon }) => <Button key={itemView} variant="ghost" onClick={() => go(itemView)} aria-current={view === itemView ? "page" : undefined} className={`h-full min-w-0 flex-col gap-1 rounded-none px-0.5 ${view === itemView ? "bg-accent text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" aria-hidden="true" /><span className="text-[10px] font-bold leading-none">{ar}</span><span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{de}</span></Button>)}
+        {bottomItems.map(({ view: itemView, ar, de, icon: Icon }) => <Button key={itemView} variant="ghost" onClick={() => go(itemView)} aria-current={view === itemView ? "page" : undefined} className={`h-full min-w-0 flex-col gap-1 rounded-none px-0.5 ${view === itemView ? "bg-accent text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" aria-hidden="true" /><NavLabel ar={ar} de={de} /></Button>)}
       </nav>
-    </div>
+    </div></LangProvider>
   );
 }
