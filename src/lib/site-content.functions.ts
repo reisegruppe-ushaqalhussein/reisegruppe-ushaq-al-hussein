@@ -53,6 +53,7 @@ const contentSchema = z.object({
   hotels: z.object({ kadhimiya: s, karbala: s, najaf: s }),
   program: z.object({ ar: s, de: s }),
   visa: z.object({ eu: s, nonEu: s }),
+  payment: z.object({ visible: z.boolean(), accountName: s, bankName: s, iban: s, bic: s }),
   news: z.array(z.object({ ar: s, de: s, bodyAr: s, bodyDe: s })).max(50),
   duas: z.array(z.object({ id: z.string().max(50), ar: s, de: s, textAr: z.string().max(10000), textDe: z.string().max(10000), link: z.string().max(1000) })).max(50),
   alert: z.object({ ar: s, de: s, active: z.boolean() }),

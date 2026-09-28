@@ -11,3 +11,6 @@
 - [x] Add the bilingual visa and departure-airports card to the home screen.
 - [x] Clickable visa card, Iraq section reorder, text corrections.
 - [x] Password-protected /admin panel saving trips, hotels, program, visa fees, and news.
+- [x] Add social links and official email actions to contacts and the footer.
+- [x] Add admin-controlled bank transfer details, hidden by default.
+- [x] Add WhatsApp app sharing and bilingual travel FAQs.
