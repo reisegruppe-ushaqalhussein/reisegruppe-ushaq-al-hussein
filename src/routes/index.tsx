@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
-import type { SiteContent } from "@/lib/site-content";
+import { defaultContent, type SiteContent } from "@/lib/site-content";
 import { useEffect, useState, type ComponentType } from "react";
 import {
   ArrowLeft,
