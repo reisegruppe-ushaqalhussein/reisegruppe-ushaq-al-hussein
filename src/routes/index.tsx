@@ -48,7 +48,7 @@ export const Route = createFileRoute("/")({
 const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
 
 type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations";
-type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
 function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
