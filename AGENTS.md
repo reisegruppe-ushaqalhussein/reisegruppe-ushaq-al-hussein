@@ -15,3 +15,4 @@
 - Editable campaign content, including payment visibility and bank fields, lives in one `site_content` row (id `main`, jsonb) read publicly and written only via a password-checked server function (ADMIN_PASSWORD secret), because the admin panel is a shared-password gate without user accounts.
 - Keep the Ziyarat experience inside the existing `duas` in-page view, with shrine/list/reader subviews and device speech synthesis, because the campaign uses one persistent app shell and has no hosted recitation files.
 - Language choice (both/ar/de/en) lives in `src/lib/i18n.tsx` context; `Pair` renders per choice and English maps from German strings, because the default must stay Arabic-above-German.
+- Generate all home-screen icons from the campaign logo on a full ivory canvas with a 20% safe zone, because platform masks must not crop the emblem or expose hard inner edges.
