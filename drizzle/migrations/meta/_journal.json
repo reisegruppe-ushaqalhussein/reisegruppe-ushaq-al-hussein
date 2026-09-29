@@ -15,6 +15,13 @@
       "when": 1790609387906,
       "tag": "0001_admin_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790702698151,
+      "tag": "0002_push_tokens",
+      "breakpoints": true
     }
   ]
 }
