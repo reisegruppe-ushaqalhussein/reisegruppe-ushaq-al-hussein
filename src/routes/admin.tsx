@@ -5,9 +5,9 @@ import { clearSynced, flushQueue, getQueue, idbGet, isOnline, onQueueChange, sav
 import { useOnline } from "@/components/offline-status";
 import { CheckCircle2, Clock, Home, KeyRound, Lock, Plus, Save, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { changeAdminPassword, checkAdminPassword, getSiteContent } from "@/lib/site-content.functions";
+import { changeAdminPassword, checkAdminPassword, getSiteContent, sendAlertPush } from "@/lib/site-content.functions";
 import { duaCategories, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
-import { ADMIN_KEY } from "@/components/dua-admin";
+import { ADMIN_KEY, RecitersEditor } from "@/components/dua-admin";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -60,6 +60,8 @@ function AdminPage() {
   const check = useServerFn(checkAdminPassword);
   const load = useServerFn(getSiteContent);
   const changePw = useServerFn(changeAdminPassword);
+  const pushAlert = useServerFn(sendAlertPush);
+  const [savedAlert, setSavedAlert] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPw2, setNewPw2] = useState("");
   const [pwStatus, setPwStatus] = useState<"idle" | "short" | "mismatch" | "saved" | "failed">("idle");
@@ -89,7 +91,9 @@ function AdminPage() {
     if (!ok) return setError(true);
     setError(false);
     sessionStorage.setItem(ADMIN_KEY, password);
-    setContent(await load());
+    const loaded = await load();
+    setSavedAlert(loaded.alert.active ? loaded.alert.ar + loaded.alert.de : "");
+    setContent(loaded);
   }
 
   async function onSave() {
@@ -98,6 +102,12 @@ function AdminPage() {
     try {
       const { queued } = await saveOrQueue(password, content, "لوحة الإدارة | Verwaltung");
       setStatus(queued ? "queued" : "saved");
+      const key = content.alert.active ? content.alert.ar + content.alert.de : "";
+      if (!queued && key && key !== savedAlert) {
+        setSavedAlert(key);
+        const r = await pushAlert({ data: { password, title: "تنبيه عاجل | Eilmeldung", body: [content.alert.ar, content.alert.de].filter(Boolean).join("\n") } }).catch(() => null);
+        if (r?.ok) window.alert(`تم إرسال الإشعار إلى ${r.sent} جهاز | Benachrichtigung an ${r.sent} Geräte gesendet`);
+      }
     } catch (e) {
       console.error(e);
       setStatus("failed");
@@ -139,7 +149,7 @@ function AdminPage() {
               <Field multiline ltr ar="نص التنبيه (ألماني)" de="Text (Deutsch)" value={content.alert.de} onChange={(v) => update((c) => { c.alert.de = v; return c; })} />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={content.alert.active} onChange={(e) => update((c) => { c.alert.active = e.target.checked; return c; })} className="h-4 w-4 accent-secondary" />
-                <L ar="إظهار التنبيه للزوار" de="Für Besucher anzeigen" />
+                <L ar="إظهار التنبيه للزوار (يُرسل إشعاراً للهواتف عند الحفظ)" de="Anzeigen (sendet beim Speichern eine Push-Benachrichtigung)" />
               </label>
             </Section>
 
@@ -209,6 +219,7 @@ function AdminPage() {
                   </label>
                   <Field multiline ar="النص العربي" de="Arabischer Text" value={d.textAr} onChange={(v) => update((c) => { c.duas[i]!.textAr = v; return c; })} />
                   <Field multiline ltr ar="الكتابة اللاتينية / الترجمة" de="Transliteration / Übersetzung" value={d.textDe} onChange={(v) => update((c) => { c.duas[i]!.textDe = v; return c; })} />
+                  <RecitersEditor value={d.reciters ?? []} onChange={(v) => update((c) => { c.duas[i]!.reciters = v; return c; })} />
                   <Field ltr ar="رابط PDF أو Google Drive" de="PDF- oder Google-Drive-Link" value={d.link} onChange={(v) => update((c) => { c.duas[i]!.link = v; return c; })} />
                   <Button variant="outline" size="sm" onClick={() => update((c) => { c.duas.splice(i, 1); return c; })} className="text-destructive"><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
                 </div>

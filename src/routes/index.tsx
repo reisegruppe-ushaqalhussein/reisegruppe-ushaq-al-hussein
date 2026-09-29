@@ -421,6 +421,22 @@ function PaymentCard({ payment }: { payment: SiteContent["payment"] }) {
   return <section className="mt-5 rounded-lg border border-secondary bg-card p-4 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><CreditCard className="h-5 w-5" /></span><h2 className="text-primary"><Pair ar="طرق الدفع والتحويل" de="Zahlungsmethoden" /></h2></div><div className="mt-4 space-y-3 border-t border-border pt-4 text-sm">{payment.accountName && <Pair ar={`اسم الحساب: ${payment.accountName}`} de={`Kontoinhaber: ${payment.accountName}`} />}{payment.bankName && <Pair ar={`اسم البنك: ${payment.bankName}`} de={`Bank: ${payment.bankName}`} />}{payment.iban && <div><p dir="ltr" className="break-all text-right font-bold">IBAN: {payment.iban}</p><Button variant="outline" size="sm" onClick={copyIban} className="mt-2 w-full">{copied ? <Check /> : <Copy />}<Pair ar={copied ? "تم نسخ رقم الحساب" : "نسخ رقم الحساب"} de={copied ? "IBAN kopiert" : "IBAN kopieren"} align="center" /></Button></div>}{payment.bic && <p dir="ltr" className="break-all text-right font-bold">BIC: {payment.bic}</p>}<div className="rounded-md bg-accent p-3 text-primary"><Pair ar="التحويل البنكي الفوري فقط — لا يتوفر خيار التقسيط" de="Nur Sofortüberweisung — Keine Ratenzahlung möglich" /></div></div></section>;
 }
 
+function PushButton() {
+  const [state, setState] = useState<"idle" | "busy" | "on">("idle");
+  useEffect(() => { if (localStorage.getItem("push-enabled") && "Notification" in window && Notification.permission === "granted") setState("on"); }, []);
+  const msgs: Record<string, string> = {
+    "not-configured": "الإشعارات غير مفعّلة بعد | Benachrichtigungen noch nicht eingerichtet",
+    unsupported: "جهازك لا يدعم الإشعارات. على iPhone أضف التطبيق للشاشة الرئيسية أولاً | Nicht unterstützt. Auf dem iPhone zuerst zum Home-Bildschirm hinzufügen",
+    "open-in-new-tab": "افتح التطبيق في نافذة مستقلة لتفعيل الإشعارات | Bitte die App in einem eigenen Tab öffnen",
+    denied: "تم رفض الإذن — فعّله من إعدادات المتصفح | Erlaubnis verweigert – bitte in den Browser-Einstellungen aktivieren",
+  };
+  return <Button variant="outline" disabled={state !== "idle"} className="w-full border-secondary" onClick={async () => {
+    setState("busy");
+    try { const r = await enablePush(); if (r === "registered") return setState("on"); window.alert(msgs[r]); } catch (e) { console.error(e); window.alert("تعذّر التفعيل | Aktivierung fehlgeschlagen"); }
+    setState("idle");
+  }}><Bell />{state === "on" ? <>الإشعارات العاجلة مفعّلة <span className="text-xs italic">| Eilmeldungen aktiv</span></> : <>تفعيل الإشعارات العاجلة <span className="text-xs italic">| Eilmeldungen aktivieren</span></>}</Button>;
+}
+
 function ShareButton() {
   const share = () => {
     const url = window.location.origin;
@@ -645,6 +661,7 @@ function Index() {
         {view === "guide" && <GuideView content={content} admin={admin} />}
         {view === "tasbeeh" && <TasbeehView />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
+          <PushButton />
           <ShareButton />
           <SocialLinks />
           <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary"><Pair ar="الإدارة" de="Verwaltung" align="center" /></Link>
