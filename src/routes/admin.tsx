@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type ReactNode } from "react";
-import { Home, KeyRound, Lock, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { clearSynced, flushQueue, getQueue, idbGet, isOnline, onQueueChange, saveOrQueue, type QueueItem } from "@/lib/offline";
+import { useOnline } from "@/components/offline-status";
+import { CheckCircle2, Clock, Home, KeyRound, Lock, Plus, Save, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { changeAdminPassword, checkAdminPassword, getSiteContent, saveSiteContent } from "@/lib/site-content.functions";
+import { changeAdminPassword, checkAdminPassword, getSiteContent } from "@/lib/site-content.functions";
 import { duaCategories, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
 import { ADMIN_KEY } from "@/components/dua-admin";
 
@@ -57,7 +59,6 @@ function Section({ ar, de, children }: { ar: string; de: string; children: React
 function AdminPage() {
   const check = useServerFn(checkAdminPassword);
   const load = useServerFn(getSiteContent);
-  const save = useServerFn(saveSiteContent);
   const changePw = useServerFn(changeAdminPassword);
   const [newPw, setNewPw] = useState("");
   const [newPw2, setNewPw2] = useState("");
@@ -75,10 +76,15 @@ function AdminPage() {
   const [password, setPassword] = useState("");
   const [content, setContent] = useState<SiteContent | null>(null);
   const [error, setError] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "queued" | "failed">("idle");
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
+    if (!isOnline()) {
+      const cached = await idbGet<SiteContent>("content");
+      if (cached && sessionStorage.getItem(ADMIN_KEY) === password) { setError(false); return setContent(cached); }
+      return setError(true);
+    }
     const { ok } = await check({ data: { password } });
     if (!ok) return setError(true);
     setError(false);
@@ -90,9 +96,8 @@ function AdminPage() {
     if (!content) return;
     setStatus("saving");
     try {
-      const res = await save({ data: { password, content } });
-      setStatus(res.ok ? "saved" : "failed");
-      if (!res.ok) window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${res.error ?? ""}`);
+      const { queued } = await saveOrQueue(password, content, "لوحة الإدارة | Verwaltung");
+      setStatus(queued ? "queued" : "saved");
     } catch (e) {
       console.error(e);
       setStatus("failed");
@@ -128,6 +133,7 @@ function AdminPage() {
           </form>
         ) : (
           <div className="space-y-4 px-4 py-5">
+            <SyncQueue password={password} />
             <Section ar="التنبيه العاجل" de="Eilmeldung">
               <Field multiline ar="نص التنبيه (عربي)" de="Text (Arabisch)" value={content.alert.ar} onChange={(v) => update((c) => { c.alert.ar = v; return c; })} />
               <Field multiline ltr ar="نص التنبيه (ألماني)" de="Text (Deutsch)" value={content.alert.de} onChange={(v) => update((c) => { c.alert.de = v; return c; })} />
@@ -226,6 +232,7 @@ function AdminPage() {
       {content && (
         <div className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[520px] border-t border-border bg-card/95 p-3 backdrop-blur-md">
           {status === "saved" && <p className="mb-2 text-center text-sm text-success-foreground">تم الحفظ بنجاح <span lang="de" className="italic">| Gespeichert</span></p>}
+          {status === "queued" && <p className="mb-2 text-center text-sm text-secondary">محفوظ محلياً — بانتظار المزامنة <span lang="de" className="italic">| Lokal gespeichert – wartet auf Sync</span></p>}
           {status === "failed" && <p className="mb-2 text-center text-sm text-destructive">تعذّر الحفظ <span lang="de" className="italic">| Speichern fehlgeschlagen</span></p>}
           <Button onClick={onSave} disabled={status === "saving"} className="h-12 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
             <Save />حفظ التغييرات <span className="text-xs italic opacity-75">| Änderungen speichern</span>
@@ -233,5 +240,35 @@ function AdminPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function SyncQueue({ password }: { password: string }) {
+  const online = useOnline();
+  const [items, setItems] = useState<QueueItem[]>([]);
+  useEffect(() => { const load = () => { getQueue().then(setItems); }; load(); return onQueueChange(load); }, []);
+  useEffect(() => { if (online) flushQueue(password); }, [online, password]);
+  if (!items.length) return null;
+  const pending = items.filter((i) => i.status === "pending").length;
+  const synced = items.filter((i) => i.status === "synced").length;
+  return (
+    <Section ar="قائمة المزامنة" de="Sync-Warteschlange">
+      <div className="flex gap-2 text-xs font-bold">
+        <span className="rounded-full bg-secondary/15 px-3 py-1 text-secondary">بانتظار: {pending} | Ausstehend</span>
+        <span className="rounded-full bg-muted px-3 py-1 text-primary">تمت: {synced} | Synchronisiert</span>
+      </div>
+      <ul className="space-y-2 text-sm">
+        {items.slice().reverse().map((i) => (
+          <li key={i.id} className="flex items-start gap-2 rounded-md border border-border p-2">
+            {i.status === "pending" ? <Clock className="h-4 w-4 text-secondary" /> : i.status === "synced" ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <XCircle className="h-4 w-4 text-destructive" />}
+            <div className="flex-1">
+              <p>{i.label}</p>
+              <p dir="ltr" className="text-xs text-muted-foreground">{new Date(i.createdAt).toLocaleString("de-DE")} · {i.status === "pending" ? "Pending Sync" : i.status === "synced" ? "Synced" : `Failed: ${i.error ?? ""}`}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {synced > 0 && <Button variant="outline" size="sm" onClick={() => clearSynced()}>مسح المتزامنة <span className="text-xs italic">| Erledigte entfernen</span></Button>}
+    </Section>
   );
 }

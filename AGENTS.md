@@ -16,3 +16,4 @@
 - Keep the Ziyarat experience inside the existing `duas` in-page view, with shrine/list/reader subviews and device speech synthesis, because the campaign uses one persistent app shell and has no hosted recitation files.
 - Language choice (both/ar/de/en) lives in `src/lib/i18n.tsx` context; `Pair` renders per choice and English maps from German strings, because the default must stay Arabic-above-German.
 - Generate all home-screen icons from a tight crop of the gold arch, dome, and main calligraphy on a full ivory canvas, excluding small informational lines while retaining a narrow mask-safe edge.
+- Offline: content is network-first with IndexedDB fallback (`src/lib/offline.ts`), admin saves queue locally when offline and flush on reconnect; the service worker comes from vite-plugin-pwa (output dist/client) and registers only via `src/lib/register-sw.ts`, because it must never run in preview.

@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { saveSiteContent } from "@/lib/site-content.functions";
+import { saveOrQueue } from "@/lib/offline";
 import type { SiteContent } from "@/lib/site-content";
 
 export type FieldDef = { key: string; ar: string; de: string; ltr?: boolean; multiline?: boolean; checkbox?: boolean };
@@ -14,12 +13,10 @@ const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 t
 
 /** Saves a new version of site content; the server re-verifies the admin password. */
 export function useSaveContent(password: string) {
-  const save = useServerFn(saveSiteContent);
   const qc = useQueryClient();
   return async (next: SiteContent) => {
-    const res = await save({ data: { password, content: next } });
-    if (!res.ok) throw new Error(res.error ?? "unknown");
-    qc.setQueryData(["site-content"], next);
+    const { queued } = await saveOrQueue(password, next, "تعديل مباشر | Direkte Änderung", qc);
+    if (queued) window.alert("محفوظ محلياً — سيُرفع عند عودة الإنترنت | Lokal gespeichert – wird bei Verbindung hochgeladen");
   };
 }
 
