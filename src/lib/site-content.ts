@@ -15,7 +15,11 @@ export const duaCategories: Array<{ id: DuaCategory; ar: string; de: string }> =
 export function duaCategoryOf(d: { id: string; category?: DuaCategory }): DuaCategory {
   return d.category ?? (d.id === "ashura" || d.id === "warith" ? "karbala" : "general");
 }
-export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string; category?: DuaCategory };
+export type Reciter = { name: string; url: string };
+export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string; category?: DuaCategory; reciters?: Reciter[] };
+export type ItineraryEntry = { id: string; date: string; time: string; titleAr: string; titleDe: string; place: string; notes: string; gathering: boolean };
+export type LocationKind = "hotel" | "shrine" | "gathering";
+export type LocationEntry = { id: string; kind: LocationKind; ar: string; de: string; address: string; mapsUrl: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
 export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
 export type SiteContent = {
@@ -28,6 +32,8 @@ export type SiteContent = {
   payment: PaymentEntry;
   news: NewsEntry[];
   contacts: ContactEntry[];
+  itinerary: ItineraryEntry[];
+  locations: LocationEntry[];
 };
 
 export const defaultContacts: ContactEntry[] = [
@@ -38,6 +44,8 @@ export const defaultContacts: ContactEntry[] = [
 
 export const defaultContent: SiteContent = {
   contacts: defaultContacts,
+  itinerary: [],
+  locations: [],
   alert: { ar: "", de: "", active: false },
   duas: [
     { id: "ashura", ar: "زيارة عاشوراء", de: "Ziyarat Ashura", textAr: "السَّلامُ عَلَيْكَ يا أبا عَبْدِ اللهِ، السَّلامُ عَلَيْكَ يَا ابْنَ رَسُولِ اللهِ...", textDe: "As-salāmu ʿalayka yā Abā ʿAbdillāh, as-salāmu ʿalayka yabna Rasūlillāh... — Friede sei mit dir, o Abu Abdillah, Friede sei mit dir, o Sohn des Gesandten Gottes.", link: "" },
@@ -76,5 +84,7 @@ export function mergeContent(data: unknown): SiteContent {
     payment: { ...defaultContent.payment, ...(d.payment ?? {}) },
     news: Array.isArray(d.news) ? d.news : defaultContent.news,
     contacts: Array.isArray(d.contacts) ? d.contacts : defaultContacts,
+    itinerary: Array.isArray(d.itinerary) ? d.itinerary : [],
+    locations: Array.isArray(d.locations) ? d.locations : [],
   };
 }
