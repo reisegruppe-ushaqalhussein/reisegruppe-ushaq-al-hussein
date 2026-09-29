@@ -37,15 +37,15 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
           <p lang="ar" dir="rtl" className="font-arabic-display mt-5 text-base font-bold text-primary">شعارنا المصداقيّة وخدمة الزوّار</p>
         </div>
 
-        <div className="relative z-10 mt-auto w-full pt-6">
+        <div className="welcome-actions relative z-10 mt-auto w-full pt-6">
           <div dir="ltr" className="welcome-language mx-auto grid w-fit grid-cols-3 gap-1 rounded-lg border border-primary/20 p-1" role="group" aria-label="Sprache wählen | اختر اللغة">
             {languageOptions.map((option) => (
-              <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-14 px-3 text-xs font-bold text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "bg-primary-foreground/15 text-secondary" : ""}`}>
+              <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-14 px-3 text-xs font-bold text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "bg-primary-foreground/15" : ""}`}>
                 {option.label}
               </Button>
             ))}
           </div>
-          <Button dir="ltr" onClick={enter} className="welcome-enter mt-3 h-14 w-full text-base font-bold text-primary-foreground hover:text-primary-foreground">
+          <Button dir="ltr" onClick={enter} className="welcome-enter mt-4 h-14 w-full text-base font-bold text-primary-foreground hover:text-primary-foreground">
             <span dir="rtl">تفضل بالدخول</span><span className="opacity-50">/</span><span>App starten</span><ArrowRight className="h-5 w-5" />
           </Button>
         </div>
