@@ -3,10 +3,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type ReactNode } from "react";
 import { clearSynced, flushQueue, getQueue, idbGet, isOnline, onQueueChange, saveOrQueue, type QueueItem } from "@/lib/offline";
 import { useOnline } from "@/components/offline-status";
-import { CheckCircle2, Clock, Home, KeyRound, Lock, Plus, Save, Trash2, XCircle } from "lucide-react";
+import { Bell, BookOpen, CalendarClock, CheckCircle2, Clock, CreditCard, Home, Hotel, KeyRound, Lock, MapPin, Megaphone, Plane, Plus, Save, Trash2, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { changeAdminPassword, checkAdminPassword, getSiteContent, sendAlertPush } from "@/lib/site-content.functions";
-import { duaCategories, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
+import { duaCategories, duaCategoryOf, type DuaCategory, type LocationKind, type SiteContent } from "@/lib/site-content";
 import { ADMIN_KEY, RecitersEditor } from "@/components/dua-admin";
 
 export const Route = createFileRoute("/admin")({
@@ -47,14 +48,31 @@ function Field({ ar, de, value, onChange, multiline, ltr }: { ar: string; de: st
   );
 }
 
-function Section({ ar, de, children }: { ar: string; de: string; children: ReactNode }) {
+function Section({ id, ar, de, children }: { id?: string; ar: string; de: string; children: ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <section id={id} className="scroll-mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
       <h2 className="mb-4 border-b border-border pb-2 text-base"><L ar={ar} de={de} /></h2>
       <div className="space-y-4">{children}</div>
     </section>
   );
 }
+
+function VisibilityToggle({ checked, onCheckedChange, ar, de }: { checked: boolean; onCheckedChange: (checked: boolean) => void; ar: string; de: string }) {
+  return <label className="flex items-center justify-between gap-4 rounded-md border border-border bg-muted p-3"><L ar={ar} de={de} /><Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={`${ar} | ${de}`} /></label>;
+}
+
+const adminAreas = [
+  { id: "alerts", ar: "التنبيهات", de: "Meldungen", icon: Bell },
+  { id: "trips", ar: "الرحلات", de: "Reisen", icon: Plane },
+  { id: "itinerary", ar: "الجدول", de: "Tagesplan", icon: CalendarClock },
+  { id: "contacts", ar: "التواصل", de: "Kontakte", icon: Users },
+  { id: "locations", ar: "المواقع", de: "Orte", icon: MapPin },
+  { id: "program", ar: "البرنامج", de: "Programm", icon: Hotel },
+  { id: "payment", ar: "الدفع", de: "Zahlung", icon: CreditCard },
+  { id: "news", ar: "الأخبار", de: "News", icon: Megaphone },
+  { id: "duas", ar: "الزيارات", de: "Ziyarat", icon: BookOpen },
+  { id: "security", ar: "الأمان", de: "Sicherheit", icon: KeyRound },
+];
 
 function AdminPage() {
   const check = useServerFn(checkAdminPassword);
@@ -144,7 +162,10 @@ function AdminPage() {
         ) : (
           <div className="space-y-4 px-4 py-5">
             <SyncQueue password={password} />
-            <Section ar="التنبيه العاجل" de="Eilmeldung">
+            <nav className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-card p-3 shadow-sm" aria-label="أقسام لوحة الإدارة | Verwaltungsbereiche">
+              {adminAreas.map(({ id, ar, de, icon: Icon }) => <a key={id} href={`#${id}`} className="flex min-h-14 items-center gap-2 rounded-md bg-muted px-3 py-2 text-primary transition-colors hover:bg-accent"><Icon className="h-4 w-4 shrink-0 text-secondary" /><span className="text-xs font-bold">{ar}<span lang="de" dir="ltr" className="block text-[10px] font-medium italic text-muted-foreground">{de}</span></span></a>)}
+            </nav>
+            <Section id="alerts" ar="التنبيه العاجل" de="Eilmeldung">
               <Field multiline ar="نص التنبيه (عربي)" de="Text (Arabisch)" value={content.alert.ar} onChange={(v) => update((c) => { c.alert.ar = v; return c; })} />
               <Field multiline ltr ar="نص التنبيه (ألماني)" de="Text (Deutsch)" value={content.alert.de} onChange={(v) => update((c) => { c.alert.de = v; return c; })} />
               <label className="flex items-center gap-2 text-sm">
@@ -153,7 +174,7 @@ function AdminPage() {
               </label>
             </Section>
 
-            <Section ar="الرحلات والتواريخ" de="Reisen & Termine">
+            <Section id="trips" ar="الرحلات والتواريخ" de="Reisen & Termine">
               {content.trips.map((t, i) => (
                 <div key={t.id} className="space-y-3 rounded-md border border-border p-3">
                   <Field ar="اسم الرحلة" de="Reisename" value={t.ar} onChange={(v) => update((c) => { c.trips[i]!.ar = v; return c; })} />
@@ -167,7 +188,47 @@ function AdminPage() {
               ))}
             </Section>
 
-            <Section ar="أسماء الفنادق" de="Hotelnamen">
+            <Section id="itinerary" ar="جدول الرحلة والفعاليات" de="Tagesprogramm">
+              {content.itinerary.map((item, i) => <div key={item.id} className="space-y-3 rounded-md border border-border p-3">
+                <div className="grid grid-cols-2 gap-2"><Field ltr ar="التاريخ" de="Datum" value={item.date} onChange={(v) => update((c) => { c.itinerary[i]!.date = v; return c; })} /><Field ltr ar="الوقت" de="Uhrzeit" value={item.time} onChange={(v) => update((c) => { c.itinerary[i]!.time = v; return c; })} /></div>
+                <Field ar="عنوان الفعالية" de="Titel (Arabisch)" value={item.titleAr} onChange={(v) => update((c) => { c.itinerary[i]!.titleAr = v; return c; })} />
+                <Field ltr ar="العنوان بالألمانية" de="Titel (Deutsch)" value={item.titleDe} onChange={(v) => update((c) => { c.itinerary[i]!.titleDe = v; return c; })} />
+                <Field ar="مكان التجمع" de="Treffpunkt" value={item.place} onChange={(v) => update((c) => { c.itinerary[i]!.place = v; return c; })} />
+                <Field multiline ar="ملاحظات" de="Hinweise" value={item.notes} onChange={(v) => update((c) => { c.itinerary[i]!.notes = v; return c; })} />
+                <VisibilityToggle checked={item.gathering} onCheckedChange={(v) => update((c) => { c.itinerary[i]!.gathering = v; return c; })} ar="تمييز كموعد تجمع" de="Als Sammelzeit markieren" />
+                <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.itinerary.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
+              </div>)}
+              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.itinerary.push({ id: `e${Date.now()}`, date: new Date().toISOString().slice(0, 10), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false }); return c; })}><Plus />إضافة فعالية <span className="text-xs italic">| Programmpunkt hinzufügen</span></Button>
+            </Section>
+
+            <Section id="contacts" ar="جهات التواصل" de="Kontakte">
+              <VisibilityToggle checked={content.contactsVisible} onCheckedChange={(v) => update((c) => { c.contactsVisible = v; return c; })} ar="إظهار قسم التواصل كاملاً" de="Gesamten Kontaktbereich anzeigen" />
+              {content.contacts.map((contact, i) => <div key={contact.id} className="space-y-3 rounded-md border border-border p-3">
+                <VisibilityToggle checked={contact.visible !== false} onCheckedChange={(v) => update((c) => { c.contacts[i]!.visible = v; return c; })} ar="إظهار جهة التواصل" de="Kontakt anzeigen" />
+                <Field ar="الاسم" de="Name (Arabisch)" value={contact.ar} onChange={(v) => update((c) => { c.contacts[i]!.ar = v; return c; })} />
+                <Field ltr ar="الاسم بالألمانية" de="Name (Deutsch)" value={contact.de} onChange={(v) => update((c) => { c.contacts[i]!.de = v; return c; })} />
+                <Field ar="الصفة" de="Rolle (Arabisch)" value={contact.roleAr} onChange={(v) => update((c) => { c.contacts[i]!.roleAr = v; return c; })} />
+                <Field ltr ar="الصفة بالألمانية" de="Rolle (Deutsch)" value={contact.roleDe} onChange={(v) => update((c) => { c.contacts[i]!.roleDe = v; return c; })} />
+                <Field ltr ar="رقم الهاتف" de="Telefonnummer" value={contact.phone} onChange={(v) => update((c) => { c.contacts[i]!.phone = v; return c; })} />
+                <Field ltr ar="رابط واتساب" de="WhatsApp-Link" value={contact.whatsapp} onChange={(v) => update((c) => { c.contacts[i]!.whatsapp = v; return c; })} />
+                <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.contacts.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
+              </div>)}
+              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.contacts.push({ id: `c${Date.now()}`, ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true }); return c; })}><Plus />إضافة جهة تواصل <span className="text-xs italic">| Kontakt hinzufügen</span></Button>
+            </Section>
+
+            <Section id="locations" ar="دليل الإقامة والمواقع" de="Unterkunft & Orte">
+              {content.locations.map((location, i) => <div key={location.id} className="space-y-3 rounded-md border border-border p-3">
+                <label className="block"><L ar="النوع" de="Art" /><select value={location.kind} onChange={(e) => update((c) => { c.locations[i]!.kind = e.target.value as LocationKind; return c; })} className={inputCls}><option value="hotel">فندق | Hotel</option><option value="shrine">مرقد | Heiliger Ort</option><option value="gathering">نقطة تجمع | Treffpunkt</option></select></label>
+                <Field ar="الاسم" de="Name (Arabisch)" value={location.ar} onChange={(v) => update((c) => { c.locations[i]!.ar = v; return c; })} />
+                <Field ltr ar="الاسم بالألمانية" de="Name (Deutsch)" value={location.de} onChange={(v) => update((c) => { c.locations[i]!.de = v; return c; })} />
+                <Field ar="العنوان" de="Adresse" value={location.address} onChange={(v) => update((c) => { c.locations[i]!.address = v; return c; })} />
+                <Field ltr ar="رابط خرائط Google" de="Google-Maps-Link" value={location.mapsUrl} onChange={(v) => update((c) => { c.locations[i]!.mapsUrl = v; return c; })} />
+                <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.locations.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
+              </div>)}
+              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.locations.push({ id: `l${Date.now()}`, kind: "hotel", ar: "", de: "", address: "", mapsUrl: "" }); return c; })}><Plus />إضافة موقع <span className="text-xs italic">| Ort hinzufügen</span></Button>
+            </Section>
+
+            <Section id="program" ar="أسماء الفنادق" de="Hotelnamen">
               <Field ar="الكاظمية" de="al-Kazimiyya" value={content.hotels.kadhimiya} onChange={(v) => update((c) => { c.hotels.kadhimiya = v; return c; })} />
               <Field ar="كربلاء" de="Kerbela" value={content.hotels.karbala} onChange={(v) => update((c) => { c.hotels.karbala = v; return c; })} />
               <Field ar="النجف" de="Nadschaf" value={content.hotels.najaf} onChange={(v) => update((c) => { c.hotels.najaf = v; return c; })} />
@@ -181,7 +242,7 @@ function AdminPage() {
               <p className="text-xs text-muted-foreground">اتركها فارغة لعرض «سيتم تحديدها لاحقاً» <span lang="de" className="italic">| Leer lassen für „wird noch bekannt gegeben“</span></p>
             </Section>
 
-            <Section ar="طرق الدفع والتحويل" de="Zahlungsmethoden">
+            <Section id="payment" ar="طرق الدفع والتحويل" de="Zahlungsmethoden">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={content.payment.visible} onChange={(e) => update((c) => { c.payment.visible = e.target.checked; return c; })} className="h-4 w-4 accent-secondary" />
                 <L ar="إظهار بيانات التحويل للزوار" de="Zahlungsdaten für Besucher anzeigen" />
@@ -193,7 +254,7 @@ function AdminPage() {
               <p className="text-xs text-muted-foreground">القسم مخفي مبدئياً؛ أدخل البيانات الصحيحة ثم فعّل خيار الإظهار. <span lang="de" dir="ltr" className="block italic">Der Bereich ist zunächst ausgeblendet. Tragen Sie die korrekten Daten ein und aktivieren Sie ihn anschließend.</span></p>
             </Section>
 
-            <Section ar="الأخبار والتنبيهات" de="Neuigkeiten & Hinweise">
+            <Section id="news" ar="الأخبار والتنبيهات" de="Neuigkeiten & Hinweise">
               {content.news.map((n, i) => (
                 <div key={i} className="space-y-3 rounded-md border border-border p-3">
                   <Field ar="العنوان (عربي)" de="Titel (Arabisch)" value={n.ar} onChange={(v) => update((c) => { c.news[i]!.ar = v; return c; })} />
@@ -206,7 +267,7 @@ function AdminPage() {
               <Button variant="outline" onClick={() => update((c) => { c.news.unshift({ ar: "", de: "", bodyAr: "", bodyDe: "" }); return c; })} className="w-full"><Plus />إضافة إعلان جديد <span className="text-xs italic">| Neue Meldung</span></Button>
             </Section>
 
-            <Section ar="الأدعية والزيارات" de="Bittgebete & Ziyarat">
+            <Section id="duas" ar="الأدعية والزيارات" de="Bittgebete & Ziyarat">
               {content.duas.map((d, i) => (
                 <div key={d.id} className="space-y-3 rounded-md border border-border p-3">
                   <Field ar="الاسم (عربي)" de="Name (Arabisch)" value={d.ar} onChange={(v) => update((c) => { c.duas[i]!.ar = v; return c; })} />
@@ -227,7 +288,7 @@ function AdminPage() {
               <Button variant="outline" onClick={() => update((c) => { c.duas.push({ id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "" }); return c; })} className="w-full"><Plus />إضافة دعاء / زيارة <span className="text-xs italic">| Neues Bittgebet</span></Button>
             </Section>
 
-            <Section ar="تغيير كلمة السر" de="Passwort ändern">
+            <Section id="security" ar="تغيير كلمة السر" de="Passwort ändern">
               <label className="block"><L ar="كلمة السر الجديدة" de="Neues Passwort" /><input type="password" autoComplete="new-password" value={newPw} onChange={(e) => { setNewPw(e.target.value); setPwStatus("idle"); }} className={inputCls} /></label>
               <label className="block"><L ar="تأكيد كلمة السر" de="Passwort bestätigen" /><input type="password" autoComplete="new-password" value={newPw2} onChange={(e) => { setNewPw2(e.target.value); setPwStatus("idle"); }} className={inputCls} /></label>
               {pwStatus === "short" && <p className="text-sm text-destructive">6 أحرف على الأقل <span lang="de" className="italic">| Mindestens 6 Zeichen</span></p>}
