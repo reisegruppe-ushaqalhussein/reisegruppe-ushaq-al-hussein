@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
 import welcomeLogoAsset from "@/assets/ushaq-campaign-logo.png.asset.json";
-import welcomeBackground from "@/assets/welcome-shrine.jpg";
+import welcomeBackground from "@/assets/welcome-splash.jpg";
 
 const languageOptions: Array<{ id: Exclude<AppLang, "both">; label: string }> = [
   { id: "ar", label: "AR" },
