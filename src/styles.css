@@ -230,26 +230,24 @@
 }
 
 @utility welcome-overlay {
-  background: linear-gradient(to bottom, oklch(0.12 0.055 249 / 0.72), oklch(0.1 0.05 249 / 0.88) 58%, oklch(0.075 0.04 249 / 0.98));
+  background: linear-gradient(to bottom, oklch(0.08 0.035 249 / 0.2), transparent 32%, transparent 58%, oklch(0.07 0.03 249 / 0.42));
 }
 
-@utility welcome-pattern {
-  background-image: radial-gradient(circle at center, color-mix(in oklab, var(--color-secondary) 45%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(to bottom, black, transparent 44%);
+@utility welcome-text-glow {
+  text-shadow: 0 2px 16px oklch(0.06 0.03 249 / 0.9), 0 1px 3px oklch(0.06 0.03 249 / 0.75);
 }
 
-@utility welcome-arch {
-  border-top: 1px solid color-mix(in oklab, var(--color-secondary) 70%, transparent);
-  border-left: 1px solid color-mix(in oklab, var(--color-secondary) 42%, transparent);
-  border-right: 1px solid color-mix(in oklab, var(--color-secondary) 42%, transparent);
-  border-radius: 999px 999px 0 0;
-  background: linear-gradient(to bottom, color-mix(in oklab, var(--color-primary) 42%, transparent), transparent 72%);
+@utility welcome-language {
+  background: color-mix(in oklab, var(--color-primary) 30%, transparent);
+  box-shadow: 0 10px 35px oklch(0.06 0.03 249 / 0.18);
 }
 
-@utility welcome-logo-stage {
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in oklab, var(--color-background) 94%, transparent) 0 48%, color-mix(in oklab, var(--color-secondary) 18%, transparent) 67%, transparent 72%);
+@utility welcome-enter {
+  background: color-mix(in oklab, var(--color-primary) 38%, transparent);
+  box-shadow: 0 12px 38px oklch(0.06 0.03 249 / 0.24);
+  &:hover {
+    background: color-mix(in oklab, var(--color-primary) 55%, transparent);
+  }
 }
 
 @utility welcome-arrive {
