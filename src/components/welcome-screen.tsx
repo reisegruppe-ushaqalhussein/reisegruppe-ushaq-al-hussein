@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
-import welcomeLogoAsset from "@/assets/ushaq-campaign-logo.png.asset.json";
-import welcomeBackground from "@/assets/welcome-shrine.jpg";
+import welcomeLogoAsset from "@/assets/welcome-logo-gold.png";
+import welcomeBackground from "@/assets/welcome-splash.jpg";
 
 const languageOptions: Array<{ id: Exclude<AppLang, "both">; label: string }> = [
   { id: "ar", label: "AR" },
@@ -35,8 +35,8 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
           <div className="gold-line mx-auto mt-2 h-px w-24" />
         </div>
 
-        <div className="mt-[clamp(0.75rem,2.5vh,1.5rem)] flex w-full shrink-0 flex-col items-center">
-          <img src={welcomeLogoAsset.url} alt="شعار حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(11.25rem,47vw,12.5rem)] object-contain" />
+        <div className="flex w-full min-h-0 flex-1 flex-col items-center justify-center pt-4">
+          <img src={welcomeLogoAsset} alt="شعار حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(11.25rem,47vw,12.5rem)] object-contain" loading="eager" />
           <div className="welcome-text-glow mt-2 px-2">
             <h1 dir="ltr" className="font-welcome-display text-[clamp(1.25rem,5.2vw,1.65rem)] font-semibold leading-tight text-primary-foreground">Reisegruppe Ushaq al-Hussein</h1>
             <p lang="ar" dir="rtl" className="font-arabic-display mt-2 text-base text-secondary">شعارنا المصداقيّة وخدمة الزوّار</p>

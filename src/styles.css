@@ -239,7 +239,7 @@
 
 @utility welcome-background {
   object-position: center;
-  transform: scale(1.32) translateY(11.5%);
+  transform: none;
 }
 
 @utility welcome-logo {
