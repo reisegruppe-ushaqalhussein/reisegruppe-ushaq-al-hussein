@@ -18,7 +18,7 @@ export function useSaveContent(password: string) {
   const qc = useQueryClient();
   return async (next: SiteContent) => {
     const res = await save({ data: { password, content: next } });
-    if (!res.ok) throw new Error("unauthorized");
+    if (!res.ok) throw new Error(res.error ?? "unknown");
     qc.setQueryData(["site-content"], next);
   };
 }
@@ -43,7 +43,7 @@ function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { 
           ))}
           <Button disabled={busy} className="h-11 w-full" onClick={async () => {
             setBusy(true);
-            try { await onSubmit(draft); onOpenChange(false); } catch { window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); } finally { setBusy(false); }
+            try { await onSubmit(draft); onOpenChange(false); } catch (e) { console.error(e); window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(false); }
           }}>حفظ <span className="text-xs italic opacity-75">| Speichern</span></Button>
         </div>
       </DialogContent>
