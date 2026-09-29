@@ -7,6 +7,7 @@ import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
+import { WelcomeScreen } from "@/components/welcome-screen";
 import { enablePush } from "@/lib/push";
 import { Bell, CalendarClock, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
@@ -141,6 +142,7 @@ const contactFields: FieldDef[] = [
   { key: "ar", ar: "الاسم", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
   { key: "roleAr", ar: "الصفة", de: "Rolle (AR)" }, { key: "roleDe", ar: "الصفة بالألمانية", de: "Rolle (DE)", ltr: true },
   { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true }, { key: "whatsapp", ar: "رابط واتساب", de: "WhatsApp-Link", ltr: true },
+  { key: "visible", ar: "إظهار للزوار", de: "Für Besucher sichtbar", checkbox: true },
 ];
 const telHref = (phone: string) => `tel:${phone.replace(/[^+\d]/g, "")}`;
 
@@ -385,10 +387,12 @@ function RegistrationView() {
 function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const contacts = content.contacts ?? defaultContacts;
+  const shownContacts = admin ? contacts : contacts.filter((contact) => contact.visible !== false);
   const saveContacts = (next: ContactEntry[]) => saveContent({ ...content, contacts: next });
+  if (!admin && !content.contactsVisible) return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><Pair ar="جهات التواصل غير متاحة حالياً." de="Die Kontaktdaten sind derzeit nicht verfügbar." align="center" /></p></div>;
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><SocialLinks showEmail /><div className="mt-5 space-y-3">
-    {admin && <AddButton label={{ ar: "إضافة جهة تواصل", de: "Neuen Kontakt hinzufügen" }} fields={contactFields} blank={{ ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "" }} onAdd={(row) => saveContacts([...contacts, { ...(row as ContactEntry), id: `c${Date.now()}` }])} />}
-    {contacts.map((contact) => <div key={contact.id}>{admin && <ItemActions fields={contactFields} item={contact} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
+    {admin && <AddButton label={{ ar: "إضافة جهة تواصل", de: "Neuen Kontakt hinzufügen" }} fields={contactFields} blank={{ ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true }} onAdd={(row) => saveContacts([...contacts, { ...(row as ContactEntry), id: `c${Date.now()}` }])} />}
+    {shownContacts.map((contact) => <div key={contact.id}>{admin && <ItemActions fields={contactFields} item={contact} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}{admin && contact.visible === false && <p className="mb-1 text-xs text-destructive">مخفي عن الزوار | Für Besucher ausgeblendet</p>}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
   </div></div>;
 }
 
@@ -641,12 +645,19 @@ const bottomItems: Array<{ view: View; ar: string; de: string; icon: IconType }>
 
 function Index() {
   const { data: content } = useSuspenseQuery(contentQuery);
+  return <LangProvider><CampaignApp content={content} /></LangProvider>;
+}
+
+function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
+  const [welcomed, setWelcomed] = useState(false);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  useEffect(() => { setWelcomed(window.localStorage.getItem("welcome-seen") === "true"); }, []);
   return (
-    <LangProvider><div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-muted">
+      {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
@@ -670,6 +681,6 @@ function Index() {
       <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-20 w-full max-w-[420px] grid-cols-5 border-t border-border bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-xl backdrop-blur-md" aria-label="التنقل الرئيسي | Hauptnavigation">
         {bottomItems.map(({ view: itemView, ar, de, icon: Icon }) => <Button key={itemView} variant="ghost" onClick={() => go(itemView)} aria-current={view === itemView ? "page" : undefined} className={`h-full min-w-0 flex-col gap-1 rounded-none px-0.5 ${view === itemView ? "bg-accent text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" aria-hidden="true" /><NavLabel ar={ar} de={de} /></Button>)}
       </nav>
-    </div></LangProvider>
+    </div>
   );
 }

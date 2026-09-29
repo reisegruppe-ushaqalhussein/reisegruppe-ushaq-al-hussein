@@ -1,5 +1,5 @@
 export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
-export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string };
+export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string };
 export type DuaCategory = "karbala" | "najaf" | "kazimiyya" | "samarra" | "mashhad" | "qom" | "mecca-medina" | "general";
 export const duaCategories: Array<{ id: DuaCategory; ar: string; de: string }> = [
@@ -32,6 +32,7 @@ export type SiteContent = {
   payment: PaymentEntry;
   news: NewsEntry[];
   contacts: ContactEntry[];
+  contactsVisible: boolean;
   itinerary: ItineraryEntry[];
   locations: LocationEntry[];
 };
@@ -44,6 +45,7 @@ export const defaultContacts: ContactEntry[] = [
 
 export const defaultContent: SiteContent = {
   contacts: defaultContacts,
+  contactsVisible: true,
   itinerary: [],
   locations: [],
   alert: { ar: "", de: "", active: false },
@@ -83,7 +85,8 @@ export function mergeContent(data: unknown): SiteContent {
     visa: { ...defaultContent.visa, ...(d.visa ?? {}) },
     payment: { ...defaultContent.payment, ...(d.payment ?? {}) },
     news: Array.isArray(d.news) ? d.news : defaultContent.news,
-    contacts: Array.isArray(d.contacts) ? d.contacts : defaultContacts,
+    contacts: Array.isArray(d.contacts) ? d.contacts.map((contact) => ({ ...contact, visible: contact.visible ?? true })) : defaultContacts,
+    contactsVisible: d.contactsVisible ?? true,
     itinerary: Array.isArray(d.itinerary) ? d.itinerary : [],
     locations: Array.isArray(d.locations) ? d.locations : [],
   };

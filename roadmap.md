@@ -17,3 +17,6 @@
 - [x] Build the seven-destination Holy Shrines grid and shrine-specific Ziyarat lists.
 - [x] Add the interactive trilingual reader with display settings and audio controls.
 - [x] Standardize German place names across public and admin screens.
+- [x] Add the branded Welcome Screen with saved language selection.
+- [x] Add global and per-contact visibility controls.
+- [x] Organize every editable app area in the central admin control panel.

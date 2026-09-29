@@ -20,6 +20,8 @@
 
 @theme inline {
   --font-sans: "Cairo", sans-serif;
+  --font-arabic-display: "Amiri", serif;
+  --font-welcome-display: "Libre Baskerville", serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -227,6 +229,46 @@
   animation: screen-enter 240ms ease-out both;
 }
 
+@utility welcome-overlay {
+  background: linear-gradient(to bottom, oklch(0.12 0.055 249 / 0.72), oklch(0.1 0.05 249 / 0.88) 58%, oklch(0.075 0.04 249 / 0.98));
+}
+
+@utility welcome-pattern {
+  background-image: radial-gradient(circle at center, color-mix(in oklab, var(--color-secondary) 45%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, black, transparent 44%);
+}
+
+@utility welcome-arch {
+  border-top: 1px solid color-mix(in oklab, var(--color-secondary) 70%, transparent);
+  border-left: 1px solid color-mix(in oklab, var(--color-secondary) 42%, transparent);
+  border-right: 1px solid color-mix(in oklab, var(--color-secondary) 42%, transparent);
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(to bottom, color-mix(in oklab, var(--color-primary) 42%, transparent), transparent 72%);
+}
+
+@utility welcome-logo-stage {
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-background) 94%, transparent) 0 48%, color-mix(in oklab, var(--color-secondary) 18%, transparent) 67%, transparent 72%);
+}
+
+@utility welcome-arrive {
+  animation: welcome-arrive 600ms ease-out both;
+}
+
+@utility welcome-leave {
+  animation: welcome-leave 360ms ease-in both;
+}
+
+@keyframes welcome-arrive {
+  from { opacity: 0; transform: scale(1.025); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes welcome-leave {
+  to { opacity: 0; transform: translateY(-12px) scale(1.015); }
+}
+
 @keyframes screen-enter {
   from {
     opacity: 0;
@@ -245,6 +287,11 @@
 
   .screen-enter {
     animation: none;
+  }
+
+  .welcome-arrive,
+  .welcome-leave {
+    animation-duration: 1ms;
   }
 }
 
