@@ -238,8 +238,8 @@
 }
 
 @utility welcome-background {
-  object-position: center 58%;
-  transform: scale(1.16) translateY(5%);
+  object-position: center;
+  transform: scale(1.32) translateY(11.5%);
 }
 
 @utility welcome-logo {
