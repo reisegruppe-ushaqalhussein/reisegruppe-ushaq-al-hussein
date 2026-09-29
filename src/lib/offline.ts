@@ -58,7 +58,7 @@ export async function fetchContentOfflineFirst(): Promise<SiteContent> {
 }
 
 /* ---------- Admin sync queue ---------- */
-export type QueueItem = { id: string; label: string; createdAt: number; status: "pending" | "synced" | "failed"; error?: string; content: SiteContent };
+export type QueueItem = { id: string; label: string; createdAt: number; status: "pending" | "synced" | "failed"; error?: string | undefined; content: SiteContent };
 
 const listeners = new Set<() => void>();
 export const onQueueChange = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
