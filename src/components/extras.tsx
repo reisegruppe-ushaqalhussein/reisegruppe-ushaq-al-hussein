@@ -89,20 +89,21 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   const save = useSaveContent(admin?.password ?? "");
   const all = content.locations;
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
+  const emergencyContacts = admin ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false) : [];
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
-      <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
+      {emergencyContacts.length > 0 && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
         <h3 className="mb-3 text-sm font-extrabold text-secondary"><P ar="أرقام الطوارئ للحملة" de="Notfallnummern der Reisegruppe" inverse /></h3>
         <div className="space-y-2">
-          {content.contacts.map((c) => (
+          {emergencyContacts.map((c) => (
             <a key={c.id} href={telHref(c.phone)} className="flex items-center justify-between gap-3 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
               <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /></span>
               <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
             </a>
           ))}
         </div>
-      </section>
+      </section>}
       {admin && <AddButton label={{ ar: "إضافة موقع", de: "Ort hinzufügen" }} fields={locationFields} blank={{ id: "", kind: "hotel", ar: "", de: "", address: "", mapsUrl: "" }} onAdd={(row) => commit([...all, { ...(row as LocationEntry), id: `l${Date.now()}` }])} />}
       {kinds.map((k) => {
         const items = all.filter((l) => l.kind === k.id);
