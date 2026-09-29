@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
-import logoAsset from "@/assets/welcome-logo.png.asset.json";
+import welcomeLogo from "@/assets/welcome-logo-gold.png";
 import welcomeBackground from "@/assets/welcome-shrine.jpg";
 
 const languageOptions: Array<{ id: Exclude<AppLang, "both">; label: string }> = [
@@ -37,7 +37,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
 
         <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center">
           <div className="flex h-[clamp(11rem,31vh,15rem)] w-full max-w-[20rem] items-center justify-center">
-            <img src={logoAsset.url} alt="شعار حملة عشاق الحسين - ألمانيا" className="max-h-full max-w-full object-contain drop-shadow-2xl" />
+            <img src={welcomeLogo} alt="شعار حملة عشاق الحسين - ألمانيا" className="max-h-full max-w-full object-contain drop-shadow-2xl" />
           </div>
           <div className="welcome-text-glow mt-3 rounded-lg px-4 py-3">
             <h1 lang="ar" dir="rtl" className="font-arabic-display text-[clamp(1.7rem,7vw,2.35rem)] font-bold leading-tight text-secondary">حملة عشاق الحسين - ألمانيا</h1>
