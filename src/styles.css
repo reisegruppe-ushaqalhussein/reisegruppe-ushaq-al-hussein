@@ -312,13 +312,20 @@
   margin-bottom: max(2.75rem, min(15vh, 6.5rem));
 }
 
+@utility welcome-title {
+  letter-spacing: -0.01em;
+}
+
 @utility welcome-language {
-  background: var(--color-primary);
-  box-shadow: 0 10px 28px color-mix(in oklab, var(--color-primary) 20%, transparent);
-  [aria-pressed="true"] {
-    background: color-mix(in oklab, var(--color-secondary) 55%, white);
-    color: var(--color-primary);
-  }
+  background: color-mix(in oklab, var(--color-primary) 94%, black);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 22%, transparent) inset,
+    0 8px 24px color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+
+@utility welcome-language-active {
+  background: color-mix(in oklab, var(--color-secondary) 55%, white);
+  color: var(--color-primary);
 }
 
 @utility welcome-enter {

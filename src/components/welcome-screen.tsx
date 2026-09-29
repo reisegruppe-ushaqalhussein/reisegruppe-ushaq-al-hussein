@@ -32,21 +32,22 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
           <div className="mx-auto mt-3 h-px w-20 bg-secondary" />
         </div>
 
-        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(2rem,9vh,5rem)]">
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(1.75rem,8vh,4.5rem)]">
           <img src={welcomeLogoAsset.url} alt="حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(8.5rem,39vw,10.5rem)] object-contain" loading="eager" />
-          <p lang="ar" dir="rtl" className="font-arabic-display mt-5 text-base font-bold text-primary">شعارنا المصداقيّة وخدمة الزوّار</p>
+          <p dir="ltr" className="welcome-title mt-4 text-[clamp(1.05rem,4.6vw,1.3rem)] font-bold text-primary">Reisegruppe Ushaq al-Hussein</p>
+          <p lang="ar" dir="rtl" className="font-arabic-display mt-3 text-sm font-bold text-primary/85">شعارنا المصداقيّة وخدمة الزوّار</p>
         </div>
 
         <div className="welcome-actions relative z-10 mt-auto w-full pt-6">
-          <div dir="ltr" className="welcome-language mx-auto grid w-fit grid-cols-3 gap-1 rounded-lg border border-primary/20 p-1" role="group" aria-label="Sprache wählen | اختر اللغة">
+          <div dir="ltr" className="welcome-language mx-auto flex w-fit items-center gap-1 rounded-full p-1" role="group" aria-label="Sprache wählen | اختر اللغة">
             {languageOptions.map((option) => (
-              <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-14 px-3 text-xs font-bold text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "bg-primary-foreground/15" : ""}`}>
+              <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-[3.25rem] rounded-full px-4 text-xs font-bold tracking-[0.06em] text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "welcome-language-active" : ""}`}>
                 {option.label}
               </Button>
             ))}
           </div>
-          <Button dir="ltr" onClick={enter} className="welcome-enter mt-4 h-14 w-full text-base font-bold text-primary-foreground hover:text-primary-foreground">
-            <span dir="rtl">تفضل بالدخول</span><span className="opacity-50">/</span><span>App starten</span><ArrowRight className="h-5 w-5" />
+          <Button dir="ltr" onClick={enter} className="welcome-enter mt-3 h-14 w-full text-base font-bold text-primary-foreground hover:text-primary-foreground">
+            <span dir="rtl">ابدأ الرحلة</span><span className="opacity-50">/</span><span>Reise starten</span><ArrowRight className="h-5 w-5" />
           </Button>
         </div>
       </div>
