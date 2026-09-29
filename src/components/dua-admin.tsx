@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { checkAdminPassword, saveSiteContent } from "@/lib/site-content.functions";
+import { checkAdminPassword } from "@/lib/site-content.functions";
+import { saveOrQueue } from "@/lib/offline";
 import { duaCategories, duaCategoryOf, type DuaCategory, type DuaEntry, type SiteContent } from "@/lib/site-content";
 
 export const ADMIN_KEY = "admin-session-pw";
@@ -19,19 +20,15 @@ export function useAdminPassword() {
     check({ data: { password: stored } }).then((r) => {
       if (r.ok) setPw(stored);
       else sessionStorage.removeItem(ADMIN_KEY);
-    }).catch(() => {});
+    }).catch(() => { if (!navigator.onLine) setPw(stored); });
   }, [check]);
   return pw;
 }
 
 function useSaveDuas(password: string, content: SiteContent) {
-  const save = useServerFn(saveSiteContent);
   const qc = useQueryClient();
   return async (duas: DuaEntry[]) => {
-    const next = { ...content, duas };
-    const res = await save({ data: { password, content: next } });
-    if (!res.ok) throw new Error(res.error ?? "unknown");
-    qc.setQueryData(["site-content"], next);
+    await saveOrQueue(password, { ...content, duas }, "الأدعية | Bittgebete", qc);
   };
 }
 

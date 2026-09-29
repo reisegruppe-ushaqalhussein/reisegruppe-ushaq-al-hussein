@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { getSiteContent } from "@/lib/site-content.functions";
+import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
+import { OfflineFallback } from "@/components/offline-status";
 import { defaultContacts, defaultContent, duaCategoryOf, type ContactEntry, type TripEntry, type NewsEntry, type DuaCategory, type SiteContent } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
@@ -82,9 +83,10 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(contentQuery),
   component: Index,
+  errorComponent: ({ error }) => (error instanceof OfflineMissingError || (typeof navigator !== "undefined" && !navigator.onLine) ? <OfflineFallback /> : <div className="p-6 text-center">تعذّر تحميل المحتوى | Inhalt konnte nicht geladen werden</div>),
 });
 
-const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: () => getSiteContent() });
+const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: fetchContentOfflineFirst, networkMode: "offlineFirst", retry: 1 });
 
 const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
 const officialEmail = "ushaqalhussein.contact@gmail.com";
