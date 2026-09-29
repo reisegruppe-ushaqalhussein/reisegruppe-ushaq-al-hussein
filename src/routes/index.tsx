@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/site-content.functions";
-import { defaultContent, duaCategoryOf, type DuaCategory, type SiteContent } from "@/lib/site-content";
+import { defaultContacts, defaultContent, duaCategoryOf, type ContactEntry, type TripEntry, type NewsEntry, type DuaCategory, type SiteContent } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
+import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -118,6 +119,25 @@ const tripMeta: Record<string, { statusAr: string; statusDe: string; icon: IconT
 const fallbackMeta = { statusAr: "موعد معلن", statusDe: "Termin angekündigt", icon: CalendarDays as IconType, image: null };
 type UpcomingTrip = SiteContent["trips"][number] & (typeof tripMeta)[string];
 
+type AdminProps = { password: string; content: SiteContent } | null;
+const tripFields: FieldDef[] = [
+  { key: "ar", ar: "اسم الرحلة", de: "Reisename" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "date", ar: "التاريخ", de: "Datum", ltr: true },
+  { key: "statusAr", ar: "الحالة (مثلاً: التسجيل مفتوح / اكتمل العدد)", de: "Status (AR)" }, { key: "statusDe", ar: "الحالة بالألمانية", de: "Status (DE)", ltr: true },
+  { key: "descAr", ar: "الوصف", de: "Beschreibung (AR)", multiline: true }, { key: "descDe", ar: "الوصف بالألمانية", de: "Beschreibung (DE)", ltr: true, multiline: true },
+  { key: "visible", ar: "إظهار للزوار", de: "Sichtbar", checkbox: true },
+];
+const newsFields: FieldDef[] = [
+  { key: "ar", ar: "العنوان", de: "Titel (AR)" }, { key: "de", ar: "العنوان بالألمانية", de: "Titel (DE)", ltr: true },
+  { key: "bodyAr", ar: "النص", de: "Text (AR)", multiline: true }, { key: "bodyDe", ar: "النص بالألمانية", de: "Text (DE)", ltr: true, multiline: true },
+];
+const contactFields: FieldDef[] = [
+  { key: "ar", ar: "الاسم", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "roleAr", ar: "الصفة", de: "Rolle (AR)" }, { key: "roleDe", ar: "الصفة بالألمانية", de: "Rolle (DE)", ltr: true },
+  { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true }, { key: "whatsapp", ar: "رابط واتساب", de: "WhatsApp-Link", ltr: true },
+];
+const telHref = (phone: string) => `tel:${phone.replace(/[^+\d]/g, "")}`;
+
 
 const generalTrips = [
   { id: "iraq", ar: "زيارة العراق", de: "Irak-Reise", icon: Landmark, statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
@@ -126,11 +146,6 @@ const generalTrips = [
   { id: "hajj", ar: "الحج", de: "Hadsch", icon: Star, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
 ];
 
-const contacts = [
-  { ar: "الحاج ياسر الدر", de: "Hajj Yasser Aldor", roleAr: "المسؤول العام — خادم حملة عشاق الحسين - ألمانيا", roleDe: "Allgemeiner Verantwortlicher der Reisegruppe", displayPhone: "+49 1577 3055365", phone: "tel:+4915773055365", whatsapp: "https://wa.me/49015773055365" },
-  { ar: "الحجة سامية فقيه", de: "Hajje Samia Fakih", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", displayPhone: "+49 1578 5616843", phone: "tel:+4915785616843", whatsapp: "https://wa.me/49015785616843" },
-  { ar: "الحجة خديجة إسماعيل", de: "Hajje Khadije Ismail", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", displayPhone: "+49 176 63409995", phone: "tel:+4917663409995", whatsapp: "https://wa.me/49017663409995" },
-];
 
 
 const viewTitles: Record<View, { ar: string; de: string }> = {
@@ -252,8 +267,10 @@ function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteC
   );
 }
 
-function TripsView({ content }: { content: SiteContent }) {
-  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => t.visible).map((t) => ({ ...t, ...(tripMeta[t.id] ?? fallbackMeta) }));
+function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  const saveContent = useSaveContent(admin?.password ?? "");
+  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => t.visible || admin).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
+  const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
   const [iraqOpen, setIraqOpen] = useState(false);
@@ -270,10 +287,12 @@ function TripsView({ content }: { content: SiteContent }) {
 
       <div className="my-7 border-t border-border" />
       <ScreenTitle icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" />
+      {admin && <AddButton label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", visible: true }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />}
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = trip.icon;
-          return <Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span></span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button>;
+          const raw = content.trips.find((t) => t.id === trip.id)!;
+          return <div key={trip.id}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}{admin && !raw.visible && <p className="mb-1 text-xs text-destructive">مخفي عن الزوار | Für Besucher ausgeblendet</p>}<Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button></div>;
         })}
       </div>
 
@@ -351,8 +370,14 @@ function RegistrationView() {
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" /><section className="rounded-lg bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><ScrollText className="mx-auto h-10 w-10 text-secondary" aria-hidden="true" /><h2 className="mt-5 text-xl"><Pair ar="ابدأ تسجيلك الآن" de="Jetzt anmelden" align="center" inverse /></h2><p className="mt-4 text-sm"><Pair ar="املأ الاستمارة، وسيتواصل معك فريق الحملة لإتمام التفاصيل." de="Füllen Sie das Formular aus. Unser Team meldet sich anschließend bei Ihnen." align="center" inverse /></p><Button asChild className="mt-7 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="فتح استمارة التسجيل" de="Anmeldeformular öffnen" align="center" /></a></Button></section></div>;
 }
 
-function ContactsView() {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><SocialLinks showEmail /><div className="mt-5 space-y-3">{contacts.map((contact) => <article key={contact.de} className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.displayPhone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={contact.phone}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button><Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button></div></article>)}</div></div>;
+function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  const saveContent = useSaveContent(admin?.password ?? "");
+  const contacts = content.contacts ?? defaultContacts;
+  const saveContacts = (next: ContactEntry[]) => saveContent({ ...content, contacts: next });
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><SocialLinks showEmail /><div className="mt-5 space-y-3">
+    {admin && <AddButton label={{ ar: "إضافة جهة تواصل", de: "Neuen Kontakt hinzufügen" }} fields={contactFields} blank={{ ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "" }} onAdd={(row) => saveContacts([...contacts, { ...(row as ContactEntry), id: `c${Date.now()}` }])} />}
+    {contacts.map((contact) => <div key={contact.id}>{admin && <ItemActions fields={contactFields} item={contact} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
+  </div></div>;
 }
 
 function FaqItem({ value, questionAr, questionDe, answerAr, answerDe }: { value: string; questionAr: string; questionDe: string; answerAr: string; answerDe: string }) {
@@ -393,8 +418,13 @@ function ShareButton() {
   return <Button variant="outline" onClick={share} className="h-12 w-full"><Share2 /><Pair ar="مشاركة التطبيق" de="App teilen" align="center" /></Button>;
 }
 
-function NewsView({ news }: { news: SiteContent["news"] }) {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" /><div className="space-y-3">{news.filter((n) => n.ar || n.de).map((item, i) => <article key={i} className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article>)}</div></div>;
+function NewsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  const saveContent = useSaveContent(admin?.password ?? "");
+  const news = content.news;
+  const saveNews = (next: NewsEntry[]) => saveContent({ ...content, news: next });
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" />
+    {admin && <AddButton label={{ ar: "إضافة خبر جديد", de: "Neue Meldung hinzufügen" }} fields={newsFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveNews([row as NewsEntry, ...news])} />}
+    <div className="space-y-3">{news.map((item, i) => (item.ar || item.de || admin) ? <div key={i}>{admin && <ItemActions fields={newsFields} item={item} onSave={(row) => saveNews(news.map((n, j) => (j === i ? (row as NewsEntry) : n)))} onDelete={() => saveNews(news.filter((_, j) => j !== i))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article></div> : null)}</div></div>;
 }
 
 const prayerNames: Array<{ key: string; ar: string; de: string }> = [
@@ -605,6 +635,8 @@ const bottomItems: Array<{ view: Exclude<View, "donations" | "duas">; ar: string
 function Index() {
   const { data: content } = useSuspenseQuery(contentQuery);
   const [view, setView] = useState<View>("home");
+  const adminPw = useAdminPassword();
+  const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
     <LangProvider><div className="min-h-screen bg-muted">
@@ -612,10 +644,10 @@ function Index() {
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
         {view === "home" && <HomeView go={go} visa={content.visa} payment={content.payment ?? defaultContent.payment} />}
-        {view === "trips" && <TripsView content={content} />}
+        {view === "trips" && <TripsView content={content} admin={admin} />}
         {view === "registration" && <RegistrationView />}
-        {view === "contacts" && <ContactsView />}
-        {view === "news" && <NewsView news={content.news} />}
+        {view === "contacts" && <ContactsView content={content} admin={admin} />}
+        {view === "news" && <NewsView content={content} admin={admin} />}
         {view === "donations" && <DonationsView />}
         {view === "duas" && <DuasView content={content} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">

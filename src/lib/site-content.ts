@@ -1,4 +1,5 @@
-export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean };
+export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
+export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string };
 export type DuaCategory = "karbala" | "najaf" | "kazimiyya" | "samarra" | "mashhad" | "qom" | "mecca-medina" | "general";
 export const duaCategories: Array<{ id: DuaCategory; ar: string; de: string }> = [
@@ -26,9 +27,17 @@ export type SiteContent = {
   visa: { eu: string; nonEu: string };
   payment: PaymentEntry;
   news: NewsEntry[];
+  contacts: ContactEntry[];
 };
 
+export const defaultContacts: ContactEntry[] = [
+  { id: "yasser", ar: "الحاج ياسر الدر", de: "Hajj Yasser Aldor", roleAr: "المسؤول العام — خادم حملة عشاق الحسين - ألمانيا", roleDe: "Allgemeiner Verantwortlicher der Reisegruppe", phone: "+49 1577 3055365", whatsapp: "https://wa.me/49015773055365" },
+  { id: "samia", ar: "الحجة سامية فقيه", de: "Hajje Samia Fakih", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", phone: "+49 1578 5616843", whatsapp: "https://wa.me/49015785616843" },
+  { id: "khadije", ar: "الحجة خديجة إسماعيل", de: "Hajje Khadije Ismail", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", phone: "+49 176 63409995", whatsapp: "https://wa.me/49017663409995" },
+];
+
 export const defaultContent: SiteContent = {
+  contacts: defaultContacts,
   alert: { ar: "", de: "", active: false },
   duas: [
     { id: "ashura", ar: "زيارة عاشوراء", de: "Ziyarat Ashura", textAr: "السَّلامُ عَلَيْكَ يا أبا عَبْدِ اللهِ، السَّلامُ عَلَيْكَ يَا ابْنَ رَسُولِ اللهِ...", textDe: "As-salāmu ʿalayka yā Abā ʿAbdillāh, as-salāmu ʿalayka yabna Rasūlillāh... — Friede sei mit dir, o Abu Abdillah, Friede sei mit dir, o Sohn des Gesandten Gottes.", link: "" },
@@ -66,5 +75,6 @@ export function mergeContent(data: unknown): SiteContent {
     visa: { ...defaultContent.visa, ...(d.visa ?? {}) },
     payment: { ...defaultContent.payment, ...(d.payment ?? {}) },
     news: Array.isArray(d.news) ? d.news : defaultContent.news,
+    contacts: Array.isArray(d.contacts) ? d.contacts : defaultContacts,
   };
 }
