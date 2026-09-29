@@ -27,7 +27,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
 
   return (
     <section className={`welcome-shell fixed inset-0 z-[100] overflow-hidden bg-background text-foreground ${leaving ? "welcome-leave" : "welcome-arrive"}`} aria-label="Willkommen | أهلاً وسهلاً">
-      <img src={welcomeBackground} alt="خلفية حج روحانية عاجية وذهبية | Spiritueller Pilgerhintergrund in Elfenbein und Gold" className="welcome-background absolute inset-0 h-full w-full object-cover" width={1080} height={1920} loading="eager" />
+      <img src={welcomeBackground} alt="خلفية حج روحانية عاجية وذهبية | Spiritueller Pilgerhintergrund in Elfenbein und Gold" className="welcome-background absolute inset-0 h-full w-full object-cover" width={1088} height={1920} loading="eager" />
       <div className="welcome-overlay absolute inset-0" />
       <div className="relative mx-auto flex h-full w-full max-w-[520px] flex-col items-center px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-center">
         <div className="shrink-0 px-5 py-1.5">
@@ -44,15 +44,15 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
         </div>
 
         <div className="relative z-10 mt-auto w-full pt-6">
-          <div className="welcome-language mx-auto grid w-fit grid-cols-3 gap-1 rounded-lg border border-primary-foreground/15 p-1 backdrop-blur-md" role="group" aria-label="Sprache wählen | اختر اللغة">
+          <div dir="ltr" className="welcome-language mx-auto grid w-fit grid-cols-3 gap-1 rounded-lg border border-primary-foreground/15 p-1 backdrop-blur-md" role="group" aria-label="Sprache wählen | اختر اللغة">
             {languageOptions.map((option) => (
               <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-14 px-3 text-xs font-bold text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "bg-primary-foreground/20 text-secondary" : ""}`}>
                 {option.label}
               </Button>
             ))}
           </div>
-          <Button onClick={enter} variant="outline" className="welcome-enter mt-3 h-14 w-full border-primary-foreground/30 text-base font-bold text-primary-foreground backdrop-blur-md hover:text-primary-foreground">
-            <span>تفضل بالدخول</span><span className="opacity-50">/</span><span dir="ltr">App starten</span><ArrowRight className="h-5 w-5" />
+          <Button dir="ltr" onClick={enter} variant="outline" className="welcome-enter mt-3 h-14 w-full border-primary-foreground/30 text-base font-bold text-primary-foreground backdrop-blur-md hover:text-primary-foreground">
+            <span dir="rtl">تفضل بالدخول</span><span className="opacity-50">/</span><span>App starten</span><ArrowRight className="h-5 w-5" />
           </Button>
         </div>
       </div>
