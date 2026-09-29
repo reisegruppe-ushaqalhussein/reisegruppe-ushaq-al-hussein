@@ -247,6 +247,11 @@
   background: linear-gradient(to bottom, color-mix(in oklab, var(--color-primary) 42%, transparent), transparent 72%);
 }
 
+@utility welcome-logo-stage {
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-background) 94%, transparent) 0 48%, color-mix(in oklab, var(--color-secondary) 18%, transparent) 67%, transparent 72%);
+}
+
 @utility welcome-arrive {
   animation: welcome-arrive 600ms ease-out both;
 }

@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type ReactNode } from "react";
 import { clearSynced, flushQueue, getQueue, idbGet, isOnline, onQueueChange, saveOrQueue, type QueueItem } from "@/lib/offline";
 import { useOnline } from "@/components/offline-status";
-import { Bell, BookOpen, CalendarClock, CheckCircle2, Clock, CreditCard, Home, Hotel, KeyRound, Lock, MapPin, Megaphone, Plane, Plus, Save, Trash2, Users, XCircle } from "lucide-react";
+import { Bell, BookOpen, CalendarClock, CheckCircle2, Clock, CreditCard, Home, Hotel, KeyRound, Lock, MapPin, Megaphone, MoonStar, Plane, Plus, Save, Trash2, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { changeAdminPassword, checkAdminPassword, getSiteContent, sendAlertPush } from "@/lib/site-content.functions";
@@ -67,6 +67,7 @@ const adminAreas = [
   { id: "itinerary", ar: "الجدول", de: "Tagesplan", icon: CalendarClock },
   { id: "contacts", ar: "التواصل", de: "Kontakte", icon: Users },
   { id: "locations", ar: "المواقع", de: "Orte", icon: MapPin },
+  { id: "prayer", ar: "الصلاة", de: "Gebetszeiten", icon: MoonStar },
   { id: "program", ar: "البرنامج", de: "Programm", icon: Hotel },
   { id: "payment", ar: "الدفع", de: "Zahlung", icon: CreditCard },
   { id: "news", ar: "الأخبار", de: "News", icon: Megaphone },
@@ -226,6 +227,14 @@ function AdminPage() {
                 <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.locations.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
               </div>)}
               <Button variant="outline" className="w-full" onClick={() => update((c) => { c.locations.push({ id: `l${Date.now()}`, kind: "hotel", ar: "", de: "", address: "", mapsUrl: "" }); return c; })}><Plus />إضافة موقع <span className="text-xs italic">| Ort hinzufügen</span></Button>
+            </Section>
+
+            <Section id="prayer" ar="مواقيت الصلاة" de="Gebetszeiten">
+              <div className="rounded-md border border-border bg-muted p-3 text-sm">
+                <L ar="كربلاء المقدسة والنجف الأشرف" de="Kerbela und Nadschaf" />
+                <p className="mt-2 text-muted-foreground">تُحدّث المواقيت تلقائياً حسب التاريخ بطريقة الجعفرية.</p>
+                <p lang="de" dir="ltr" className="mt-1 text-xs italic text-muted-foreground">Die Gebetszeiten werden täglich automatisch nach der dschafaritischen Methode aktualisiert.</p>
+              </div>
             </Section>
 
             <Section id="program" ar="أسماء الفنادق" de="Hotelnamen">
