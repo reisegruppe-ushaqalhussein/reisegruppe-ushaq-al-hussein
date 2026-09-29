@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { saveOrQueue } from "@/lib/offline";
 import type { SiteContent } from "@/lib/site-content";
 
-export type FieldDef = { key: string; ar: string; de: string; ltr?: boolean; multiline?: boolean; checkbox?: boolean };
+export type FieldDef = { key: string; ar: string; de: string; ltr?: boolean; multiline?: boolean; checkbox?: boolean; type?: "date" | "time"; options?: Array<{ value: string; label: string }> };
 type Row = Record<string, unknown>;
 
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
@@ -33,9 +33,11 @@ function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { 
             <label key={f.key} className="flex items-center gap-2 font-bold"><input type="checkbox" checked={Boolean(draft[f.key])} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-secondary" />{f.ar} | {f.de}</label>
           ) : (
             <label key={f.key} className="block font-bold">{f.ar} | {f.de}
-              {f.multiline
+              {f.options
+                ? <select value={String(draft[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} className={inputCls}>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                : f.multiline
                 ? <textarea dir={f.ltr ? "ltr" : "rtl"} rows={4} value={String(draft[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} className={inputCls} />
-                : <input dir={f.ltr ? "ltr" : "rtl"} value={String(draft[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} className={inputCls} />}
+                : <input type={f.type ?? "text"} dir={f.ltr || f.type ? "ltr" : "rtl"} value={String(draft[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} className={inputCls} />}
             </label>
           ))}
           <Button disabled={busy} className="h-11 w-full" onClick={async () => {

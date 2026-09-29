@@ -56,9 +56,11 @@ const contentSchema = z.object({
   visa: z.object({ eu: long, nonEu: long }),
   payment: z.object({ visible: z.boolean(), accountName: s, bankName: s, iban: s, bic: s }),
   news: z.array(z.object({ ar: s, de: s, bodyAr: long, bodyDe: long })).max(500),
-  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, link: z.string().max(5000), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional() })).max(1000),
+  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, link: z.string().max(5000), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
   alert: z.object({ ar: s, de: s, active: z.boolean() }),
   contacts: z.array(z.object({ id: z.string().max(100), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(100), whatsapp: z.string().max(2000) })).max(100),
+  itinerary: z.array(z.object({ id: z.string().max(100), date: z.string().max(20), time: z.string().max(20), titleAr: s, titleDe: s, place: s, notes: long, gathering: z.boolean() })).max(1000),
+  locations: z.array(z.object({ id: z.string().max(100), kind: z.enum(["hotel", "shrine", "gathering"]), ar: s, de: s, address: s, mapsUrl: z.string().max(5000) })).max(300),
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })
@@ -80,4 +82,42 @@ export const saveSiteContent = createServerFn({ method: "POST" })
       return { ok: false as const, error: `DB: ${error.message}${error.details ? ` (${error.details})` : ""}` };
     }
     return { ok: true as const };
+  });
+
+export const registerPushToken = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ token: z.string().min(20).max(4096) }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("push_tokens").upsert({ token: data.token });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const sendAlertPush = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), title: z.string().max(200), body: z.string().max(2000) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await passwordMatches(data.password))) return { ok: false as const, sent: 0, error: "Falsches Passwort / كلمة المرور غير صحيحة" };
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"];
+    if (!lovableKey || !fcmKey) return { ok: false as const, sent: 0, error: "Push not configured" };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await supabaseAdmin.from("push_tokens").select("token").limit(5000);
+    const headers = { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": fcmKey, "Content-Type": "application/json" };
+    let sent = 0;
+    const stale: string[] = [];
+    const tokens = (rows ?? []).map((r) => r.token);
+    for (let i = 0; i < tokens.length; i += 20) {
+      await Promise.all(tokens.slice(i, i + 20).map(async (token) => {
+        const res = await fetch("https://connector-gateway.lovable.dev/firebase_messaging/v1/projects/_/messages:send", {
+          method: "POST", headers,
+          body: JSON.stringify({ message: { token, notification: { title: data.title, body: data.body }, webpush: { fcm_options: { link: "/" } } } }),
+        });
+        if (res.ok) { sent++; return; }
+        const txt = await res.text();
+        if (res.status === 404 || res.status === 400) stale.push(token);
+        else console.error(`FCM send failed [${res.status}]: ${txt}`);
+      }));
+    }
+    if (stale.length) await supabaseAdmin.from("push_tokens").delete().in("token", stale);
+    return { ok: true as const, sent };
   });
