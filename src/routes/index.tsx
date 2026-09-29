@@ -654,7 +654,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  useEffect(() => { setWelcomed(window.sessionStorage.getItem("welcome-seen") === "true"); }, []);
+  useEffect(() => { setWelcomed(window.localStorage.getItem("welcome-seen") === "true"); }, []);
   return (
     <div className="min-h-screen bg-muted">
       {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} />}

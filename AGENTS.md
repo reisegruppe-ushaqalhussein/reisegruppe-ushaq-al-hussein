@@ -13,9 +13,10 @@
 - Keep visual styling token-driven in `src/styles.css` with mobile-first layouts, because the campaign is primarily viewed on phones.
 - Keep the campaign as a single route with in-page view state for its app-like tab navigation, because the requested experience uses dedicated instant screens behind one persistent bottom bar.
 - Editable campaign content, including payment visibility and bank fields, lives in one `site_content` row (id `main`, jsonb) read publicly and written only via a password-checked server function (ADMIN_PASSWORD secret), because the admin panel is a shared-password gate without user accounts.
-- Keep the Ziyarat experience inside the existing `duas` in-page view, with shrine/list/reader subviews and device speech synthesis, because the campaign uses one persistent app shell and has no hosted recitation files.
+- Keep Ziyarat inside the `duas` in-page view with shrine/list/reader subviews and admin-provided audio.
 - Language choice (both/ar/de/en) lives in `src/lib/i18n.tsx` context; `Pair` renders per choice and English maps from German strings, because the default must stay Arabic-above-German.
 - Generate all home-screen icons from a tight crop of the gold arch, dome, and main calligraphy on a full ivory canvas, excluding small informational lines while retaining a narrow mask-safe edge.
 - Offline: content is network-first with IndexedDB fallback (`src/lib/offline.ts`), admin saves queue locally when offline and flush on reconnect; the service worker comes from vite-plugin-pwa (output dist/client) and registers only via `src/lib/register-sw.ts`, because it must never run in preview.
 - Urgent-alert push uses the Firebase Messaging connector: device tokens in `push_tokens` (service-role only), sent from `sendAlertPush` when the admin saves a changed active alert, because web push must reach closed apps.
-- Reciter audio streams from admin-provided MP3 URLs and is cached via the Cache API (`reciter-audio-v1`) in `src/components/audio-player.tsx`, because playback must work offline after first listen.
+- Cache admin-provided reciter MP3 streams for playback after the first listen.
+- Open the root route through a device-persisted welcome and language choice before the dashboard.
