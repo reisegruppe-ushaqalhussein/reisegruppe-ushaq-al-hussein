@@ -54,7 +54,7 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
           {events.map((e) => (
              <li key={e.id} className={`relative ${e.hidden ? "opacity-55" : ""}`}>
               <span className={`absolute -right-[23px] top-4 h-3 w-3 rounded-full ${e.gathering ? "bg-secondary ring-4 ring-secondary/25" : "bg-primary"}`} />
-               {admin && <ItemActions fields={itineraryFields} item={e} hidden={e.hidden} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === e.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === e.id ? { ...(row as ItineraryEntry), id: x.id, hidden: x.hidden } : x)))} onDelete={() => commit(all.filter((x) => x.id !== e.id))} />}
+               {admin && <ItemActions fields={itineraryFields} item={e} hidden={e.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === e.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === e.id ? { ...(row as ItineraryEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== e.id))} />}
               <article className={`rounded-lg border bg-card p-4 shadow-sm ${e.gathering ? "border-secondary" : "border-border"}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span dir="ltr" className="text-lg font-extrabold text-primary">{e.time}</span>
@@ -115,7 +115,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
             {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground"><P ar="سيتم الإعلان عنها لاحقاً" de="Wird noch bekannt gegeben" /></p> : (
               <div className="space-y-3">{items.map((l) => (
                  <div key={l.id} className={l.hidden ? "opacity-55" : ""}>
-                   {admin && <ItemActions fields={locationFields} item={l} hidden={l.hidden} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
+                   {admin && <ItemActions fields={locationFields} item={l} hidden={l.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
                   <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
                     <h4 className="font-bold text-primary"><P ar={l.ar} de={l.de} /></h4>
                     {l.address && <p className="mt-1 text-sm text-muted-foreground">{l.address}</p>}

@@ -182,7 +182,7 @@ function AdminPage() {
             <Section id="trips" ar="الرحلات والتواريخ" de="Reisen & Termine">
               {content.trips.map((t, i) => (
                 <div key={t.id} className={`space-y-3 rounded-md border border-border p-3 ${t.hidden ? "bg-muted opacity-55" : ""}`}>
-                  <HideButton hidden={t.hidden} onClick={() => update((c) => { c.trips[i]!.hidden = !c.trips[i]!.hidden; if (!c.trips[i]!.hidden) c.trips[i]!.visible = true; return c; })} />
+                  <HideButton hidden={t.hidden ?? false} onClick={() => update((c) => { c.trips[i]!.hidden = !c.trips[i]!.hidden; if (!c.trips[i]!.hidden) c.trips[i]!.visible = true; return c; })} />
                   <Field ar="اسم الرحلة" de="Reisename" value={t.ar} onChange={(v) => update((c) => { c.trips[i]!.ar = v; return c; })} />
                   <Field ar="الاسم بالألمانية" de="Name auf Deutsch" ltr value={t.de} onChange={(v) => update((c) => { c.trips[i]!.de = v; return c; })} />
                   <Field ar="التاريخ" de="Datum" ltr value={t.date} onChange={(v) => update((c) => { c.trips[i]!.date = v; return c; })} />
@@ -196,7 +196,7 @@ function AdminPage() {
 
             <Section id="itinerary" ar="جدول الرحلة والفعاليات" de="Tagesprogramm">
               {content.itinerary.map((item, i) => <div key={item.id} className={`space-y-3 rounded-md border border-border p-3 ${item.hidden ? "bg-muted opacity-55" : ""}`}>
-                <HideButton hidden={item.hidden} onClick={() => update((c) => { c.itinerary[i]!.hidden = !c.itinerary[i]!.hidden; return c; })} />
+                <HideButton hidden={item.hidden ?? false} onClick={() => update((c) => { c.itinerary[i]!.hidden = !c.itinerary[i]!.hidden; return c; })} />
                 <div className="grid grid-cols-2 gap-2"><Field ltr ar="التاريخ" de="Datum" value={item.date} onChange={(v) => update((c) => { c.itinerary[i]!.date = v; return c; })} /><Field ltr ar="الوقت" de="Uhrzeit" value={item.time} onChange={(v) => update((c) => { c.itinerary[i]!.time = v; return c; })} /></div>
                 <Field ar="عنوان الفعالية" de="Titel (Arabisch)" value={item.titleAr} onChange={(v) => update((c) => { c.itinerary[i]!.titleAr = v; return c; })} />
                 <Field ltr ar="العنوان بالألمانية" de="Titel (Deutsch)" value={item.titleDe} onChange={(v) => update((c) => { c.itinerary[i]!.titleDe = v; return c; })} />
@@ -211,7 +211,7 @@ function AdminPage() {
             <Section id="contacts" ar="جهات التواصل" de="Kontakte">
               <VisibilityToggle checked={content.contactsVisible} onCheckedChange={(v) => update((c) => { c.contactsVisible = v; return c; })} ar="إظهار قسم التواصل كاملاً" de="Gesamten Kontaktbereich anzeigen" />
               {content.contacts.map((contact, i) => <div key={contact.id} className={`space-y-3 rounded-md border border-border p-3 ${contact.hidden ? "bg-muted opacity-55" : ""}`}>
-                <HideButton hidden={contact.hidden} onClick={() => update((c) => { c.contacts[i]!.hidden = !c.contacts[i]!.hidden; if (!c.contacts[i]!.hidden) c.contacts[i]!.visible = true; return c; })} />
+                <HideButton hidden={contact.hidden ?? false} onClick={() => update((c) => { c.contacts[i]!.hidden = !c.contacts[i]!.hidden; if (!c.contacts[i]!.hidden) c.contacts[i]!.visible = true; return c; })} />
                 <Field ar="الاسم" de="Name (Arabisch)" value={contact.ar} onChange={(v) => update((c) => { c.contacts[i]!.ar = v; return c; })} />
                 <Field ltr ar="الاسم بالألمانية" de="Name (Deutsch)" value={contact.de} onChange={(v) => update((c) => { c.contacts[i]!.de = v; return c; })} />
                 <Field ar="الصفة" de="Rolle (Arabisch)" value={contact.roleAr} onChange={(v) => update((c) => { c.contacts[i]!.roleAr = v; return c; })} />
@@ -225,7 +225,7 @@ function AdminPage() {
 
             <Section id="locations" ar="دليل الإقامة والمواقع" de="Unterkunft & Orte">
               {content.locations.map((location, i) => <div key={location.id} className={`space-y-3 rounded-md border border-border p-3 ${location.hidden ? "bg-muted opacity-55" : ""}`}>
-                <HideButton hidden={location.hidden} onClick={() => update((c) => { c.locations[i]!.hidden = !c.locations[i]!.hidden; return c; })} />
+                <HideButton hidden={location.hidden ?? false} onClick={() => update((c) => { c.locations[i]!.hidden = !c.locations[i]!.hidden; return c; })} />
                 <label className="block"><L ar="النوع" de="Art" /><select value={location.kind} onChange={(e) => update((c) => { c.locations[i]!.kind = e.target.value as LocationKind; return c; })} className={inputCls}><option value="hotel">فندق | Hotel</option><option value="shrine">مرقد | Heiliger Ort</option><option value="gathering">نقطة تجمع | Treffpunkt</option></select></label>
                 <Field ar="الاسم" de="Name (Arabisch)" value={location.ar} onChange={(v) => update((c) => { c.locations[i]!.ar = v; return c; })} />
                 <Field ltr ar="الاسم بالألمانية" de="Name (Deutsch)" value={location.de} onChange={(v) => update((c) => { c.locations[i]!.de = v; return c; })} />
@@ -273,7 +273,7 @@ function AdminPage() {
             <Section id="news" ar="الأخبار والتنبيهات" de="Neuigkeiten & Hinweise">
               {content.news.map((n, i) => (
                 <div key={i} className={`space-y-3 rounded-md border border-border p-3 ${n.hidden ? "bg-muted opacity-55" : ""}`}>
-                  <HideButton hidden={n.hidden} onClick={() => update((c) => { c.news[i]!.hidden = !c.news[i]!.hidden; return c; })} />
+                  <HideButton hidden={n.hidden ?? false} onClick={() => update((c) => { c.news[i]!.hidden = !c.news[i]!.hidden; return c; })} />
                   <Field ar="العنوان (عربي)" de="Titel (Arabisch)" value={n.ar} onChange={(v) => update((c) => { c.news[i]!.ar = v; return c; })} />
                   <Field ltr ar="العنوان (ألماني)" de="Titel (Deutsch)" value={n.de} onChange={(v) => update((c) => { c.news[i]!.de = v; return c; })} />
                   <Field multiline ar="النص (عربي)" de="Text (Arabisch)" value={n.bodyAr} onChange={(v) => update((c) => { c.news[i]!.bodyAr = v; return c; })} />
@@ -287,7 +287,7 @@ function AdminPage() {
             <Section id="duas" ar="الأدعية والزيارات" de="Bittgebete & Ziyarat">
               {content.duas.map((d, i) => (
                 <div key={d.id} className={`space-y-3 rounded-md border border-border p-3 ${d.hidden ? "bg-muted opacity-55" : ""}`}>
-                  <HideButton hidden={d.hidden} onClick={() => update((c) => { c.duas[i]!.hidden = !c.duas[i]!.hidden; return c; })} />
+                  <HideButton hidden={d.hidden ?? false} onClick={() => update((c) => { c.duas[i]!.hidden = !c.duas[i]!.hidden; return c; })} />
                   <Field ar="الاسم (عربي)" de="Name (Arabisch)" value={d.ar} onChange={(v) => update((c) => { c.duas[i]!.ar = v; return c; })} />
                   <Field ltr ar="الاسم (ألماني)" de="Name (Deutsch)" value={d.de} onChange={(v) => update((c) => { c.duas[i]!.de = v; return c; })} />
                   <label className="block">
