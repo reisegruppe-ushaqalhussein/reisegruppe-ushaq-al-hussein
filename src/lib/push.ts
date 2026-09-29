@@ -30,7 +30,7 @@ export async function enablePush(): Promise<PushStatus> {
   await registerPushToken({ data: { token } });
   localStorage.setItem("push-enabled", "1");
   onMessage(messaging, (p) => {
-    if (p.notification?.title) new Notification(p.notification.title, { body: p.notification.body, icon: "/icons/icon-192.png" });
+    if (p.notification?.title) new Notification(p.notification.title, { body: p.notification.body ?? "", icon: "/icons/icon-192.png" });
   });
   return "registered";
 }
