@@ -50,18 +50,18 @@ export const changeAdminPassword = createServerFn({ method: "POST" })
 const s = z.string().max(20000);
 const long = z.string().max(500000);
 const contentSchema = z.object({
-  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), statusAr: s.optional(), statusDe: s.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
+  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), hidden: z.boolean().optional(), statusAr: s.optional(), statusDe: s.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
   hotels: z.object({ kadhimiya: s, karbala: s, najaf: s }),
   program: z.object({ ar: long, de: long }),
   visa: z.object({ eu: long, nonEu: long }),
   payment: z.object({ visible: z.boolean(), accountName: s, bankName: s, iban: s, bic: s }),
-  news: z.array(z.object({ ar: s, de: s, bodyAr: long, bodyDe: long })).max(500),
-  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, link: z.string().max(5000), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
+  news: z.array(z.object({ ar: s, de: s, bodyAr: long, bodyDe: long, hidden: z.boolean().optional() })).max(500),
+  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, link: z.string().max(5000), hidden: z.boolean().optional(), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
   alert: z.object({ ar: s, de: s, active: z.boolean() }),
-  contacts: z.array(z.object({ id: z.string().max(100), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(100), whatsapp: z.string().max(2000), visible: z.boolean().optional() })).max(100),
+  contacts: z.array(z.object({ id: z.string().max(100), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(100), whatsapp: z.string().max(2000), visible: z.boolean().optional(), hidden: z.boolean().optional() })).max(100),
   contactsVisible: z.boolean(),
-  itinerary: z.array(z.object({ id: z.string().max(100), date: z.string().max(20), time: z.string().max(20), titleAr: s, titleDe: s, place: s, notes: long, gathering: z.boolean() })).max(1000),
-  locations: z.array(z.object({ id: z.string().max(100), kind: z.enum(["hotel", "shrine", "gathering"]), ar: s, de: s, address: s, mapsUrl: z.string().max(5000) })).max(300),
+  itinerary: z.array(z.object({ id: z.string().max(100), date: z.string().max(20), time: z.string().max(20), titleAr: s, titleDe: s, place: s, notes: long, gathering: z.boolean(), hidden: z.boolean().optional() })).max(1000),
+  locations: z.array(z.object({ id: z.string().max(100), kind: z.enum(["hotel", "shrine", "gathering"]), ar: s, de: s, address: s, mapsUrl: z.string().max(5000), hidden: z.boolean().optional() })).max(300),
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })

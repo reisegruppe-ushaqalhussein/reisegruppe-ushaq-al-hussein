@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type ReactNode } from "react";
 import { clearSynced, flushQueue, getQueue, idbGet, isOnline, onQueueChange, saveOrQueue, type QueueItem } from "@/lib/offline";
 import { useOnline } from "@/components/offline-status";
-import { Bell, BookOpen, CalendarClock, CheckCircle2, Clock, CreditCard, Home, Hotel, KeyRound, Lock, MapPin, Megaphone, MoonStar, Plane, Plus, Save, Trash2, Users, XCircle } from "lucide-react";
+import { Bell, BookOpen, CalendarClock, CheckCircle2, Clock, CreditCard, Eye, EyeOff, Home, Hotel, KeyRound, Lock, MapPin, Megaphone, MoonStar, Plane, Plus, Save, Trash2, Users, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { changeAdminPassword, checkAdminPassword, getSiteContent, sendAlertPush } from "@/lib/site-content.functions";
@@ -59,6 +59,10 @@ function Section({ id, ar, de, children }: { id?: string; ar: string; de: string
 
 function VisibilityToggle({ checked, onCheckedChange, ar, de }: { checked: boolean; onCheckedChange: (checked: boolean) => void; ar: string; de: string }) {
   return <label className="flex items-center justify-between gap-4 rounded-md border border-border bg-muted p-3"><L ar={ar} de={de} /><Switch checked={checked} onCheckedChange={onCheckedChange} aria-label={`${ar} | ${de}`} /></label>;
+}
+
+function HideButton({ hidden, onClick }: { hidden?: boolean; onClick: () => void }) {
+  return <Button variant="outline" size="sm" className={hidden ? "text-primary" : "text-muted-foreground"} onClick={onClick}>{hidden ? <Eye /> : <EyeOff />}{hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {hidden ? "Restore" : "Hide"}</span></Button>;
 }
 
 const adminAreas = [
@@ -177,7 +181,8 @@ function AdminPage() {
 
             <Section id="trips" ar="الرحلات والتواريخ" de="Reisen & Termine">
               {content.trips.map((t, i) => (
-                <div key={t.id} className="space-y-3 rounded-md border border-border p-3">
+                <div key={t.id} className={`space-y-3 rounded-md border border-border p-3 ${t.hidden ? "bg-muted opacity-55" : ""}`}>
+                  <HideButton hidden={t.hidden ?? false} onClick={() => update((c) => { c.trips[i]!.hidden = !c.trips[i]!.hidden; if (!c.trips[i]!.hidden) c.trips[i]!.visible = true; return c; })} />
                   <Field ar="اسم الرحلة" de="Reisename" value={t.ar} onChange={(v) => update((c) => { c.trips[i]!.ar = v; return c; })} />
                   <Field ar="الاسم بالألمانية" de="Name auf Deutsch" ltr value={t.de} onChange={(v) => update((c) => { c.trips[i]!.de = v; return c; })} />
                   <Field ar="التاريخ" de="Datum" ltr value={t.date} onChange={(v) => update((c) => { c.trips[i]!.date = v; return c; })} />
@@ -190,7 +195,8 @@ function AdminPage() {
             </Section>
 
             <Section id="itinerary" ar="جدول الرحلة والفعاليات" de="Tagesprogramm">
-              {content.itinerary.map((item, i) => <div key={item.id} className="space-y-3 rounded-md border border-border p-3">
+              {content.itinerary.map((item, i) => <div key={item.id} className={`space-y-3 rounded-md border border-border p-3 ${item.hidden ? "bg-muted opacity-55" : ""}`}>
+                <HideButton hidden={item.hidden ?? false} onClick={() => update((c) => { c.itinerary[i]!.hidden = !c.itinerary[i]!.hidden; return c; })} />
                 <div className="grid grid-cols-2 gap-2"><Field ltr ar="التاريخ" de="Datum" value={item.date} onChange={(v) => update((c) => { c.itinerary[i]!.date = v; return c; })} /><Field ltr ar="الوقت" de="Uhrzeit" value={item.time} onChange={(v) => update((c) => { c.itinerary[i]!.time = v; return c; })} /></div>
                 <Field ar="عنوان الفعالية" de="Titel (Arabisch)" value={item.titleAr} onChange={(v) => update((c) => { c.itinerary[i]!.titleAr = v; return c; })} />
                 <Field ltr ar="العنوان بالألمانية" de="Titel (Deutsch)" value={item.titleDe} onChange={(v) => update((c) => { c.itinerary[i]!.titleDe = v; return c; })} />
@@ -199,13 +205,13 @@ function AdminPage() {
                 <VisibilityToggle checked={item.gathering} onCheckedChange={(v) => update((c) => { c.itinerary[i]!.gathering = v; return c; })} ar="تمييز كموعد تجمع" de="Als Sammelzeit markieren" />
                 <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.itinerary.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
               </div>)}
-              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.itinerary.push({ id: `e${Date.now()}`, date: new Date().toISOString().slice(0, 10), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false }); return c; })}><Plus />إضافة فعالية <span className="text-xs italic">| Programmpunkt hinzufügen</span></Button>
+              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.itinerary.push({ id: `e${Date.now()}`, date: new Date().toISOString().slice(0, 10), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false, hidden: false }); return c; })}><Plus />إضافة فعالية <span className="text-xs italic">| Programmpunkt hinzufügen</span></Button>
             </Section>
 
             <Section id="contacts" ar="جهات التواصل" de="Kontakte">
               <VisibilityToggle checked={content.contactsVisible} onCheckedChange={(v) => update((c) => { c.contactsVisible = v; return c; })} ar="إظهار قسم التواصل كاملاً" de="Gesamten Kontaktbereich anzeigen" />
-              {content.contacts.map((contact, i) => <div key={contact.id} className="space-y-3 rounded-md border border-border p-3">
-                <VisibilityToggle checked={contact.visible !== false} onCheckedChange={(v) => update((c) => { c.contacts[i]!.visible = v; return c; })} ar="إظهار جهة التواصل" de="Kontakt anzeigen" />
+              {content.contacts.map((contact, i) => <div key={contact.id} className={`space-y-3 rounded-md border border-border p-3 ${contact.hidden ? "bg-muted opacity-55" : ""}`}>
+                <HideButton hidden={contact.hidden ?? false} onClick={() => update((c) => { c.contacts[i]!.hidden = !c.contacts[i]!.hidden; if (!c.contacts[i]!.hidden) c.contacts[i]!.visible = true; return c; })} />
                 <Field ar="الاسم" de="Name (Arabisch)" value={contact.ar} onChange={(v) => update((c) => { c.contacts[i]!.ar = v; return c; })} />
                 <Field ltr ar="الاسم بالألمانية" de="Name (Deutsch)" value={contact.de} onChange={(v) => update((c) => { c.contacts[i]!.de = v; return c; })} />
                 <Field ar="الصفة" de="Rolle (Arabisch)" value={contact.roleAr} onChange={(v) => update((c) => { c.contacts[i]!.roleAr = v; return c; })} />
@@ -214,11 +220,12 @@ function AdminPage() {
                 <Field ltr ar="رابط واتساب" de="WhatsApp-Link" value={contact.whatsapp} onChange={(v) => update((c) => { c.contacts[i]!.whatsapp = v; return c; })} />
                 <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.contacts.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
               </div>)}
-              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.contacts.push({ id: `c${Date.now()}`, ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true }); return c; })}><Plus />إضافة جهة تواصل <span className="text-xs italic">| Kontakt hinzufügen</span></Button>
+              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.contacts.push({ id: `c${Date.now()}`, ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true, hidden: false }); return c; })}><Plus />إضافة جهة تواصل <span className="text-xs italic">| Kontakt hinzufügen</span></Button>
             </Section>
 
             <Section id="locations" ar="دليل الإقامة والمواقع" de="Unterkunft & Orte">
-              {content.locations.map((location, i) => <div key={location.id} className="space-y-3 rounded-md border border-border p-3">
+              {content.locations.map((location, i) => <div key={location.id} className={`space-y-3 rounded-md border border-border p-3 ${location.hidden ? "bg-muted opacity-55" : ""}`}>
+                <HideButton hidden={location.hidden ?? false} onClick={() => update((c) => { c.locations[i]!.hidden = !c.locations[i]!.hidden; return c; })} />
                 <label className="block"><L ar="النوع" de="Art" /><select value={location.kind} onChange={(e) => update((c) => { c.locations[i]!.kind = e.target.value as LocationKind; return c; })} className={inputCls}><option value="hotel">فندق | Hotel</option><option value="shrine">مرقد | Heiliger Ort</option><option value="gathering">نقطة تجمع | Treffpunkt</option></select></label>
                 <Field ar="الاسم" de="Name (Arabisch)" value={location.ar} onChange={(v) => update((c) => { c.locations[i]!.ar = v; return c; })} />
                 <Field ltr ar="الاسم بالألمانية" de="Name (Deutsch)" value={location.de} onChange={(v) => update((c) => { c.locations[i]!.de = v; return c; })} />
@@ -226,7 +233,7 @@ function AdminPage() {
                 <Field ltr ar="رابط خرائط Google" de="Google-Maps-Link" value={location.mapsUrl} onChange={(v) => update((c) => { c.locations[i]!.mapsUrl = v; return c; })} />
                 <Button variant="outline" size="sm" className="text-destructive" onClick={() => update((c) => { c.locations.splice(i, 1); return c; })}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
               </div>)}
-              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.locations.push({ id: `l${Date.now()}`, kind: "hotel", ar: "", de: "", address: "", mapsUrl: "" }); return c; })}><Plus />إضافة موقع <span className="text-xs italic">| Ort hinzufügen</span></Button>
+              <Button variant="outline" className="w-full" onClick={() => update((c) => { c.locations.push({ id: `l${Date.now()}`, kind: "hotel", ar: "", de: "", address: "", mapsUrl: "", hidden: false }); return c; })}><Plus />إضافة موقع <span className="text-xs italic">| Ort hinzufügen</span></Button>
             </Section>
 
             <Section id="prayer" ar="مواقيت الصلاة" de="Gebetszeiten">
@@ -265,7 +272,8 @@ function AdminPage() {
 
             <Section id="news" ar="الأخبار والتنبيهات" de="Neuigkeiten & Hinweise">
               {content.news.map((n, i) => (
-                <div key={i} className="space-y-3 rounded-md border border-border p-3">
+                <div key={i} className={`space-y-3 rounded-md border border-border p-3 ${n.hidden ? "bg-muted opacity-55" : ""}`}>
+                  <HideButton hidden={n.hidden ?? false} onClick={() => update((c) => { c.news[i]!.hidden = !c.news[i]!.hidden; return c; })} />
                   <Field ar="العنوان (عربي)" de="Titel (Arabisch)" value={n.ar} onChange={(v) => update((c) => { c.news[i]!.ar = v; return c; })} />
                   <Field ltr ar="العنوان (ألماني)" de="Titel (Deutsch)" value={n.de} onChange={(v) => update((c) => { c.news[i]!.de = v; return c; })} />
                   <Field multiline ar="النص (عربي)" de="Text (Arabisch)" value={n.bodyAr} onChange={(v) => update((c) => { c.news[i]!.bodyAr = v; return c; })} />
@@ -273,12 +281,13 @@ function AdminPage() {
                   <Button variant="outline" size="sm" onClick={() => update((c) => { c.news.splice(i, 1); return c; })} className="text-destructive"><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
                 </div>
               ))}
-              <Button variant="outline" onClick={() => update((c) => { c.news.unshift({ ar: "", de: "", bodyAr: "", bodyDe: "" }); return c; })} className="w-full"><Plus />إضافة إعلان جديد <span className="text-xs italic">| Neue Meldung</span></Button>
+              <Button variant="outline" onClick={() => update((c) => { c.news.unshift({ ar: "", de: "", bodyAr: "", bodyDe: "", hidden: false }); return c; })} className="w-full"><Plus />إضافة إعلان جديد <span className="text-xs italic">| Neue Meldung</span></Button>
             </Section>
 
             <Section id="duas" ar="الأدعية والزيارات" de="Bittgebete & Ziyarat">
               {content.duas.map((d, i) => (
-                <div key={d.id} className="space-y-3 rounded-md border border-border p-3">
+                <div key={d.id} className={`space-y-3 rounded-md border border-border p-3 ${d.hidden ? "bg-muted opacity-55" : ""}`}>
+                  <HideButton hidden={d.hidden ?? false} onClick={() => update((c) => { c.duas[i]!.hidden = !c.duas[i]!.hidden; return c; })} />
                   <Field ar="الاسم (عربي)" de="Name (Arabisch)" value={d.ar} onChange={(v) => update((c) => { c.duas[i]!.ar = v; return c; })} />
                   <Field ltr ar="الاسم (ألماني)" de="Name (Deutsch)" value={d.de} onChange={(v) => update((c) => { c.duas[i]!.de = v; return c; })} />
                   <label className="block">
@@ -294,7 +303,7 @@ function AdminPage() {
                   <Button variant="outline" size="sm" onClick={() => update((c) => { c.duas.splice(i, 1); return c; })} className="text-destructive"><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
                 </div>
               ))}
-              <Button variant="outline" onClick={() => update((c) => { c.duas.push({ id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "" }); return c; })} className="w-full"><Plus />إضافة دعاء / زيارة <span className="text-xs italic">| Neues Bittgebet</span></Button>
+              <Button variant="outline" onClick={() => update((c) => { c.duas.push({ id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "", hidden: false }); return c; })} className="w-full"><Plus />إضافة دعاء / زيارة <span className="text-xs italic">| Neues Bittgebet</span></Button>
             </Section>
 
             <Section id="security" ar="تغيير كلمة السر" de="Passwort ändern">

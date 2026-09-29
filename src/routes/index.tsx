@@ -283,7 +283,7 @@ function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteC
 
 function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
-  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => t.visible || admin).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
+  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => admin || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
@@ -301,12 +301,12 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
 
       <div className="my-7 border-t border-border" />
       <ScreenTitle icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" />
-      {admin && <AddButton label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", visible: true }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />}
+      {admin && <AddButton label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />}
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = trip.icon;
           const raw = content.trips.find((t) => t.id === trip.id)!;
-          return <div key={trip.id}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}{admin && !raw.visible && <p className="mb-1 text-xs text-destructive">مخفي عن الزوار | Für Besucher ausgeblendet</p>}<Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button></div>;
+          return <div key={trip.id} className={raw.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}<Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button></div>;
         })}
       </div>
 
@@ -387,12 +387,12 @@ function RegistrationView() {
 function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const contacts = content.contacts ?? defaultContacts;
-  const shownContacts = admin ? contacts : contacts.filter((contact) => contact.visible !== false);
+  const shownContacts = admin ? contacts : contacts.filter((contact) => contact.visible !== false && !contact.hidden);
   const saveContacts = (next: ContactEntry[]) => saveContent({ ...content, contacts: next });
   if (!admin && !content.contactsVisible) return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><Pair ar="جهات التواصل غير متاحة حالياً." de="Die Kontaktdaten sind derzeit nicht verfügbar." align="center" /></p></div>;
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><SocialLinks showEmail /><div className="mt-5 space-y-3">
-    {admin && <AddButton label={{ ar: "إضافة جهة تواصل", de: "Neuen Kontakt hinzufügen" }} fields={contactFields} blank={{ ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true }} onAdd={(row) => saveContacts([...contacts, { ...(row as ContactEntry), id: `c${Date.now()}` }])} />}
-    {shownContacts.map((contact) => <div key={contact.id}>{admin && <ItemActions fields={contactFields} item={contact} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}{admin && contact.visible === false && <p className="mb-1 text-xs text-destructive">مخفي عن الزوار | Für Besucher ausgeblendet</p>}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
+    {admin && <AddButton label={{ ar: "إضافة جهة تواصل", de: "Neuen Kontakt hinzufügen" }} fields={contactFields} blank={{ ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true, hidden: false }} onAdd={(row) => saveContacts([...contacts, { ...(row as ContactEntry), id: `c${Date.now()}` }])} />}
+    {shownContacts.map((contact) => <div key={contact.id} className={contact.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={contactFields} item={contact} hidden={contact.hidden ?? false} onVisibilityChange={(hidden) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...c, hidden, visible: hidden ? (c.visible ?? true) : true } : c)))} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id, hidden: c.hidden ?? false } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
   </div></div>;
 }
 
@@ -455,8 +455,8 @@ function NewsView({ content, admin }: { content: SiteContent; admin: AdminProps 
   const news = content.news;
   const saveNews = (next: NewsEntry[]) => saveContent({ ...content, news: next });
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" />
-    {admin && <AddButton label={{ ar: "إضافة خبر جديد", de: "Neue Meldung hinzufügen" }} fields={newsFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveNews([row as NewsEntry, ...news])} />}
-    <div className="space-y-3">{news.map((item, i) => (item.ar || item.de || admin) ? <div key={i}>{admin && <ItemActions fields={newsFields} item={item} onSave={(row) => saveNews(news.map((n, j) => (j === i ? (row as NewsEntry) : n)))} onDelete={() => saveNews(news.filter((_, j) => j !== i))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article></div> : null)}</div></div>;
+    {admin && <AddButton label={{ ar: "إضافة خبر جديد", de: "Neue Meldung hinzufügen" }} fields={newsFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "", hidden: false }} onAdd={(row) => saveNews([row as NewsEntry, ...news])} />}
+    <div className="space-y-3">{news.map((item, i) => (!item.hidden || admin) && (item.ar || item.de || admin) ? <div key={i} className={item.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={newsFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={(hidden) => saveNews(news.map((n, j) => (j === i ? { ...n, hidden } : n)))} onSave={(row) => saveNews(news.map((n, j) => (j === i ? { ...(row as NewsEntry), hidden: n.hidden ?? false } : n)))} onDelete={() => saveNews(news.filter((_, j) => j !== i))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article></div> : null)}</div></div>;
 }
 
 const prayerNames: Array<{ key: string; ar: string; de: string }> = [
@@ -523,7 +523,7 @@ function AlertBanner({ alert }: { alert: SiteContent["alert"] }) {
   );
 }
 
-type ReaderItem = { id: string; ar: string; de: string; textAr: string; latin: string; translation: string; link?: string; reciters?: import("@/lib/site-content").Reciter[] };
+type ReaderItem = { id: string; ar: string; de: string; textAr: string; latin: string; translation: string; link?: string; hidden?: boolean; reciters?: import("@/lib/site-content").Reciter[] };
 type Shrine = { id: string; ar: string; de: string; image: string; entries: ReaderItem[] };
 
 function splitGermanText(value: string) {
@@ -537,7 +537,7 @@ function DuasView({ content }: { content: SiteContent }) {
   const duas = content.duas;
   const adminPw = useAdminPassword();
   const admin: AdminCtx = adminPw ? { password: adminPw, content } : null;
-  const managedEntries = useMemo(() => duas.filter((d) => d.ar || d.de).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [duas]);
+  const managedEntries = useMemo(() => duas.filter((d) => (d.ar || d.de) && (admin || !d.hidden)).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [admin, duas]);
   const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const shrines: Shrine[] = [
     { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela", image: shrineImage, entries: inCat("karbala") },
@@ -576,7 +576,7 @@ function LayerToggle({ active, onClick, label, children }: { active: boolean; on
 }
 
 function ReaderListButton({ item, onRead, admin }: { item: ReaderItem; onRead: (item: ReaderItem) => void; admin?: AdminCtx }) {
-  return <div className="space-y-2">{admin && <DuaAdminActions id={item.id} password={admin.password} content={admin.content} />}<Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button></div>;
+  return <div className={`space-y-2 ${item.hidden ? "opacity-55" : ""}`}>{admin && <DuaAdminActions id={item.id} password={admin.password} content={admin.content} />}<Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button></div>;
 }
 
 function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBack: () => void; onRead: (item: ReaderItem) => void; admin: AdminCtx }) {

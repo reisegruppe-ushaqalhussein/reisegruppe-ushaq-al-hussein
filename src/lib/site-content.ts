@@ -1,6 +1,6 @@
-export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
-export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean };
-export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string };
+export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
+export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean; hidden?: boolean };
+export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
 export type DuaCategory = "karbala" | "najaf" | "kazimiyya" | "samarra" | "mashhad" | "qom" | "mecca-medina" | "general";
 export const duaCategories: Array<{ id: DuaCategory; ar: string; de: string }> = [
   { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
@@ -16,10 +16,10 @@ export function duaCategoryOf(d: { id: string; category?: DuaCategory }): DuaCat
   return d.category ?? (d.id === "ashura" || d.id === "warith" ? "karbala" : "general");
 }
 export type Reciter = { name: string; url: string };
-export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string; category?: DuaCategory; reciters?: Reciter[] };
-export type ItineraryEntry = { id: string; date: string; time: string; titleAr: string; titleDe: string; place: string; notes: string; gathering: boolean };
+export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string; hidden?: boolean; category?: DuaCategory; reciters?: Reciter[] };
+export type ItineraryEntry = { id: string; date: string; time: string; titleAr: string; titleDe: string; place: string; notes: string; gathering: boolean; hidden?: boolean };
 export type LocationKind = "hotel" | "shrine" | "gathering";
-export type LocationEntry = { id: string; kind: LocationKind; ar: string; de: string; address: string; mapsUrl: string };
+export type LocationEntry = { id: string; kind: LocationKind; ar: string; de: string; address: string; mapsUrl: string; hidden?: boolean };
 export type AlertEntry = { ar: string; de: string; active: boolean };
 export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
 export type SiteContent = {
@@ -77,17 +77,17 @@ export const defaultContent: SiteContent = {
 export function mergeContent(data: unknown): SiteContent {
   const d = (data && typeof data === "object" ? data : {}) as Partial<SiteContent>;
   return {
-    duas: Array.isArray(d.duas) ? d.duas : defaultContent.duas,
+    duas: Array.isArray(d.duas) ? d.duas.map((item) => ({ ...item, hidden: item.hidden ?? false })) : defaultContent.duas,
     alert: { ...defaultContent.alert, ...(d.alert ?? {}) },
-    trips: Array.isArray(d.trips) && d.trips.length ? d.trips : defaultContent.trips,
+    trips: Array.isArray(d.trips) && d.trips.length ? d.trips.map((item) => ({ ...item, hidden: item.hidden ?? item.visible === false })) : defaultContent.trips,
     hotels: { ...defaultContent.hotels, ...(d.hotels ?? {}) },
     program: { ...defaultContent.program, ...(d.program ?? {}) },
     visa: { ...defaultContent.visa, ...(d.visa ?? {}) },
     payment: { ...defaultContent.payment, ...(d.payment ?? {}) },
-    news: Array.isArray(d.news) ? d.news : defaultContent.news,
-    contacts: Array.isArray(d.contacts) ? d.contacts.map((contact) => ({ ...contact, visible: contact.visible ?? true })) : defaultContacts,
+    news: Array.isArray(d.news) ? d.news.map((item) => ({ ...item, hidden: item.hidden ?? false })) : defaultContent.news,
+    contacts: Array.isArray(d.contacts) ? d.contacts.map((contact) => ({ ...contact, visible: contact.visible ?? true, hidden: contact.hidden ?? contact.visible === false })) : defaultContacts,
     contactsVisible: d.contactsVisible ?? true,
-    itinerary: Array.isArray(d.itinerary) ? d.itinerary : [],
-    locations: Array.isArray(d.locations) ? d.locations : [],
+    itinerary: Array.isArray(d.itinerary) ? d.itinerary.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
+    locations: Array.isArray(d.locations) ? d.locations.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
   };
 }

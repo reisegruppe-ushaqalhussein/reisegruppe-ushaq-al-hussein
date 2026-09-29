@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { checkAdminPassword } from "@/lib/site-content.functions";
@@ -91,7 +91,7 @@ function DuaForm({ open, onOpenChange, initial, title, onSubmit }: { open: boole
 export function DuaAddButton({ category, password, content }: { category: DuaCategory; password: string; content: SiteContent }) {
   const saveDuas = useSaveDuas(password, content);
   const [open, setOpen] = useState(false);
-  const blank: DuaEntry = { id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "", category, reciters: [] };
+  const blank: DuaEntry = { id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "", category, reciters: [], hidden: false };
   return (
     <>
       <Button size="sm" variant="outline" className="shrink-0 border-secondary text-primary" onClick={() => setOpen(true)}><Plus />إضافة <span className="text-xs italic">| Hinzufügen</span></Button>
@@ -112,6 +112,10 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
   return (
     <div className="flex gap-2">
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic">| Bearbeiten</span></Button>
+      <Button size="sm" variant="outline" className={entry.hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
+        try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
+        catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
+      }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {entry.hidden ? "Restore" : "Hide"}</span></Button>
       <Button size="sm" variant="outline" className="text-destructive" onClick={onDelete}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
       {open && <DuaForm open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
     </div>

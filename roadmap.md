@@ -21,3 +21,5 @@
 - [x] Add global and per-contact visibility controls.
 - [x] Organize every editable app area in the central admin control panel.
 - [x] Refresh the splash screen with the original logo and an ivory-and-gold pilgrimage theme.
+- [x] Simplify the splash screen around the original logo with a quiet ivory background and high-contrast navy controls.
+- [x] Add reversible hide/restore controls for repeated trips, news, contacts, itinerary items, locations, and duas.
