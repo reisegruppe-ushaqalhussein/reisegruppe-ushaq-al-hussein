@@ -36,24 +36,25 @@ const itineraryFields: FieldDef[] = [
 export function ItineraryView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
   const all = content.itinerary;
+  const available = admin ? all : all.filter((item) => !item.hidden);
   const commit = (next: ItineraryEntry[]) => save({ ...content, itinerary: next });
-  const dates = useMemo(() => [...new Set(all.map((e) => e.date))].sort(), [all]);
+  const dates = useMemo(() => [...new Set(available.map((e) => e.date))].sort(), [available]);
   const [day, setDay] = useState<string>("");
   useEffect(() => { const t = todayIso(); setDay(dates.includes(t) ? t : dates.find((d) => d >= t) ?? dates[dates.length - 1] ?? ""); }, [dates.join()]); // eslint-disable-line react-hooks/exhaustive-deps
-  const events = all.filter((e) => e.date === day).sort((a, b) => a.time.localeCompare(b.time));
+  const events = available.filter((e) => e.date === day).sort((a, b) => a.time.localeCompare(b.time));
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={CalendarClock} ar="جدول الرحلة والفعاليات" de="Tagesprogramm" />
-      {admin && <AddButton label={{ ar: "إضافة فعالية", de: "Programmpunkt hinzufügen" }} fields={itineraryFields} blank={{ id: "", date: day || todayIso(), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false }} onAdd={(row) => commit([...all, { ...(row as ItineraryEntry), id: `e${Date.now()}` }])} />}
+      {admin && <AddButton label={{ ar: "إضافة فعالية", de: "Programmpunkt hinzufügen" }} fields={itineraryFields} blank={{ id: "", date: day || todayIso(), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false, hidden: false }} onAdd={(row) => commit([...all, { ...(row as ItineraryEntry), id: `e${Date.now()}` }])} />}
       {dates.length === 0 ? <p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><P ar="سيتم نشر جدول الرحلة هنا قريباً." de="Das Tagesprogramm wird hier bald veröffentlicht." /></p> : <>
         <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1" dir="ltr">
           {dates.map((d) => <button key={d} onClick={() => setDay(d)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${d === day ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{d === todayIso() ? "اليوم · Heute" : fmtDate(d)}</button>)}
         </div>
         <ol className="relative space-y-3 border-r-2 border-secondary/40 pr-4">
           {events.map((e) => (
-            <li key={e.id} className="relative">
+             <li key={e.id} className={`relative ${e.hidden ? "opacity-55" : ""}`}>
               <span className={`absolute -right-[23px] top-4 h-3 w-3 rounded-full ${e.gathering ? "bg-secondary ring-4 ring-secondary/25" : "bg-primary"}`} />
-              {admin && <ItemActions fields={itineraryFields} item={e} onSave={(row) => commit(all.map((x) => (x.id === e.id ? (row as ItineraryEntry) : x)))} onDelete={() => commit(all.filter((x) => x.id !== e.id))} />}
+               {admin && <ItemActions fields={itineraryFields} item={e} hidden={e.hidden} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === e.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === e.id ? { ...(row as ItineraryEntry), id: x.id, hidden: x.hidden } : x)))} onDelete={() => commit(all.filter((x) => x.id !== e.id))} />}
               <article className={`rounded-lg border bg-card p-4 shadow-sm ${e.gathering ? "border-secondary" : "border-border"}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span dir="ltr" className="text-lg font-extrabold text-primary">{e.time}</span>
@@ -88,6 +89,7 @@ const mapsHref = (l: LocationEntry) => l.mapsUrl || `https://www.google.com/maps
 export function GuideView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
   const all = content.locations;
+  const available = admin ? all : all.filter((item) => !item.hidden);
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
   const emergencyContacts = admin ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false) : [];
   return (
@@ -104,16 +106,16 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
           ))}
         </div>
       </section>}
-      {admin && <AddButton label={{ ar: "إضافة موقع", de: "Ort hinzufügen" }} fields={locationFields} blank={{ id: "", kind: "hotel", ar: "", de: "", address: "", mapsUrl: "" }} onAdd={(row) => commit([...all, { ...(row as LocationEntry), id: `l${Date.now()}` }])} />}
+      {admin && <AddButton label={{ ar: "إضافة موقع", de: "Ort hinzufügen" }} fields={locationFields} blank={{ id: "", kind: "hotel", ar: "", de: "", address: "", mapsUrl: "", hidden: false }} onAdd={(row) => commit([...all, { ...(row as LocationEntry), id: `l${Date.now()}` }])} />}
       {kinds.map((k) => {
-        const items = all.filter((l) => l.kind === k.id);
+        const items = available.filter((l) => l.kind === k.id);
         return (
           <section key={k.id} className="mb-6">
             <h3 className="mb-3 flex items-center gap-2 font-bold text-primary"><k.icon className="h-5 w-5 text-secondary" /><P ar={k.ar} de={k.de} /></h3>
             {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground"><P ar="سيتم الإعلان عنها لاحقاً" de="Wird noch bekannt gegeben" /></p> : (
               <div className="space-y-3">{items.map((l) => (
-                <div key={l.id}>
-                  {admin && <ItemActions fields={locationFields} item={l} onSave={(row) => commit(all.map((x) => (x.id === l.id ? (row as LocationEntry) : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
+                 <div key={l.id} className={l.hidden ? "opacity-55" : ""}>
+                   {admin && <ItemActions fields={locationFields} item={l} hidden={l.hidden} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
                   <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
                     <h4 className="font-bold text-primary"><P ar={l.ar} de={l.de} /></h4>
                     {l.address && <p className="mt-1 text-sm text-muted-foreground">{l.address}</p>}

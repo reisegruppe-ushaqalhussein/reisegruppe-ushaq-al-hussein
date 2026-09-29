@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { saveOrQueue } from "@/lib/offline";
@@ -50,11 +50,14 @@ function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { 
   );
 }
 
-export function ItemActions({ fields, item, onSave, onDelete }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void> }) {
+export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="mb-2 flex gap-2">
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic">| Bearbeiten</span></Button>
+      {onVisibilityChange && <Button size="sm" variant="outline" className={hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
+        try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
+      }}>{hidden ? <Eye /> : <EyeOff />}{hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {hidden ? "Restore" : "Hide"}</span></Button>}
       <Button size="sm" variant="outline" className="text-destructive" onClick={async () => {
         if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return;
         try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
