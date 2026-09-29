@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
-import welcomeLogo from "@/assets/welcome-logo-gold.png";
+import welcomeLogoAsset from "@/assets/ushaq-campaign-logo.png.asset.json";
 import welcomeBackground from "@/assets/welcome-shrine.jpg";
 
 const languageOptions: Array<{ id: Exclude<AppLang, "both">; label: string }> = [
@@ -27,7 +27,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
 
   return (
     <section className={`welcome-shell fixed inset-0 z-[100] overflow-hidden bg-primary text-primary-foreground ${leaving ? "welcome-leave" : "welcome-arrive"}`} aria-label="Willkommen | أهلاً وسهلاً">
-      <img src={welcomeBackground} alt="ضريح مضاء ليلاً | Beleuchteter Schrein bei Nacht" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={welcomeBackground} alt="ضريح مضاء ليلاً | Beleuchteter Schrein bei Nacht" className="welcome-background absolute inset-0 h-full w-full object-cover" />
       <div className="welcome-overlay absolute inset-0" />
       <div className="relative mx-auto flex h-full w-full max-w-[520px] flex-col items-center px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-center">
         <div className="welcome-text-glow shrink-0 px-5 py-1.5">
@@ -35,11 +35,11 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
           <div className="gold-line mx-auto mt-2 h-px w-24" />
         </div>
 
-        <div className="mt-[clamp(1rem,4vh,3rem)] flex w-full shrink-0 flex-col items-center">
-          <img src={welcomeLogo} alt="شعار حملة عشاق الحسين - ألمانيا" className="welcome-logo-white h-auto w-[clamp(5.5rem,24vw,7.5rem)] object-contain" />
-          <div className="welcome-text-glow mt-3 px-2">
+        <div className="mt-[clamp(0.75rem,2.5vh,1.5rem)] flex w-full shrink-0 flex-col items-center">
+          <img src={welcomeLogoAsset.url} alt="شعار حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(11.25rem,47vw,12.5rem)] object-contain" />
+          <div className="welcome-text-glow mt-2 px-2">
             <h1 dir="ltr" className="font-welcome-display text-[clamp(1.25rem,5.2vw,1.65rem)] font-semibold leading-tight text-primary-foreground">Reisegruppe Ushaq al-Hussein</h1>
-            <p lang="ar" dir="rtl" className="font-arabic-display mt-2 text-base text-primary-foreground">شعارنا المصداقيّة وخدمة الزوّار</p>
+            <p lang="ar" dir="rtl" className="font-arabic-display mt-2 text-base text-secondary">شعارنا المصداقيّة وخدمة الزوّار</p>
           </div>
         </div>
 
