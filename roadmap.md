@@ -20,3 +20,4 @@
 - [x] Add the branded Welcome Screen with saved language selection.
 - [x] Add global and per-contact visibility controls.
 - [x] Organize every editable app area in the central admin control panel.
+- [x] Refresh the splash screen with the original logo and an ivory-and-gold pilgrimage theme.
