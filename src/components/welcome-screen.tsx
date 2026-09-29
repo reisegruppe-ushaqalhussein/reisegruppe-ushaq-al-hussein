@@ -35,7 +35,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
           <div className="gold-line mx-auto mt-2 h-px w-24" />
         </div>
 
-        <div className="mt-[clamp(0.75rem,2.5vh,1.5rem)] flex w-full shrink-0 flex-col items-center">
+        <div className="flex w-full min-h-0 flex-1 flex-col items-center justify-center pt-4">
           <img src={welcomeLogoAsset} alt="شعار حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(11.25rem,47vw,12.5rem)] object-contain" loading="eager" />
           <div className="welcome-text-glow mt-2 px-2">
             <h1 dir="ltr" className="font-welcome-display text-[clamp(1.25rem,5.2vw,1.65rem)] font-semibold leading-tight text-primary-foreground">Reisegruppe Ushaq al-Hussein</h1>
