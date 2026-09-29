@@ -230,15 +230,18 @@
 }
 
 .welcome-shell {
-  /* Soft golden ambient glow behind the top center, layered over a warm ivory/cream gradient */
+  /* Luxurious warm ivory: light falls from the top center, deeper warm ivory pools at the edges and bottom */
   background:
-    radial-gradient(58% 42% at 50% 4%, color-mix(in oklab, var(--color-secondary) 11%, transparent) 0%, color-mix(in oklab, var(--color-secondary) 8%, transparent) 38%, color-mix(in oklab, var(--color-secondary) 4%, transparent) 62%, transparent 80%),
-    radial-gradient(220% 120% at 50% -35%, color-mix(in oklab, var(--color-secondary) 6%, transparent) 0%, color-mix(in oklab, var(--color-secondary) 4%, transparent) 45%, color-mix(in oklab, var(--color-secondary) 2%, transparent) 70%, transparent),
-    radial-gradient(110% 70% at 50% 46%, color-mix(in oklab, white 14%, transparent) 0%, color-mix(in oklab, white 9%, transparent) 45%, color-mix(in oklab, white 4%, transparent) 70%, transparent),
+    radial-gradient(58% 42% at 50% 4%, color-mix(in oklab, var(--color-secondary) 13%, transparent) 0%, color-mix(in oklab, var(--color-secondary) 9%, transparent) 38%, color-mix(in oklab, var(--color-secondary) 4%, transparent) 62%, transparent 80%),
+    radial-gradient(220% 120% at 50% -35%, color-mix(in oklab, var(--color-secondary) 7%, transparent) 0%, color-mix(in oklab, var(--color-secondary) 5%, transparent) 45%, color-mix(in oklab, var(--color-secondary) 2%, transparent) 70%, transparent),
+    radial-gradient(120% 85% at 50% 40%, color-mix(in oklab, white 18%, transparent) 0%, color-mix(in oklab, white 10%, transparent) 48%, color-mix(in oklab, white 3%, transparent) 72%, transparent),
+    /* soft corner shadowing for tactile depth */
+    radial-gradient(90% 60% at 0% 100%, color-mix(in oklab, var(--color-accent) 26%, transparent) 0%, transparent 70%),
+    radial-gradient(90% 60% at 100% 100%, color-mix(in oklab, var(--color-accent) 26%, transparent) 0%, transparent 70%),
     linear-gradient(180deg,
-      color-mix(in oklab, white 58%, var(--color-background)) 0%,
-      color-mix(in oklab, var(--color-accent) 12%, var(--color-background)) 48%,
-      color-mix(in oklab, var(--color-accent) 22%, var(--color-background)) 100%);
+      color-mix(in oklab, white 62%, var(--color-background)) 0%,
+      color-mix(in oklab, var(--color-accent) 14%, var(--color-background)) 46%,
+      color-mix(in oklab, var(--color-accent) 30%, var(--color-background)) 100%);
 }
 
 .welcome-shell::before {
