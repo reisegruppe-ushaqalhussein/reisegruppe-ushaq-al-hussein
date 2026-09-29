@@ -40,7 +40,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
         <div className="welcome-actions relative z-10 mt-auto w-full pt-6">
           <div dir="ltr" className="welcome-language mx-auto grid w-fit grid-cols-3 gap-1 rounded-lg border border-primary/20 p-1" role="group" aria-label="Sprache wählen | اختر اللغة">
             {languageOptions.map((option) => (
-              <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-14 px-3 text-xs font-bold text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "bg-primary-foreground/15 text-secondary" : ""}`}>
+              <Button key={option.id} type="button" variant="ghost" onClick={() => setLang(option.id)} aria-pressed={selected === option.id} className={`h-9 min-w-14 px-3 text-xs font-bold text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground ${selected === option.id ? "bg-primary-foreground/15" : ""}`}>
                 {option.label}
               </Button>
             ))}
