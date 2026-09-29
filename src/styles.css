@@ -232,8 +232,9 @@
 .welcome-shell {
   /* Soft golden ambient glow behind the top center, layered over a warm ivory/cream gradient */
   background:
-    radial-gradient(66% 44% at 50% 1%, color-mix(in oklab, var(--color-secondary) 14%, transparent), transparent 74%),
-    radial-gradient(120% 64% at 50% -10%, color-mix(in oklab, var(--color-secondary) 7%, transparent), transparent 80%),
+    radial-gradient(58% 40% at 50% 3%, color-mix(in oklab, var(--color-secondary) 20%, transparent), transparent 72%),
+    radial-gradient(150% 72% at 50% -12%, color-mix(in oklab, var(--color-secondary) 10%, transparent), transparent 78%),
+    radial-gradient(80% 55% at 50% 40%, color-mix(in oklab, white 30%, transparent), transparent 75%),
     linear-gradient(180deg,
       color-mix(in oklab, white 58%, var(--color-background)) 0%,
       color-mix(in oklab, var(--color-accent) 12%, var(--color-background)) 48%,
