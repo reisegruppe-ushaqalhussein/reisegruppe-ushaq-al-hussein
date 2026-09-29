@@ -30,7 +30,7 @@ function useSaveDuas(password: string, content: SiteContent) {
   return async (duas: DuaEntry[]) => {
     const next = { ...content, duas };
     const res = await save({ data: { password, content: next } });
-    if (!res.ok) throw new Error("failed");
+    if (!res.ok) throw new Error(res.error ?? "unknown");
     qc.setQueryData(["site-content"], next);
   };
 }
@@ -53,7 +53,7 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
     if (!draft) return;
     setBusy(true);
     try { await saveDuas(content.duas.map((d) => (d.id === id ? draft : d))); setOpen(false); }
-    catch { window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }
+    catch (e) { console.error(e); window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`); }
     finally { setBusy(false); }
   }
   const set = (patch: Partial<DuaEntry>) => setDraft((d) => (d ? { ...d, ...patch } : d));

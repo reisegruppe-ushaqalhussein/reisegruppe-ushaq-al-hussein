@@ -92,8 +92,11 @@ function AdminPage() {
     try {
       const res = await save({ data: { password, content } });
       setStatus(res.ok ? "saved" : "failed");
-    } catch {
+      if (!res.ok) window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${res.error ?? ""}`);
+    } catch (e) {
+      console.error(e);
       setStatus("failed");
+      window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

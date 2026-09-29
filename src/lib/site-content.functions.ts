@@ -47,27 +47,37 @@ export const changeAdminPassword = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-const s = z.string().max(2000);
+const s = z.string().max(20000);
+const long = z.string().max(500000);
 const contentSchema = z.object({
-  trips: z.array(z.object({ id: z.string().max(50), ar: s, de: s, date: s, visible: z.boolean(), statusAr: s.optional(), statusDe: s.optional(), descAr: s.optional(), descDe: s.optional() })).max(30),
+  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), statusAr: s.optional(), statusDe: s.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
   hotels: z.object({ kadhimiya: s, karbala: s, najaf: s }),
-  program: z.object({ ar: s, de: s }),
-  visa: z.object({ eu: s, nonEu: s }),
+  program: z.object({ ar: long, de: long }),
+  visa: z.object({ eu: long, nonEu: long }),
   payment: z.object({ visible: z.boolean(), accountName: s, bankName: s, iban: s, bic: s }),
-  news: z.array(z.object({ ar: s, de: s, bodyAr: s, bodyDe: s })).max(50),
-  duas: z.array(z.object({ id: z.string().max(50), ar: s, de: s, textAr: z.string().max(10000), textDe: z.string().max(10000), link: z.string().max(1000), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional() })).max(50),
+  news: z.array(z.object({ ar: s, de: s, bodyAr: long, bodyDe: long })).max(500),
+  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, link: z.string().max(5000), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional() })).max(1000),
   alert: z.object({ ar: s, de: s, active: z.boolean() }),
-  contacts: z.array(z.object({ id: z.string().max(50), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(50), whatsapp: z.string().max(500) })).max(30),
+  contacts: z.array(z.object({ id: z.string().max(100), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(100), whatsapp: z.string().max(2000) })).max(100),
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ password: z.string().max(200), content: contentSchema }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200), content: z.unknown() }).parse(d))
   .handler(async ({ data }) => {
-    if (!(await passwordMatches(data.password))) return { ok: false as const };
+    if (!(await passwordMatches(data.password))) return { ok: false as const, error: "Falsches Passwort / كلمة المرور غير صحيحة" };
+    const parsed = contentSchema.safeParse(data.content);
+    if (!parsed.success) {
+      const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      console.error("saveSiteContent validation", msg);
+      return { ok: false as const, error: `Validation: ${msg}` };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("site_content")
-      .upsert({ id: "main", data: data.content, updated_at: new Date().toISOString() });
-    if (error) throw new Error("Save failed");
+      .upsert({ id: "main", data: parsed.data, updated_at: new Date().toISOString() });
+    if (error) {
+      console.error("saveSiteContent db", error);
+      return { ok: false as const, error: `DB: ${error.message}${error.details ? ` (${error.details})` : ""}` };
+    }
     return { ok: true as const };
   });
