@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
-import welcomeLogoAsset from "@/assets/ushaq-campaign-logo.png.asset.json";
+import welcomeBackgroundAsset from "@/assets/celestial-shrines-splash.jpg.asset.json";
+import welcomeLogoAsset from "@/assets/ushaq-original-logo.png.asset.json";
 
 const languageOptions: Array<{ id: Exclude<AppLang, "both">; label: string }> = [
   { id: "ar", label: "AR" },
@@ -25,17 +26,18 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
   };
 
   return (
-    <section className={`welcome-shell fixed inset-0 z-[100] overflow-hidden text-primary ${leaving ? "welcome-leave" : "welcome-arrive"}`} aria-label="Willkommen | أهلاً وسهلاً">
+    <section className={`welcome-shell fixed inset-0 z-[100] overflow-hidden text-primary-foreground ${leaving ? "welcome-leave" : "welcome-arrive"}`} aria-label="Willkommen | أهلاً وسهلاً">
+      <img src={welcomeBackgroundAsset.url} alt="" aria-hidden="true" className="welcome-background absolute inset-0 h-full w-full object-cover" loading="eager" />
       <div className="relative mx-auto flex h-full w-full max-w-[520px] flex-col items-center px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-center">
         <div className="shrink-0 px-5 pt-3">
-          <p lang="ar" dir="rtl" className="font-arabic-display text-xl font-bold text-primary">مَا كَانَ لِلَّهِ يَنْمُو</p>
-          <div className="mx-auto mt-3 h-px w-20 bg-secondary" />
+          <p lang="ar" dir="rtl" className="font-arabic-display text-xl font-bold text-primary-foreground">مَا كَانَ لِلَّهِ يَنْمُو</p>
+          <div className="mx-auto mt-3 h-px w-20 bg-secondary/90" />
         </div>
 
-        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(1.75rem,8vh,4.5rem)]">
-          <img src={welcomeLogoAsset.url} alt="حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(8.5rem,39vw,10.5rem)] object-contain" loading="eager" />
-          <p dir="ltr" className="welcome-title mt-4 text-[clamp(1.05rem,4.6vw,1.3rem)] font-bold text-primary">Reisegruppe Ushaq al-Hussein</p>
-          <p lang="ar" dir="rtl" className="font-arabic-display mt-3 text-sm font-bold text-primary/85">شعارنا المصداقيّة وخدمة الزوّار</p>
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(1.25rem,5vh,3.25rem)]">
+          <img src={welcomeLogoAsset.url} alt="حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(10rem,47vw,12.5rem)] object-contain" loading="eager" />
+          <p dir="ltr" className="welcome-title mt-2 text-[clamp(1.05rem,4.6vw,1.3rem)] font-bold text-primary-foreground">Reisegruppe Ushaq al-Hussein</p>
+          <p lang="ar" dir="rtl" className="font-arabic-display mt-2 text-sm font-bold text-secondary">شعارنا المصداقيّة وخدمة الزوّار</p>
         </div>
 
         <div className="welcome-actions relative z-10 mt-auto w-full pt-6">
