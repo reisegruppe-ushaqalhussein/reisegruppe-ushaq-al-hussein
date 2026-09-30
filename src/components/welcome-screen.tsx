@@ -36,7 +36,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
     <section className={`welcome-shell fixed inset-0 z-[100] overflow-hidden text-primary-foreground ${leaving ? "welcome-leave" : "welcome-arrive"}`} aria-label="Willkommen | أهلاً وسهلاً">
       <img src={welcomeBackgroundAsset.url} alt="" aria-hidden="true" className="welcome-background absolute inset-0 h-full w-full object-cover" loading="eager" />
       <div className="relative mx-auto flex h-full w-full max-w-[520px] flex-col items-center px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-center">
-        <img src={bismillahAsset.url} alt="بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ" className="welcome-bismillah mt-1 h-auto w-[min(58vw,13.75rem)] shrink-0 self-center object-contain" loading="eager" />
+        <img src={bismillahAsset} alt="بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ" className="welcome-bismillah mt-1 h-auto w-[min(58vw,13.75rem)] shrink-0 self-center object-contain" loading="eager" />
 
         <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(0.65rem,2vh,1.25rem)]">
           <img src={welcomeLogoAsset.url} alt="حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(11rem,48vw,13rem)] self-center object-contain" loading="eager" />
