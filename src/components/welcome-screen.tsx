@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
 import welcomeBackgroundAsset from "@/assets/celestial-shrines-splash.jpg.asset.json";
 import welcomeLogoAsset from "@/assets/ushaq-original-logo.png.asset.json";
-import bismillahAsset from "@/assets/bismillah-warm-gold.png.asset.json";
+import bismillahAsset from "@/assets/bismillah-rich-gold.png";
 
 const languageOptions: Array<{ id: Exclude<AppLang, "both">; label: string }> = [
   { id: "ar", label: "AR" },
@@ -40,8 +40,8 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
 
         <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(0.65rem,2vh,1.25rem)]">
           <img src={welcomeLogoAsset.url} alt="حملة عشاق الحسين - ألمانيا" className="welcome-logo h-auto w-[clamp(11rem,48vw,13rem)] self-center object-contain" loading="eager" />
-          <p dir="ltr" className="welcome-title mx-auto mt-1 max-w-[13rem] font-welcome-display text-[clamp(0.875rem,3.8vw,1rem)] font-semibold leading-snug text-secondary">Reisegruppe Ushaq al-Hussein</p>
-          <p lang="ar" dir="rtl" className="mx-auto mt-1.5 max-w-[13rem] font-arabic-display text-base font-bold leading-relaxed text-secondary">لزيارة العتبات المقدسة...</p>
+          <p dir="ltr" className="welcome-title mx-auto mt-1.5 whitespace-nowrap font-welcome-display text-[clamp(0.7rem,3.2vw,0.85rem)] font-semibold leading-snug text-secondary">Reisegruppe Ushaq al-Hussein</p>
+          <p lang="ar" dir="rtl" className="welcome-slogan mx-auto mt-1 font-arabic-display text-[clamp(0.95rem,4.2vw,1.1rem)] font-bold leading-relaxed text-secondary">شعارنا المصداقية وخدمة الزوار</p>
         </div>
 
         <div className="welcome-actions z-10 pt-6">
