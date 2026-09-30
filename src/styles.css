@@ -21,7 +21,7 @@
 @theme inline {
   --font-sans: "Cairo", sans-serif;
   --font-arabic-display: "Amiri", serif;
-  --font-welcome-display: "Libre Baskerville", serif;
+  --font-welcome-display: "Lora", serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -247,22 +247,29 @@
 }
 
 @utility welcome-logo {
-  filter: drop-shadow(0 8px 18px color-mix(in oklab, var(--color-secondary) 24%, transparent));
+  filter: drop-shadow(0 8px 18px color-mix(in oklab, var(--color-secondary) 30%, transparent));
+}
+
+@utility welcome-bismillah {
+  max-height: 4.35rem;
+  filter: drop-shadow(0 2px 8px color-mix(in oklab, var(--color-primary) 26%, transparent));
 }
 
 /* Lift the language selector and entry button into the lower-middle, clear of the bottom edge */
 @utility welcome-actions {
-  margin-bottom: max(6rem, min(19vh, 9rem));
+  position: absolute;
+  inset-inline: 1.5rem;
+  bottom: max(13.5rem, 29vh);
 }
 
 @utility welcome-title {
   letter-spacing: 0;
-  text-shadow: 0 2px 14px color-mix(in oklab, var(--color-primary) 70%, transparent);
+  text-shadow: 0 2px 12px color-mix(in oklab, var(--color-primary) 62%, transparent);
 }
 
 @utility welcome-language {
   border: 1px solid color-mix(in oklab, var(--color-secondary) 75%, var(--color-primary-foreground));
-  background: color-mix(in oklab, var(--color-primary) 64%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 58%, transparent);
   backdrop-filter: blur(16px) saturate(135%);
   box-shadow:
     0 1px 0 color-mix(in oklab, var(--color-primary-foreground) 28%, transparent) inset,
@@ -276,7 +283,7 @@
 
 @utility welcome-enter {
   border: 1px solid color-mix(in oklab, var(--color-secondary) 78%, var(--color-primary-foreground));
-  background: color-mix(in oklab, var(--color-primary) 68%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 58%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
   box-shadow:
     0 1px 0 color-mix(in oklab, var(--color-primary-foreground) 24%, transparent) inset,
@@ -284,6 +291,11 @@
   &:hover {
     background: color-mix(in oklab, var(--color-secondary) 48%, transparent);
   }
+}
+
+@media (max-height: 680px) {
+  .welcome-bismillah { max-height: 3.5rem; }
+  .welcome-actions { bottom: max(10.25rem, 25vh); }
 }
 
 @utility welcome-arrive {
