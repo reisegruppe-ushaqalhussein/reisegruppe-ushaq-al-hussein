@@ -24,3 +24,4 @@
 - [x] Simplify the splash screen around the original logo with a quiet ivory background and high-contrast navy controls.
 - [x] Add reversible hide/restore controls for repeated trips, news, contacts, itinerary items, locations, and duas.
 - [x] Give the splash screen a champagne pearl weave background with a warm vignette and lift the language selector and entry button above the bottom edge.
+- [x] Replace the splash heading with the uploaded Bismillah artwork and add a compact language-aware entry button above the shrine skyline.
