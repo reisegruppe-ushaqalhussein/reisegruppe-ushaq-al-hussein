@@ -32,6 +32,39 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          created_at: string
+          id: string
+          improve: string
+          liked: string
+          name: string
+          rating_app: number
+          rating_campaign: number
+          recommend: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          improve?: string
+          liked?: string
+          name?: string
+          rating_app: number
+          rating_campaign: number
+          recommend?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          improve?: string
+          liked?: string
+          name?: string
+          rating_app?: number
+          rating_campaign?: number
+          recommend?: boolean | null
+        }
+        Relationships: []
+      }
       push_tokens: {
         Row: {
           created_at: string
