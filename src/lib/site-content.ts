@@ -1,4 +1,4 @@
-export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
+export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; programAr?: string; programDe?: string; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
 export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean; hidden?: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
 export type DuaCategory = "karbala" | "najaf" | "kazimiyya" | "samarra" | "mashhad" | "qom" | "mecca-medina" | "general";
@@ -16,10 +16,12 @@ export function duaCategoryOf(d: { id: string; category?: DuaCategory }): DuaCat
   return d.category ?? (d.id === "ashura" || d.id === "warith" ? "karbala" : "general");
 }
 export type Reciter = { name: string; url: string };
-export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; link: string; hidden?: boolean; category?: DuaCategory; reciters?: Reciter[] };
+export type DuaEntry = { id: string; ar: string; de: string; textAr: string; textDe: string; textEn?: string; link: string; hidden?: boolean; category?: DuaCategory; reciters?: Reciter[] };
 export type ItineraryEntry = { id: string; date: string; time: string; titleAr: string; titleDe: string; place: string; notes: string; gathering: boolean; hidden?: boolean };
 export type LocationKind = "hotel" | "shrine" | "gathering";
 export type LocationEntry = { id: string; kind: LocationKind; ar: string; de: string; address: string; mapsUrl: string; hidden?: boolean };
+export type FaqEntry = { id: string; qAr: string; qDe: string; qEn?: string; aAr: string; aDe: string; aEn?: string; hidden?: boolean };
+export type ResourceEntry = { id: string; ar: string; de: string; en?: string; textAr: string; textDe: string; textEn?: string; pdfUrl?: string; audioUrl?: string; place?: string; hidden?: boolean };
 export type AlertEntry = { ar: string; de: string; active: boolean };
 export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
 export type SiteContent = {
@@ -35,6 +37,9 @@ export type SiteContent = {
   contactsVisible: boolean;
   itinerary: ItineraryEntry[];
   locations: LocationEntry[];
+  faqs: FaqEntry[];
+  occasions: ResourceEntry[];
+  hadiths: ResourceEntry[];
 };
 
 export const defaultContacts: ContactEntry[] = [
@@ -48,6 +53,13 @@ export const defaultContent: SiteContent = {
   contactsVisible: true,
   itinerary: [],
   locations: [],
+  faqs: [
+    { id: "passport", qAr: "ما مدة صلاحية جواز السفر المطلوبة؟", qDe: "Wie lange muss der Reisepass gültig sein?", qEn: "How long must my passport be valid?", aAr: "يجب أن يكون جواز السفر صالحاً لمدة لا تقل عن ستة أشهر عند موعد السفر.", aDe: "Der Reisepass muss zum Reisezeitpunkt noch mindestens sechs Monate gültig sein.", aEn: "Your passport must be valid for at least six months at the time of travel." },
+    { id: "visa", qAr: "هل أحتاج إلى فيزا؟", qDe: "Benötige ich ein Visum?", qEn: "Do I need a visa?", aAr: "تعتمد الفيزا ورسومها على نوع جواز السفر والوجهة. تُنشر التفاصيل المؤكدة قبل الرحلة.", aDe: "Visum und Gebühren richten sich nach Reisepass und Reiseziel. Bestätigte Angaben werden vor der Reise veröffentlicht.", aEn: "Visa and fees depend on your passport and destination. Confirmed details are published before the trip." },
+    { id: "baggage", qAr: "ما وزن الأمتعة المسموح؟", qDe: "Wie viel Gepäck ist erlaubt?", qEn: "How much baggage is allowed?", aAr: "يُحدد وزن الأمتعة حسب شركة الطيران والحجز، ويُعلن مع البرنامج النهائي للرحلة.", aDe: "Die Freigepäckmenge richtet sich nach Fluggesellschaft und Buchung und wird mit dem endgültigen Reiseprogramm bekannt gegeben.", aEn: "Baggage allowance depends on the airline and booking and is announced with the final programme." },
+  ],
+  occasions: [],
+  hadiths: [],
   alert: { ar: "", de: "", active: false },
   duas: [
     { id: "ashura", ar: "زيارة عاشوراء", de: "Ziyarat Ashura", textAr: "السَّلامُ عَلَيْكَ يا أبا عَبْدِ اللهِ، السَّلامُ عَلَيْكَ يَا ابْنَ رَسُولِ اللهِ...", textDe: "As-salāmu ʿalayka yā Abā ʿAbdillāh, as-salāmu ʿalayka yabna Rasūlillāh... — Friede sei mit dir, o Abu Abdillah, Friede sei mit dir, o Sohn des Gesandten Gottes.", link: "" },
@@ -89,5 +101,8 @@ export function mergeContent(data: unknown): SiteContent {
     contactsVisible: d.contactsVisible ?? true,
     itinerary: Array.isArray(d.itinerary) ? d.itinerary.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
     locations: Array.isArray(d.locations) ? d.locations.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
+    faqs: Array.isArray(d.faqs) ? d.faqs.map((item) => ({ ...item, hidden: item.hidden ?? false })) : defaultContent.faqs,
+    occasions: Array.isArray(d.occasions) ? d.occasions.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
+    hadiths: Array.isArray(d.hadiths) ? d.hadiths.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
   };
 }

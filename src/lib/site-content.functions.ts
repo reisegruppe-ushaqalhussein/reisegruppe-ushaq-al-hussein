@@ -49,19 +49,23 @@ export const changeAdminPassword = createServerFn({ method: "POST" })
 
 const s = z.string().max(20000);
 const long = z.string().max(500000);
+const resourceSchema = z.object({ id: z.string().max(100), ar: s, de: s, en: s.optional(), textAr: long, textDe: long, textEn: long.optional(), pdfUrl: z.string().max(5000).optional(), audioUrl: z.string().max(5000).optional(), place: z.string().max(100).optional(), hidden: z.boolean().optional() });
 const contentSchema = z.object({
-  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), hidden: z.boolean().optional(), statusAr: s.optional(), statusDe: s.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
+  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), hidden: z.boolean().optional(), statusAr: s.optional(), statusDe: s.optional(), programAr: long.optional(), programDe: long.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
   hotels: z.object({ kadhimiya: s, karbala: s, najaf: s }),
   program: z.object({ ar: long, de: long }),
   visa: z.object({ eu: long, nonEu: long }),
   payment: z.object({ visible: z.boolean(), accountName: s, bankName: s, iban: s, bic: s }),
   news: z.array(z.object({ ar: s, de: s, bodyAr: long, bodyDe: long, hidden: z.boolean().optional() })).max(500),
-  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, link: z.string().max(5000), hidden: z.boolean().optional(), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
+  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, textEn: long.optional(), link: z.string().max(5000), hidden: z.boolean().optional(), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
   alert: z.object({ ar: s, de: s, active: z.boolean() }),
   contacts: z.array(z.object({ id: z.string().max(100), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(100), whatsapp: z.string().max(2000), visible: z.boolean().optional(), hidden: z.boolean().optional() })).max(100),
   contactsVisible: z.boolean(),
   itinerary: z.array(z.object({ id: z.string().max(100), date: z.string().max(20), time: z.string().max(20), titleAr: s, titleDe: s, place: s, notes: long, gathering: z.boolean(), hidden: z.boolean().optional() })).max(1000),
   locations: z.array(z.object({ id: z.string().max(100), kind: z.enum(["hotel", "shrine", "gathering"]), ar: s, de: s, address: s, mapsUrl: z.string().max(5000), hidden: z.boolean().optional() })).max(300),
+  faqs: z.array(z.object({ id: z.string().max(100), qAr: s, qDe: s, qEn: s.optional(), aAr: long, aDe: long, aEn: long.optional(), hidden: z.boolean().optional() })).max(300),
+  occasions: z.array(resourceSchema).max(500),
+  hadiths: z.array(resourceSchema).max(1000),
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })
@@ -121,4 +125,34 @@ export const sendAlertPush = createServerFn({ method: "POST" })
     }
     if (stale.length) await supabaseAdmin.from("push_tokens").delete().in("token", stale);
     return { ok: true as const, sent };
+  });
+
+export const createUploadUrl = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), name: z.string().max(300) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await passwordMatches(data.password))) throw new Error("Falsches Passwort / كلمة المرور غير صحيحة");
+    const ext = (data.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+    const path = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage.from("resources").createSignedUploadUrl(path);
+    if (error || !signed) throw new Error(error?.message ?? "Upload failed");
+    return { path, token: signed.token };
+  });
+
+export const submitFeedback = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ ratingCampaign: z.number().int().min(1).max(5), ratingApp: z.number().int().min(1).max(5), recommend: z.boolean().nullable(), liked: z.string().max(3000), improve: z.string().max(3000), name: z.string().max(200) }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("feedback").insert({ rating_campaign: data.ratingCampaign, rating_app: data.ratingApp, recommend: data.recommend, liked: data.liked, improve: data.improve, name: data.name });
+    if (error) throw new Error("Save failed");
+    return { ok: true };
+  });
+
+export const listFeedback = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await passwordMatches(data.password))) return { ok: false as const, rows: [] };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await supabaseAdmin.from("feedback").select("*").order("created_at", { ascending: false }).limit(300);
+    return { ok: true as const, rows: rows ?? [] };
   });
