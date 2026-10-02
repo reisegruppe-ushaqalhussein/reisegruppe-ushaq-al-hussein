@@ -58,7 +58,7 @@ export function AdminBar({ content }: { content: SiteContent }) {
   const [menu, setMenu] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const qc = useQueryClient();
-  const labels = { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة", ...(content.modeLabels ?? {}) };
+  const labels = content.modeLabels ?? { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة" };
   const [draft, setDraft] = useState(labels);
   if (!s) return null;
   const isAdmin = s.role === "admin";

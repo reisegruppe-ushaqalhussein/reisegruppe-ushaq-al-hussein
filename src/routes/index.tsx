@@ -371,8 +371,8 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
           const Icon = tripIcons[trip.id] ?? Landmark;
           const list = content.tripTypes;
           const actions = admin && <ItemActions fields={tripTypeFields} item={trip} hidden={trip.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...(row as TripTypeEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, tripTypes: list.filter((x) => x.id !== trip.id) })} />;
-          const content = <><span className="grid h-11 w-11 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><Pair ar={trip.ar} de={trip.de} align="center" /><span className="text-xs"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span></>;
-          return <div key={trip.id} className={`min-w-0 ${trip.hidden ? "opacity-55" : ""}`}>{actions}{trip.id === "iraq" ? <Button variant="outline" onClick={() => setIraqOpen(true)} className="h-36 flex-col gap-2 whitespace-normal bg-card p-3 shadow-sm hover:border-secondary hover:bg-card">{content}</Button> : <article className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-sm">{content}</article>}</div>;
+          const body = <><span className="grid h-11 w-11 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><Pair ar={trip.ar} de={trip.de} align="center" /><span className="text-xs"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span></>;
+          return <div key={trip.id} className={`min-w-0 ${trip.hidden ? "opacity-55" : ""}`}>{actions}{trip.id === "iraq" ? <Button variant="outline" onClick={() => setIraqOpen(true)} className="h-36 flex-col gap-2 whitespace-normal bg-card p-3 shadow-sm hover:border-secondary hover:bg-card">{body}</Button> : <article className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-sm">{body}</article>}</div>;
         })}
       </div>
 
@@ -645,7 +645,7 @@ function DuasView({ content }: { content: SiteContent }) {
   const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const saveContent = useSaveContent(adminPw ?? "");
   const shrineList = content.shrines;
-  const shrines: Array<Shrine & { hidden?: boolean; raw: ShrineEntry }> = shrineList.filter((s) => showHidden || !s.hidden).map((s) => ({ id: s.id, ar: s.ar, de: s.de, image: s.imageUrl || shrineImages[s.id] || shrineImage, entries: inCat(s.id), hidden: s.hidden, raw: s }));
+  const shrines: Array<Shrine & { hidden?: boolean; raw: ShrineEntry }> = shrineList.filter((s) => showHidden || !s.hidden).map((s) => ({ id: s.id, ar: s.ar, de: s.de, image: s.imageUrl || shrineImages[s.id] || shrineImage, entries: inCat(s.id), hidden: s.hidden ?? false, raw: s }));
   const generalEntries = inCat("general");
   const [shrineId, setShrineId] = useState<string | null>(null);
   const shrine = shrines.find((s) => s.id === shrineId) ?? null;
