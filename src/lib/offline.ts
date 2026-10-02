@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { getSiteContent, saveSiteContent } from "./site-content.functions";
-import type { SiteContent } from "./site-content";
+import { withTrash, type SiteContent } from "./site-content";
 
 /* Minimal IndexedDB key-value store (browser only). */
 const DB = "ushaq-offline";
