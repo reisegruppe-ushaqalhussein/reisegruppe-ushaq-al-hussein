@@ -30,7 +30,7 @@ import {
   CalendarDays,
   ChevronLeft,
   CircleCheck,
-  HandHeart,
+  HandHeart, HelpCircle,
   Home,
   Hotel,
   IdCard,
@@ -102,7 +102,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -183,6 +183,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   qibla: { ar: "اتجاه القبلة", de: "Qibla-Kompass" },
   occasions: { ar: "المناسبات الخاصة", de: "Besondere Anlässe" },
   hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
+  faqs: { ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)" },
 };
 
 function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
@@ -238,9 +239,6 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
   const visa = content.visa;
   const saveContent = useSaveContent(admin?.password ?? "");
   const [visaOpen, setVisaOpen] = useState(false);
-  const { lang } = useLang();
-  const faqs = content.faqs ?? defaultContent.faqs;
-  const visibleFaqs = faqs.filter((f) => !f.hidden);
   const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
     { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
     { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
@@ -253,6 +251,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
     { view: "qibla", ar: "اتجاه القبلة", de: "Qibla-Kompass", icon: Compass },
     { view: "occasions", ar: "المناسبات الخاصة", de: "Besondere Anlässe", icon: Sparkles },
     { view: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
+    { view: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
   return (
@@ -287,19 +286,6 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
 
       <PrayerTimesCard />
 
-      <section className="mt-7">
-        <ScreenTitle icon={BookOpen} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
-        {admin && <AddButton label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} fields={faqFields} blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} />}
-        {admin ? (
-          <div className="space-y-3">
-            {faqs.map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
-          </div>
-        ) : visibleFaqs.length > 0 && (
-          <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
-            {visibleFaqs.map((f) => <FaqItem key={f.id} value={f.id} questionAr={f.qAr} questionDe={lang === "en" && f.qEn ? f.qEn : f.qDe} answerAr={f.aAr} answerDe={lang === "en" && f.aEn ? f.aEn : f.aDe} />)}
-          </Accordion>
-        )}
-      </section>
       {payment?.visible && <PaymentCard payment={payment} />}
       <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
@@ -671,6 +657,28 @@ function ThemeButton({ active, theme, ar, de, onClick }: { active: boolean; them
   return <Button variant={active ? "default" : "outline"} onClick={onClick} className="h-auto flex-col gap-2 px-1 py-2"><span className="reader-theme-swatch h-6 w-6 rounded-full border border-border" data-swatch={theme} /><Pair ar={ar} de={de} align="center" inverse={active} /></Button>;
 }
 
+function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  const saveContent = useSaveContent(admin?.password ?? "");
+  const { lang } = useLang();
+  const faqs = content.faqs ?? defaultContent.faqs;
+  const visibleFaqs = faqs.filter((f) => !f.hidden);
+  return (
+    <div className="screen-enter px-4 py-7">
+      <ScreenTitle icon={HelpCircle} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
+      {admin && <div className="mb-3"><AddButton label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} fields={faqFields} blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} /></div>}
+      {admin ? (
+        <div className="space-y-3">
+          {faqs.map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
+        </div>
+      ) : visibleFaqs.length > 0 && (
+        <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
+          {visibleFaqs.map((f) => <FaqItem key={f.id} value={f.id} questionAr={f.qAr} questionDe={lang === "en" && f.qEn ? f.qEn : f.qDe} answerAr={f.aAr} answerDe={lang === "en" && f.aEn ? f.aEn : f.aDe} />)}
+        </Accordion>
+      )}
+    </div>
+  );
+}
+
 function DonationsView() {
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /><section className="rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" /><p className="text-sm"><Pair ar="ساهم في تيسير أمر زوار غير قادرين على تغطية تكاليف الزيارة، وفي دعم استمرار الحملة." de="Helfen Sie Pilgern, die ihre Reisekosten nicht selbst tragen können, und unterstützen Sie den Fortbestand der Reisegruppe." inverse /></p><Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href="https://wa.me/49015773055365" target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="للمساهمة تواصل مع الحاج ياسر الدر" de="Für Spenden Hajj Yasser Aldor kontaktieren" align="center" /></a></Button></section></div>;
 }
@@ -714,6 +722,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "qibla" && <QiblaView />}
         {view === "occasions" && <ResourcesView content={content} admin={admin} kind="occasions" />}
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
+        {view === "faqs" && <FaqView content={content} admin={admin} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
           <PushButton />
