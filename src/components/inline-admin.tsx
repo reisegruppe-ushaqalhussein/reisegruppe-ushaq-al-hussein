@@ -53,7 +53,7 @@ function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { 
 export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mb-2 flex gap-2">
+    <div className="mb-2 flex min-w-0 flex-wrap gap-1.5 [&>button]:h-8 [&>button]:px-2 [&>button]:text-xs">
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic">| Bearbeiten</span></Button>
       {onVisibilityChange && <Button size="sm" variant="outline" className={hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
         try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }

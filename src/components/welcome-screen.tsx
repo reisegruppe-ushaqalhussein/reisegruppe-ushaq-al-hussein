@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, type AppLang } from "@/lib/i18n";
 import welcomeBackgroundAsset from "@/assets/celestial-shrines-splash.jpg.asset.json";
@@ -18,7 +18,7 @@ const actionLabels: Record<Exclude<AppLang, "both">, string> = {
   en: "Start Journey",
 };
 
-export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
+export function WelcomeScreen({ onEnter, canGoBack = false }: { onEnter: () => void; canGoBack?: boolean }) {
   const { lang, setLang } = useLang();
   const selected = lang === "both" ? "de" : lang;
   const [leaving, setLeaving] = useState(false);
@@ -36,6 +36,7 @@ export function WelcomeScreen({ onEnter }: { onEnter: () => void }) {
     <section className={`welcome-shell fixed inset-0 z-[100] overflow-hidden text-primary-foreground ${leaving ? "welcome-leave" : "welcome-arrive"}`} aria-label="Willkommen | أهلاً وسهلاً">
       <img src={welcomeBackgroundAsset.url} alt="" aria-hidden="true" className="welcome-background absolute inset-0 h-full w-full object-cover" loading="eager" />
       <div className="relative mx-auto flex h-full w-full max-w-[520px] flex-col items-center px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-center">
+        {canGoBack && <button type="button" onClick={enter} aria-label="رجوع | Zurück" className="welcome-language absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-20 grid h-10 w-10 place-items-center rounded-full text-primary-foreground"><ArrowLeft className="h-5 w-5" /></button>}
         <img src={bismillahAsset} alt="بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ" className="welcome-bismillah mt-1 h-auto w-[min(58vw,13.75rem)] shrink-0 self-center object-contain" loading="eager" />
 
         <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-start pt-[clamp(0.65rem,2vh,1.25rem)]">
