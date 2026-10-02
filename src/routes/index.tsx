@@ -30,7 +30,7 @@ import {
   CalendarDays,
   ChevronLeft,
   CircleCheck,
-  HandHeart,
+  HandHeart, HelpCircle,
   Home,
   Hotel,
   IdCard,
