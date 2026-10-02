@@ -95,10 +95,10 @@ function AdminPage() {
     try {
       const res = await changePw({ data: { password, newPassword: newPw } });
       if (!res.ok) return setPwStatus("failed");
-      setPassword(newPw); sessionStorage.setItem(ADMIN_KEY, newPw); setNewPw(""); setNewPw2(""); setPwStatus("saved");
+      setPassword(newPw); localStorage.setItem(ADMIN_KEY, newPw); setNewPw(""); setNewPw2(""); setPwStatus("saved");
     } catch { setPwStatus("failed"); }
   }
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(() => (typeof window !== "undefined" && localStorage.getItem("admin-session-role") === "admin" ? localStorage.getItem(ADMIN_KEY) ?? "" : ""));
   const [content, setContent] = useState<SiteContent | null>(null);
   const [error, setError] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "queued" | "failed">("idle");
@@ -107,13 +107,13 @@ function AdminPage() {
     e.preventDefault();
     if (!isOnline()) {
       const cached = await idbGet<SiteContent>("content");
-      if (cached && sessionStorage.getItem(ADMIN_KEY) === password) { setError(false); return setContent(cached); }
+      if (cached && localStorage.getItem(ADMIN_KEY) === password) { setError(false); return setContent(cached); }
       return setError(true);
     }
-    const { ok } = await check({ data: { password } });
-    if (!ok) return setError(true);
+    const r = await check({ data: { password, login: true } });
+    if (!r.ok || r.role !== "admin") return setError(true);
     setError(false);
-    sessionStorage.setItem(ADMIN_KEY, password);
+    localStorage.setItem(ADMIN_KEY, password);
     const loaded = await load();
     setSavedAlert(loaded.alert.active ? loaded.alert.ar + loaded.alert.de : "");
     setContent(loaded);

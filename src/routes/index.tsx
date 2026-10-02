@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";

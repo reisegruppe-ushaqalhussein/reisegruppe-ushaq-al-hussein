@@ -366,3 +366,12 @@ body.focus-mode header,
 body.focus-mode nav {
   display: none !important;
 }
+
+/* Reader font choices (Arabic + matching Latin pairing) */
+.reader-shell[data-reader-font="amiri"] .reader-ar, [data-font-sample="amiri"] .reader-font-sample { font-family: "Amiri", serif; }
+.reader-shell[data-reader-font="naskh"] .reader-ar, [data-font-sample="naskh"] .reader-font-sample { font-family: "Noto Naskh Arabic", serif; }
+.reader-shell[data-reader-font="scheherazade"] .reader-ar, [data-font-sample="scheherazade"] .reader-font-sample { font-family: "Scheherazade New", serif; }
+.reader-shell[data-reader-font="cairo"] .reader-ar, [data-font-sample="cairo"] .reader-font-sample { font-family: "Cairo", sans-serif; }
+.reader-shell[data-reader-font="amiri"] .reader-de, .reader-shell[data-reader-font="scheherazade"] .reader-de { font-family: "Libre Baskerville", serif; }
+.reader-shell[data-reader-font="naskh"] .reader-de { font-family: "Lora", serif; }
+.reader-shell[data-reader-font="cairo"] .reader-de { font-family: "Cairo", sans-serif; }
