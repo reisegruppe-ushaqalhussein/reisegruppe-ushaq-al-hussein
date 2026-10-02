@@ -375,3 +375,9 @@ body.focus-mode nav {
 .reader-shell[data-reader-font="amiri"] .reader-de, .reader-shell[data-reader-font="scheherazade"] .reader-de { font-family: "Libre Baskerville", serif; }
 .reader-shell[data-reader-font="naskh"] .reader-de { font-family: "Lora", serif; }
 .reader-shell[data-reader-font="cairo"] .reader-de { font-family: "Cairo", sans-serif; }
+
+.reader-progress-bar { background: color-mix(in oklab, var(--color-secondary) 22%, transparent); }
+.reader-progress-fill {
+  background: linear-gradient(90deg, var(--color-secondary), color-mix(in oklab, var(--color-secondary) 55%, var(--color-background)), var(--color-secondary));
+  box-shadow: 0 0 10px var(--color-secondary);
+}
