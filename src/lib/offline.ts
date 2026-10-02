@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { getSiteContent, saveSiteContent } from "./site-content.functions";
-import type { SiteContent } from "./site-content";
+import { withTrash, type SiteContent } from "./site-content";
 
 /* Minimal IndexedDB key-value store (browser only). */
 const DB = "ushaq-offline";
@@ -104,7 +104,9 @@ export async function clearSynced() {
 }
 
 /** Save now when online; otherwise queue locally as "pending sync". */
-export async function saveOrQueue(password: string, content: SiteContent, label: string, qc?: QueryClient) {
+export async function saveOrQueue(password: string, nextContent: SiteContent, label: string, qc?: QueryClient) {
+  const prev = qc?.getQueryData<SiteContent>(["site-content"]) ?? (await idbGet<SiteContent>("content").catch(() => undefined));
+  const content = withTrash(prev, nextContent);
   if (!isOnline()) {
     await enqueueSave(content, label);
     qc?.setQueryData(["site-content"], content);

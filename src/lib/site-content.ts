@@ -40,7 +40,9 @@ export type SiteContent = {
   faqs: FaqEntry[];
   occasions: ResourceEntry[];
   hadiths: ResourceEntry[];
+  trash?: TrashEntry[];
 };
+export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
 
 export const defaultContacts: ContactEntry[] = [
   { id: "yasser", ar: "الحاج ياسر الدر", de: "Hajj Yasser Aldor", roleAr: "المسؤول العام — خادم حملة عشاق الحسين - ألمانيا", roleDe: "Allgemeiner Verantwortlicher der Reisegruppe", phone: "+49 1577 3055365", whatsapp: "https://wa.me/49015773055365" },
@@ -104,5 +106,24 @@ export function mergeContent(data: unknown): SiteContent {
     faqs: Array.isArray(d.faqs) ? d.faqs.map((item) => ({ ...item, hidden: item.hidden ?? false })) : defaultContent.faqs,
     occasions: Array.isArray(d.occasions) ? d.occasions.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
     hadiths: Array.isArray(d.hadiths) ? d.hadiths.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
+    trash: Array.isArray(d.trash) ? d.trash : [],
   };
+}
+
+/** Sections whose removed items go to the recycle bin. */
+export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths"] as const;
+const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in x && typeof (x as { id: unknown }).id === "string" ? `id:${(x as { id: string }).id}` : `j:${JSON.stringify(x)}`);
+
+/** Moves any items removed between prev and next into next.trash (works for every current and future section). */
+export function withTrash(prev: SiteContent | undefined, next: SiteContent): SiteContent {
+  if (!prev) return next;
+  const trash = [...(next.trash ?? [])];
+  for (const section of trashSections) {
+    const before = (prev[section] ?? []) as unknown[];
+    const after = (next[section] ?? []) as unknown[];
+    if (after.length >= before.length) continue;
+    const keep = new Set(after.map(keyOf));
+    for (const item of before) if (!keep.has(keyOf(item))) trash.unshift({ id: `${section}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section, item: item as TrashEntry["item"], deletedAt: Date.now() });
+  }
+  return { ...next, trash: trash.slice(0, 300) };
 }

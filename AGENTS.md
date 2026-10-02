@@ -20,3 +20,7 @@
 - Urgent-alert push uses the Firebase Messaging connector: device tokens in `push_tokens` (service-role only), sent from `sendAlertPush` when the admin saves a changed active alert, because web push must reach closed apps.
 - Cache admin-provided reciter MP3 streams for playback after the first listen.
 - Open the root route through a device-persisted welcome and language choice before the dashboard.
+- Staff access uses one neutral code field; the server maps the code to role `admin` (`password` / ADMIN_PASSWORD) or `haj` (`haj_password`) in `admin_settings`, and sessions persist in localStorage via `src/lib/admin-session.ts`, because the gateway must not reveal roles and the leader must stay signed in.
+- Only admin-in-admin-mode sees hidden items and hide/restore buttons (`useShowHidden`); every list must filter with it, because the leader view must stay uncluttered.
+- Removed items from any content array are auto-captured into `site_content.trash` by `withTrash` inside `saveOrQueue`, so new sections get the recycle bin by adding their key to `trashSections`.
+- Device list and failed attempts are JSON values in `admin_settings` (`devices`, `failures`), because no extra tables are needed.

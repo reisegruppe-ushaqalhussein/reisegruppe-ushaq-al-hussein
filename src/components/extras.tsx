@@ -3,6 +3,8 @@ import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCc
 import { Button } from "@/components/ui/button";
 import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { useShowHidden } from "@/lib/admin-session";
+import { FavStar } from "@/components/group2";
 import type { ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
 
 type Admin = { password: string; content: SiteContent } | null;
@@ -35,8 +37,9 @@ const itineraryFields: FieldDef[] = [
 
 export function ItineraryView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
+  const showHidden = useShowHidden();
   const all = content.itinerary;
-  const available = admin ? all : all.filter((item) => !item.hidden);
+  const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: ItineraryEntry[]) => save({ ...content, itinerary: next });
   const dates = useMemo(() => [...new Set(available.map((e) => e.date))].sort(), [available]);
   const [day, setDay] = useState<string>("");
@@ -88,10 +91,11 @@ const mapsHref = (l: LocationEntry) => l.mapsUrl || `https://www.google.com/maps
 
 export function GuideView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
+  const showHidden = useShowHidden();
   const all = content.locations;
-  const available = admin ? all : all.filter((item) => !item.hidden);
+  const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
-  const emergencyContacts = admin ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
+  const emergencyContacts = showHidden ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
@@ -117,7 +121,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
                  <div key={l.id} className={l.hidden ? "opacity-55" : ""}>
                    {admin && <ItemActions fields={locationFields} item={l} hidden={l.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
                   <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                    <h4 className="font-bold text-primary"><P ar={l.ar} de={l.de} /></h4>
+                    <div className="flex items-start gap-2"><h4 className="min-w-0 flex-1 font-bold text-primary"><P ar={l.ar} de={l.de} /></h4><FavStar id={`loc:${l.id}`} /></div>
                     {l.address && <p className="mt-1 text-sm text-muted-foreground">{l.address}</p>}
                     <Button asChild variant="outline" size="sm" className="mt-3 w-full"><a href={mapsHref(l)} target="_blank" rel="noreferrer"><Navigation />فتح في خرائط Google <span className="text-xs italic">| In Google Maps öffnen</span></a></Button>
                   </article>
