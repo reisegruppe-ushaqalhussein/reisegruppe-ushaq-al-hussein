@@ -467,6 +467,31 @@ function PushButton() {
   }}><Bell />{state === "on" ? <>الإشعارات العاجلة مفعّلة <span className="text-xs italic">| Eilmeldungen aktiv</span></> : <>تفعيل الإشعارات العاجلة <span className="text-xs italic">| Eilmeldungen aktivieren</span></>}</Button>;
 }
 
+function InstallButton() {
+  const [evt, setEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  const [installed, setInstalled] = useState(false);
+  const [iosHelp, setIosHelp] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone) setInstalled(true);
+    const h = (e: Event) => { e.preventDefault(); setEvt(e as Event & { prompt: () => Promise<void> }); };
+    const done = () => setInstalled(true);
+    window.addEventListener("beforeinstallprompt", h); window.addEventListener("appinstalled", done);
+    return () => { window.removeEventListener("beforeinstallprompt", h); window.removeEventListener("appinstalled", done); };
+  }, []);
+  if (installed) return null;
+  const click = async () => {
+    if (evt) { await evt.prompt(); setEvt(null); return; }
+    setIosHelp(true);
+  };
+  return <>
+    <Button onClick={click} className="mt-5 h-14 w-full gap-2 bg-secondary text-secondary-foreground shadow-md hover:bg-secondary/90"><Smartphone /><Pair ar="تثبيت التطبيق على هاتفك 📲" de="App auf dem Handy installieren" align="center" /></Button>
+    <Dialog open={iosHelp} onOpenChange={setIosHelp}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إضافة التطبيق للشاشة الرئيسية" de="Zum Home-Bildschirm hinzufügen" /></DialogTitle><DialogDescription><Pair ar="خطوتان فقط:" de="Nur zwei Schritte:" /></DialogDescription></DialogHeader><ol className="space-y-4 text-sm">
+      <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><Share /></span><Pair ar="1. اضغط زر المشاركة أسفل الشاشة في Safari (أو قائمة ⋮ في المتصفحات الأخرى)." de="1. Tippen Sie unten in Safari auf „Teilen“ (bzw. Menü ⋮ in anderen Browsern)." /></li>
+      <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><SquarePlus /></span><Pair ar="2. اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة»." de="2. Wählen Sie „Zum Home-Bildschirm“ und dann „Hinzufügen“." /></li>
+    </ol></DialogContent></Dialog>
+  </>;
+}
+
 function ShareButton() {
   const share = () => {
     const url = window.location.origin;
@@ -733,6 +758,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   useEffect(() => { setWelcomed(window.localStorage.getItem("welcome-seen") === "true"); }, []);
+  useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   return (
     <div className="min-h-screen bg-muted">
       {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} canGoBack={typeof window !== "undefined" && window.localStorage.getItem("welcome-seen") === "true"} />}
@@ -754,6 +780,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
         {view === "faqs" && <FaqView content={content} admin={admin} />}
         {view === "visa" && <VisaView content={content} admin={admin} />}
+        {view === "favorites" && <FavoritesView content={content} go={go} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
           <PushButton />

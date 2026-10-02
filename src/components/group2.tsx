@@ -34,7 +34,7 @@ export function useFavorites() {
     const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
     localStorage.setItem(FAV_KEY, JSON.stringify(next));
     navigator.vibrate?.(20);
-    toast(ids.includes(id) ? "أُزيلت من محفوظاتك | Aus Favoriten entfernt" : "تمت الإضافة إلى محفوظاتك ⭐ | Zu Favoriten hinzugefügt", { duration: 2000 });
+    toast(ids.includes(id) ? "أُزيلت من محفوظاتك | Aus Favoriten entfernt" : "تمت الإضافة إلى محفوظاتك ⭐ | Zu Favoriten hinzugefügt", { duration: 4000, action: ids.includes(id) ? undefined : { label: "عرض | Ansehen", onClick: () => window.dispatchEvent(new Event("open-favorites")) } });
     setIds(next);
     window.dispatchEvent(new Event("favorites-change"));
   };
