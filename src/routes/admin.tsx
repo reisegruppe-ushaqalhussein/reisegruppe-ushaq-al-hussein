@@ -98,7 +98,8 @@ function AdminPage() {
       setPassword(newPw); localStorage.setItem(ADMIN_KEY, newPw); setNewPw(""); setNewPw2(""); setPwStatus("saved");
     } catch { setPwStatus("failed"); }
   }
-  const [password, setPassword] = useState(() => (typeof window !== "undefined" && localStorage.getItem("admin-session-role") === "admin" ? localStorage.getItem(ADMIN_KEY) ?? "" : ""));
+  const [password, setPassword] = useState("");
+  useEffect(() => { if (localStorage.getItem("admin-session-role") === "admin") setPassword(localStorage.getItem(ADMIN_KEY) ?? ""); }, []);
   const [content, setContent] = useState<SiteContent | null>(null);
   const [error, setError] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "queued" | "failed">("idle");
