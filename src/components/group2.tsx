@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { ChevronDown, Compass, FileText, Music, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ export function useFavorites() {
     const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
     localStorage.setItem(FAV_KEY, JSON.stringify(next));
     navigator.vibrate?.(20);
+    toast(ids.includes(id) ? "أُزيلت من محفوظاتك | Aus Favoriten entfernt" : "تمت الإضافة إلى محفوظاتك ⭐ | Zu Favoriten hinzugefügt", { duration: 2000 });
     setIds(next);
     window.dispatchEvent(new Event("favorites-change"));
   };

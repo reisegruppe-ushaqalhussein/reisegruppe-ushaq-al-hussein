@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Mic2, Pause, Play } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, Download, Mic2, Pause, Play, RotateCcw, RotateCw, Star } from "lucide-react";
+import { useFavorites } from "@/components/group2";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Reciter } from "@/lib/site-content";
@@ -25,7 +27,11 @@ async function cacheInBackground(url: string) {
 
 const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "0:00");
 
-export function ReciterPlayer({ reciters }: { reciters: Reciter[] }) {
+export function ReciterPlayer({ reciters, itemId }: { reciters: Reciter[]; itemId?: string }) {
+  const fav = useFavorites();
+  const favOn = itemId ? fav.has(itemId) : false;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const list = reciters.filter((r) => r.name && r.url);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobRef = useRef<string | null>(null);
@@ -39,7 +45,13 @@ export function ReciterPlayer({ reciters }: { reciters: Reciter[] }) {
   useEffect(() => () => { audioRef.current?.pause(); if (blobRef.current) URL.revokeObjectURL(blobRef.current); }, []);
   useEffect(() => { audioRef.current?.pause(); audioRef.current = null; setPlaying(false); setTime(0); setDur(0); }, [idx]);
 
-  if (!current) return null;
+  if (!current || !mounted) return null;
+  const seek = (d: number) => { const a = audioRef.current; if (!a) return; a.currentTime = Math.max(0, Math.min(a.duration || 0, a.currentTime + d)); setTime(a.currentTime); };
+  async function download() {
+    if (!current) return;
+    try { const r = await fetch(current.url); const b = await r.blob(); const u = URL.createObjectURL(b); const l = document.createElement("a"); l.href = u; l.download = `${current.name}.mp3`; l.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+    catch { window.open(current.url, "_blank"); }
+  }
 
   async function toggle() {
     if (!current) return;
@@ -61,7 +73,7 @@ export function ReciterPlayer({ reciters }: { reciters: Reciter[] }) {
     try { await a.play(); } catch { window.alert("تعذّر تشغيل الصوت | Audio konnte nicht abgespielt werden"); }
   }
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-x-0 bottom-20 z-30 mx-auto w-full max-w-[420px] border-t border-border bg-card/95 px-4 py-3 text-card-foreground shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-3" dir="ltr">
@@ -70,7 +82,13 @@ export function ReciterPlayer({ reciters }: { reciters: Reciter[] }) {
             <input type="range" aria-label="تقدم | Fortschritt" min={0} max={dur || 0} step={0.5} value={time} onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.currentTime = v; setTime(v); }} className="w-full accent-secondary" />
             <div className="flex justify-between text-[10px] text-muted-foreground"><span>{fmt(time)}</span><span>{fmt(dur)}</span></div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setPickOpen(true)} className="max-w-[40%] gap-1" dir="rtl"><Mic2 className="h-4 w-4" /><span className="truncate">{current.name}</span></Button>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-1" dir="ltr">
+          <Button variant="ghost" size="sm" onClick={() => seek(-10)} aria-label="رجوع 10 ثوانٍ | 10 Sek. zurück" className="gap-1 px-2"><RotateCcw className="h-4 w-4" />10</Button>
+          <Button variant="ghost" size="sm" onClick={() => seek(10)} aria-label="تقديم 10 ثوانٍ | 10 Sek. vor" className="gap-1 px-2">10<RotateCw className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={download} aria-label="تحميل الصوت | Audio herunterladen"><Download className="h-4 w-4" /></Button>
+          {itemId && <Button variant="ghost" size="icon" onClick={() => fav.toggle(itemId)} aria-pressed={favOn} aria-label="المفضلة | Favorit"><Star className={`h-4 w-4 text-secondary ${favOn ? "fill-current" : ""}`} /></Button>}
+          <Button variant="outline" size="sm" onClick={() => setPickOpen(true)} className="max-w-[38%] gap-1" dir="rtl"><Mic2 className="h-4 w-4" /><span className="truncate">{current.name}</span></Button>
         </div>
       </div>
       <Dialog open={pickOpen} onOpenChange={setPickOpen}>
@@ -85,6 +103,7 @@ export function ReciterPlayer({ reciters }: { reciters: Reciter[] }) {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </>,
+    document.body,
   );
 }
