@@ -102,7 +102,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -184,6 +184,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   occasions: { ar: "المناسبات الخاصة", de: "Besondere Anlässe" },
   hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
   faqs: { ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)" },
+  visa: { ar: "الفيزا والمطارات", de: "Visum & Flughäfen" },
 };
 
 function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
@@ -236,9 +237,6 @@ function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: s
 }
 
 function HomeView({ go, content, admin, payment }: { go: (view: View) => void; content: SiteContent; admin: AdminProps; payment: SiteContent["payment"] }) {
-  const visa = content.visa;
-  const saveContent = useSaveContent(admin?.password ?? "");
-  const [visaOpen, setVisaOpen] = useState(false);
   const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
     { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
     { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
@@ -252,6 +250,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
     { view: "occasions", ar: "المناسبات الخاصة", de: "Besondere Anlässe", icon: Sparkles },
     { view: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
     { view: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
+    { view: "visa", ar: "الفيزا والمطارات", de: "Visum & Flughäfen", icon: IdCard },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
   return (
@@ -277,31 +276,9 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
         ))}
       </div>
 
-      <Button variant="outline" onClick={() => setVisaOpen(true)} className="mt-3 h-auto w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" aria-hidden="true" /></span>
-        <span className="min-w-0 flex-1 text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></span>
-        <ChevronLeft className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
-      </Button>
-      {admin && <div className="mt-2"><ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} /></div>}
-
       <PrayerTimesCard />
 
       {payment?.visible && <PaymentCard payment={payment} />}
-      <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
-        <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
-          <DialogHeader className="text-right">
-            <DialogTitle className="text-xl text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></DialogTitle>
-            <DialogDescription asChild><div className="pt-2 text-sm text-foreground"><Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" /></div></DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <Pair ar={`• جواز أوروبي — ${visa.eu ? `رسوم الفيزا: ${visa.eu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• EU-Reisepass — ${visa.eu ? `Visumgebühr: ${visa.eu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
-            <Pair ar={`• جواز غير أوروبي — ${visa.nonEu ? `رسوم الفيزا: ${visa.nonEu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• Nicht-EU-Reisepass — ${visa.nonEu ? `Visumgebühr: ${visa.nonEu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
-            <div className="whitespace-pre-line border-t border-border pt-3">
-              <Pair ar={visa.airportsAr || "المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)."} de={visa.airportsDe || "Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)."} />
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
