@@ -52,6 +52,7 @@ export type SiteContent = {
   emergency: EmergencyEntry[];
   donations: DonationEntry[];
   modeLabels: ModeLabels;
+  donationIntro?: { ar: string; de: string } | undefined;
   trash?: TrashEntry[];
 };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
@@ -134,6 +135,7 @@ export function mergeContent(data: unknown): SiteContent {
     visaNotes: Array.isArray(d.visaNotes) ? d.visaNotes : [],
     emergency: Array.isArray(d.emergency) ? d.emergency : [],
     donations: Array.isArray(d.donations) ? d.donations : [],
+    donationIntro: d.donationIntro,
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
   };
