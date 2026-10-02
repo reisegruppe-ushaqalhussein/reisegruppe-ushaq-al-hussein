@@ -9,7 +9,8 @@ import { ReciterPlayer } from "@/components/audio-player";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
 import { enablePush } from "@/lib/push";
-import { Bell, CalendarClock, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
+import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
+import { QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
@@ -101,7 +102,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -167,6 +168,9 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   itinerary: { ar: "جدول الرحلة", de: "Tagesprogramm" },
   guide: { ar: "دليل الإقامة والمواقع", de: "Unterkunft & Orte" },
   tasbeeh: { ar: "السبحة الإلكترونية", de: "Digitale Tasbih" },
+  qibla: { ar: "اتجاه القبلة", de: "Qibla-Kompass" },
+  occasions: { ar: "المناسبات الخاصة", de: "Besondere Anlässe" },
+  hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
 };
 
 function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
@@ -229,6 +233,9 @@ function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteC
     { view: "itinerary", ar: "جدول الرحلة", de: "Tagesprogramm", icon: CalendarClock },
     { view: "guide", ar: "دليل الإقامة والمواقع", de: "Unterkunft & Orte", icon: MapPin },
     { view: "tasbeeh", ar: "السبحة الإلكترونية", de: "Digitale Tasbih", icon: Vibrate },
+    { view: "qibla", ar: "اتجاه القبلة", de: "Qibla-Kompass", icon: Compass },
+    { view: "occasions", ar: "المناسبات الخاصة", de: "Besondere Anlässe", icon: Sparkles },
+    { view: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
   return (
@@ -552,10 +559,13 @@ function DuasView({ content }: { content: SiteContent }) {
   const [shrineId, setShrineId] = useState<string | null>(null);
   const shrine = shrines.find((s) => s.id === shrineId) ?? null;
   const [reader, setReader] = useState<ReaderItem | null>(null);
+  const { ids: favIds } = useFavorites();
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
+  const favEntries = managedEntries.filter((e) => favIds.includes(e.id));
   return (
     <div className="screen-enter px-4 py-7">
+      {favEntries.length > 0 && <section className="mb-7"><ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" /><div className="space-y-3">{favEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
       <ScreenTitle icon={BookOpen} ar="العتبات المقدسة" de="Heilige Stätten" />
       <div className="grid grid-cols-2 gap-3">
         {shrines.map((item) => (
@@ -576,7 +586,9 @@ function LayerToggle({ active, onClick, label, children }: { active: boolean; on
 }
 
 function ReaderListButton({ item, onRead, admin }: { item: ReaderItem; onRead: (item: ReaderItem) => void; admin?: AdminCtx }) {
-  return <div className={`space-y-2 ${item.hidden ? "opacity-55" : ""}`}>{admin && <DuaAdminActions id={item.id} password={admin.password} content={admin.content} />}<Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button></div>;
+  const fav = useFavorites();
+  const on = fav.has(item.id);
+  return <div className={`space-y-2 ${item.hidden ? "opacity-55" : ""}`}>{admin && <DuaAdminActions id={item.id} password={admin.password} content={admin.content} />}<div className="flex items-stretch gap-2"><Button variant="outline" onClick={() => onRead(item)} className="h-auto min-h-20 min-w-0 flex-1 justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><BookOpen className="h-5 w-5" /></span><span className="min-w-0 flex-1 text-primary"><Pair ar={item.ar} de={item.de} /></span><ChevronLeft className="h-5 w-5 shrink-0 text-secondary" /></Button><Button variant="outline" onClick={() => fav.toggle(item.id)} aria-pressed={on} aria-label="المفضلة | Favorit" className="h-auto w-12 shrink-0 bg-card p-0"><Star className={`h-5 w-5 text-secondary ${on ? "fill-current" : ""}`} /></Button></div></div>;
 }
 
 function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBack: () => void; onRead: (item: ReaderItem) => void; admin: AdminCtx }) {
@@ -607,9 +619,11 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   }, [arabicScale, germanScale, alignment, theme]);
   const night = theme === "navy";
   const bump = (d: number) => { setArabicScale((v) => Math.min(150, Math.max(80, v + d))); setGermanScale((v) => Math.min(150, Math.max(80, v + d))); };
+  const [focus, setFocus] = useState(false);
+  useEffect(() => { document.body.classList.toggle("focus-mode", focus); return () => document.body.classList.remove("focus-mode"); }, [focus]);
   return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-32" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
-    <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
-    <div className="sticky top-[61px] z-20 flex items-center justify-center gap-2 border-b border-current/10 bg-inherit px-4 py-2">
+    <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant={focus ? "secondary" : "ghost"} size="icon" onClick={() => setFocus((v) => !v)} aria-pressed={focus} aria-label="وضع القراءة في الحرم | Lesemodus im Schrein">{focus ? <EyeOff /> : <Eye />}</Button><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
+    <div className="sticky top-[61px] z-20 flex flex-wrap items-center justify-center gap-2 border-b border-current/10 bg-inherit px-4 py-2">
       <LayerToggle active={showTr} onClick={() => setShowTr((v) => !v)} label="الترجمة | Übersetzung"><Globe /></LayerToggle>
       <LayerToggle active={showLatin} onClick={() => setShowLatin((v) => !v)} label="القراءة اللاتينية | Lautschrift"><TypeIcon /></LayerToggle>
       <LayerToggle active={showAr} onClick={() => setShowAr((v) => !v)} label="النص العربي | Arabisch"><span className="text-base font-extrabold leading-none">ع</span></LayerToggle>
@@ -672,6 +686,9 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "itinerary" && <ItineraryView content={content} admin={admin} />}
         {view === "guide" && <GuideView content={content} admin={admin} />}
         {view === "tasbeeh" && <TasbeehView />}
+        {view === "qibla" && <QiblaView />}
+        {view === "occasions" && <ResourcesView content={content} admin={admin} kind="occasions" />}
+        {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
           <PushButton />

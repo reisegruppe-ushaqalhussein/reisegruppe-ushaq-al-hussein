@@ -359,3 +359,8 @@
 }
 
 html, body { overflow-x: hidden; max-width: 100%; }
+
+body.focus-mode header,
+body.focus-mode nav {
+  display: none !important;
+}
