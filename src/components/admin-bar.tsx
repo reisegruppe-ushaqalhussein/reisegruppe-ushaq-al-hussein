@@ -56,36 +56,44 @@ export function AdminBar({ content }: { content: SiteContent }) {
     }).catch(() => {});
   }, [s?.role, s?.password, secOpen, overview]);
   const [menu, setMenu] = useState(false);
-  const [labels, setLabels] = useState({ admin: "الإدارة", haj: "معاينة كحاج" });
-  useEffect(() => { try { setLabels((l) => ({ ...l, ...JSON.parse(localStorage.getItem("admin-mode-labels") ?? "{}") })); } catch { /* keep defaults */ } }, []);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const qc = useQueryClient();
+  const labels = { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة", ...(content.modeLabels ?? {}) };
+  const [draft, setDraft] = useState(labels);
   if (!s) return null;
   const isAdmin = s.role === "admin";
   const trashCount = content.trash?.length ?? 0;
-  const rename = () => {
-    const admin = window.prompt("اسم وضع الإدارة | Name Admin-Modus", labels.admin);
-    if (admin === null) return;
-    const haj = window.prompt("اسم وضع المعاينة | Name Vorschau-Modus", labels.haj);
-    if (haj === null) return;
-    const next = { admin: admin.trim() || "الإدارة", haj: haj.trim() || "معاينة كحاج" };
-    setLabels(next); localStorage.setItem("admin-mode-labels", JSON.stringify(next));
+  const saveLabels = async () => {
+    const next = { admin: draft.admin.trim() || "الإدارة", haj: draft.haj.trim() || "معاينة كحاج", leader: draft.leader.trim() || "مسؤول الحملة" };
+    try { await saveOrQueue(s.password, { ...content, modeLabels: next }, "الأسماء | Namen", qc); setRenameOpen(false); }
+    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
   };
   const btn = "h-9 w-full justify-start gap-2 px-3 text-xs text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground";
-  const badge = isAdmin ? (s.mode === "admin" ? `${labels.admin} ✏️` : `${labels.haj} 👁️`) : "مسؤول الحملة 📿";
+  const badge = isAdmin ? (s.mode === "admin" ? `${labels.admin} ✏️` : `${labels.haj} 👁️`) : `${labels.leader} 📿`;
   return (
     <>
-      <div className="fixed left-2 top-2 z-50 text-primary-foreground" dir="rtl">
-        <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="القائمة | Menü" className="flex items-center gap-1.5 rounded-full border border-secondary bg-primary/95 px-2.5 py-1 text-[10px] font-extrabold shadow-md backdrop-blur">
+      <div className="relative z-30 flex justify-end px-3 pt-2 text-primary-foreground" dir="rtl">
+        <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="القائمة | Menü" className="flex items-center gap-1.5 rounded-full border border-secondary bg-primary px-2.5 py-1 text-[10px] font-extrabold shadow-md">
           <span>{badge}</span>{alerts > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}<span className="text-sm leading-none tracking-widest">⋯</span>
         </button>
-        {menu && <div className="mt-1 w-52 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
+        {menu && <div className="absolute left-3 top-10 w-52 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
           {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setMode(s.mode === "admin" ? "haj" : "admin")}>{s.mode === "admin" ? <><Eye className="h-3.5 w-3.5" />{labels.haj}</> : <><Pencil className="h-3.5 w-3.5" />{labels.admin}</>}</Button>}
-          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={rename}><Pencil className="h-3.5 w-3.5" />تعديل الأسماء | Namen</Button>}
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => { setDraft(labels); setRenameOpen(true); }}><Pencil className="h-3.5 w-3.5" />تعديل الأسماء | Namen</Button>}
           {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setTrashOpen(true)}><Trash2 className="h-3.5 w-3.5" />المحذوفات{trashCount > 0 && <span className="rounded-full bg-secondary px-1.5 text-[10px] text-secondary-foreground">{trashCount}</span>}</Button>}
           {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setSecOpen(true)}><ShieldAlert className="h-3.5 w-3.5" />الأمان{alerts > 0 && <span className="rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">{alerts}</span>}</Button>}
           {isAdmin && <Button asChild size="sm" variant="ghost" className={btn}><Link to="/admin"><LayoutDashboard className="h-3.5 w-3.5" />اللوحة</Link></Button>}
           <Button size="sm" variant="ghost" className={btn} onClick={() => { if (window.confirm("تسجيل الخروج من هذا الجهاز؟\nAuf diesem Gerät abmelden?")) logout(); }}><LogOut className="h-3.5 w-3.5" />خروج</Button>
         </div>}
       </div>
+      {isAdmin && renameOpen && <Dialog open={renameOpen} onOpenChange={setRenameOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[360px]" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle>تعديل الأسماء <span className="text-sm italic text-muted-foreground">| Namen ändern</span></DialogTitle><DialogDescription>تظهر على كل الأجهزة | Gilt auf allen Geräten</DialogDescription></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <label className="block font-bold">اسم وضع الإدارة<input value={draft.admin} onChange={(e) => setDraft({ ...draft, admin: e.target.value })} className={inputCls} /></label>
+          <label className="block font-bold">اسم وضع المعاينة كحاج<input value={draft.haj} onChange={(e) => setDraft({ ...draft, haj: e.target.value })} className={inputCls} /></label>
+          <label className="block font-bold">اسم دخول الحاج (المسؤول الميداني)<input value={draft.leader} onChange={(e) => setDraft({ ...draft, leader: e.target.value })} className={inputCls} /></label>
+          <Button className="h-11 w-full" onClick={saveLabels}>حفظ <span className="text-xs italic opacity-75">| Speichern</span></Button>
+        </div>
+      </DialogContent></Dialog>}
       {isAdmin && trashOpen && <TrashDialog open={trashOpen} onOpenChange={setTrashOpen} content={content} password={s.password} />}
       {isAdmin && secOpen && <SecurityDialog open={secOpen} onOpenChange={setSecOpen} password={s.password} />}
     </>

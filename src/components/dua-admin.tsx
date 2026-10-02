@@ -41,7 +41,7 @@ export function RecitersEditor({ value, onChange }: { value: Reciter[]; onChange
   );
 }
 
-function DuaForm({ open, onOpenChange, initial, title, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; initial: DuaEntry; title: { ar: string; de: string }; onSubmit: (d: DuaEntry) => Promise<void> }) {
+function DuaForm({ open, onOpenChange, initial, title, onSubmit, content }: { content: SiteContent;  open: boolean; onOpenChange: (o: boolean) => void; initial: DuaEntry; title: { ar: string; de: string }; onSubmit: (d: DuaEntry) => Promise<void> }) {
   const [draft, setDraft] = useState<DuaEntry>(initial);
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (open) setDraft(initial); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -55,7 +55,7 @@ function DuaForm({ open, onOpenChange, initial, title, onSubmit }: { open: boole
           <label className="block font-bold">العنوان (ألماني) | Titel (DE)<input dir="ltr" value={draft.de} onChange={(e) => set({ de: e.target.value })} className={inputCls} /></label>
           <label className="block font-bold">التصنيف | Kategorie
             <select value={draft.category} onChange={(e) => set({ category: e.target.value as DuaCategory })} className={inputCls}>
-              {duaCategories.map((c) => <option key={c.id} value={c.id}>{c.de} ({c.ar})</option>)}
+              {[...(content.shrines ?? duaCategories.filter((c) => c.id !== "general")), { id: "general", ar: "الأدعية العامة", de: "Allgemeine Bittgebete" }].map((c) => <option key={c.id} value={c.id}>{c.de} ({c.ar})</option>)}
             </select>
           </label>
           <label className="block font-bold">النص العربي | Arabischer Text<textarea dir="rtl" rows={6} value={draft.textAr} onChange={(e) => set({ textAr: e.target.value })} className={inputCls} /></label>
@@ -84,7 +84,7 @@ export function DuaAddButton({ category, password, content }: { category: DuaCat
   return (
     <>
       <Button size="sm" variant="outline" className="shrink-0 border-secondary text-primary" onClick={() => setOpen(true)}><Plus />إضافة <span className="text-xs italic">| Hinzufügen</span></Button>
-      {open && <DuaForm open={open} onOpenChange={setOpen} initial={blank} title={{ ar: "إضافة جديد", de: "Neu hinzufügen" }} onSubmit={(d) => saveDuas([...content.duas, { ...d, id: `d${Date.now()}` }])} />}
+      {open && <DuaForm content={content} open={open} onOpenChange={setOpen} initial={blank} title={{ ar: "إضافة جديد", de: "Neu hinzufügen" }} onSubmit={(d) => saveDuas([...content.duas, { ...d, id: `d${Date.now()}` }])} />}
     </>
   );
 }
@@ -107,7 +107,7 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
         catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
       }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {entry.hidden ? "Restore" : "Hide"}</span></Button>}
       <Button size="sm" variant="outline" className="text-destructive" onClick={onDelete}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
-      {open && <DuaForm open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
+      {open && <DuaForm content={content} open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
     </div>
   );
 }
