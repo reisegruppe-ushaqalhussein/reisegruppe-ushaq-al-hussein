@@ -181,8 +181,8 @@ function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
         <div className="min-w-0 flex-1 text-center">
           <p className="text-sm font-extrabold">حملة عشاق الحسين (ع) — ألمانيا</p>
           <p lang="de" dir="ltr" className="mt-1 text-[10px] font-medium text-primary-foreground/65">Reisegruppe Ushaq al-Hussein (as) — Deutschland</p>
-          <div className="gold-line mx-auto my-3 h-px w-24" />
-          <Pair ar={viewTitles[view].ar} de={viewTitles[view].de} align="center" inverse />
+          {view !== "home" && <><div className="gold-line mx-auto my-3 h-px w-24" />
+          <Pair ar={viewTitles[view].ar} de={viewTitles[view].de} align="center" inverse /></>}
         </div>
         <span className="grid h-9 w-9 place-items-center rounded-md border border-secondary/50 text-secondary"><MoonStar className="h-5 w-5" aria-hidden="true" /></span>
       </div>
