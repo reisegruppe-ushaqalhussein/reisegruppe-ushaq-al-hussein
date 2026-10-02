@@ -3,6 +3,7 @@ import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCc
 import { Button } from "@/components/ui/button";
 import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { useShowHidden } from "@/lib/admin-session";
 import type { ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
 
 type Admin = { password: string; content: SiteContent } | null;
@@ -35,8 +36,9 @@ const itineraryFields: FieldDef[] = [
 
 export function ItineraryView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
+  const showHidden = useShowHidden();
   const all = content.itinerary;
-  const available = admin ? all : all.filter((item) => !item.hidden);
+  const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: ItineraryEntry[]) => save({ ...content, itinerary: next });
   const dates = useMemo(() => [...new Set(available.map((e) => e.date))].sort(), [available]);
   const [day, setDay] = useState<string>("");
@@ -88,10 +90,11 @@ const mapsHref = (l: LocationEntry) => l.mapsUrl || `https://www.google.com/maps
 
 export function GuideView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
+  const showHidden = useShowHidden();
   const all = content.locations;
-  const available = admin ? all : all.filter((item) => !item.hidden);
+  const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
-  const emergencyContacts = admin ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
+  const emergencyContacts = showHidden ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />

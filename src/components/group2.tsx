@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
+import { useShowHidden } from "@/lib/admin-session";
 
 type Admin = { password: string; content: SiteContent } | null;
 
@@ -145,7 +146,8 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide }: { item: Resourc
 export function ResourcesView({ content, admin, kind }: { content: SiteContent; admin: Admin; kind: "occasions" | "hadiths" }) {
   const save = useSaveContent(admin?.password ?? "");
   const list = content[kind];
-  const visible = list.filter((r) => admin || !r.hidden);
+  const showHidden = useShowHidden();
+  const visible = list.filter((r) => showHidden || !r.hidden);
   const put = (next: ResourceEntry[]) => save({ ...content, [kind]: next });
   const title = kind === "occasions" ? { ar: "المناسبات الخاصة وأعمالها", de: "Besondere Anlässe", icon: Sparkles } : { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: ScrollText };
   return (

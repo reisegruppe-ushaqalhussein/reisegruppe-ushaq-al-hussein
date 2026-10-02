@@ -1,28 +1,17 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { checkAdminPassword } from "@/lib/site-content.functions";
+import { useAdminSession, useShowHidden } from "@/lib/admin-session";
 import { saveOrQueue } from "@/lib/offline";
 import { duaCategories, duaCategoryOf, type DuaCategory, type DuaEntry, type Reciter, type SiteContent } from "@/lib/site-content";
 
-export const ADMIN_KEY = "admin-session-pw";
+export { ADMIN_KEY } from "@/lib/admin-session";
 
-/** Returns the admin password if this browser session is logged in (verified server-side). */
+/** Returns the access code if this device is signed in (admin or campaign leader). */
 export function useAdminPassword() {
-  const check = useServerFn(checkAdminPassword);
-  const [pw, setPw] = useState<string | null>(null);
-  useEffect(() => {
-    const stored = sessionStorage.getItem(ADMIN_KEY);
-    if (!stored) return;
-    check({ data: { password: stored } }).then((r) => {
-      if (r.ok) setPw(stored);
-      else sessionStorage.removeItem(ADMIN_KEY);
-    }).catch(() => { if (!navigator.onLine) setPw(stored); });
-  }, [check]);
-  return pw;
+  return useAdminSession()?.password ?? null;
 }
 
 function useSaveDuas(password: string, content: SiteContent) {
@@ -40,7 +29,7 @@ export function RecitersEditor({ value, onChange }: { value: Reciter[]; onChange
       <p className="font-bold">القرّاء (اسم + رابط MP3) <span className="text-xs italic text-muted-foreground">| Rezitatoren</span></p>
       {value.map((r, i) => (
         <div key={i} className="space-y-1 rounded-md bg-muted p-2">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input dir="rtl" placeholder="اسم القارئ | Name" value={r.name} onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} className={inputCls} />
             <Button size="icon" variant="ghost" className="mt-1 text-destructive" aria-label="حذف | Löschen" onClick={() => onChange(value.filter((_, j) => j !== i))}><X /></Button>
           </div>
@@ -104,18 +93,19 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
   const saveDuas = useSaveDuas(password, content);
   const entry = content.duas.find((d) => d.id === id);
   const [open, setOpen] = useState(false);
+  const showHidden = useShowHidden();
   if (!entry) return null;
   async function onDelete() {
     if (!window.confirm("هل أنت متأكد من حذف هذه الزيارة؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return;
     try { await saveDuas(content.duas.filter((d) => d.id !== id)); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
   }
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic">| Bearbeiten</span></Button>
-      <Button size="sm" variant="outline" className={entry.hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
+      {showHidden && <Button size="sm" variant="outline" className={entry.hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
         try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
         catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
-      }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {entry.hidden ? "Restore" : "Hide"}</span></Button>
+      }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {entry.hidden ? "Restore" : "Hide"}</span></Button>}
       <Button size="sm" variant="outline" className="text-destructive" onClick={onDelete}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
       {open && <DuaForm open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
     </div>
