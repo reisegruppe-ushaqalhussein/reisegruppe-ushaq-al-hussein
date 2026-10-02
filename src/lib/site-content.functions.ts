@@ -124,10 +124,10 @@ const contentSchema = z.object({
   trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), hidden: z.boolean().optional(), statusAr: s.optional(), statusDe: s.optional(), programAr: long.optional(), programDe: long.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
   hotels: z.object({ kadhimiya: s, karbala: s, najaf: s }),
   program: z.object({ ar: long, de: long }),
-  visa: z.object({ eu: long, nonEu: long }),
+  visa: z.object({ eu: long, nonEu: long, airportsAr: long.optional(), airportsDe: long.optional() }),
   payment: z.object({ visible: z.boolean(), accountName: s, bankName: s, iban: s, bic: s }),
   news: z.array(z.object({ ar: s, de: s, bodyAr: long, bodyDe: long, hidden: z.boolean().optional() })).max(500),
-  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, textEn: long.optional(), link: z.string().max(5000), hidden: z.boolean().optional(), category: z.enum(["karbala", "najaf", "kazimiyya", "samarra", "mashhad", "qom", "mecca-medina", "general"]).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
+  duas: z.array(z.object({ id: z.string().max(100), ar: s, de: s, textAr: long, textDe: long, textEn: long.optional(), link: z.string().max(5000), hidden: z.boolean().optional(), category: z.string().max(100).optional(), reciters: z.array(z.object({ name: s, url: z.string().max(5000) })).max(50).optional() })).max(1000),
   alert: z.object({ ar: s, de: s, active: z.boolean() }),
   contacts: z.array(z.object({ id: z.string().max(100), ar: s, de: s, roleAr: s, roleDe: s, phone: z.string().max(100), whatsapp: z.string().max(2000), visible: z.boolean().optional(), hidden: z.boolean().optional() })).max(100),
   contactsVisible: z.boolean(),
@@ -136,6 +136,12 @@ const contentSchema = z.object({
   faqs: z.array(z.object({ id: z.string().max(100), qAr: s, qDe: s, qEn: s.optional(), aAr: long, aDe: long, aEn: long.optional(), hidden: z.boolean().optional() })).max(300),
   occasions: z.array(resourceSchema).max(500),
   hadiths: z.array(resourceSchema).max(1000),
+  tripTypes: z.array(z.object({ id: z.string().max(100), ar: s, de: s, statusAr: s, statusDe: s, hidden: z.boolean().optional() })).max(100).optional(),
+  shrines: z.array(z.object({ id: z.string().max(100), ar: s, de: s, imageUrl: z.string().max(5000).optional(), hidden: z.boolean().optional() })).max(100).optional(),
+  visaNotes: z.array(z.object({ id: z.string().max(100), ar: long, de: long, hidden: z.boolean().optional() })).max(200).optional(),
+  emergency: z.array(z.object({ id: z.string().max(100), ar: s, de: s, phone: z.string().max(100), hidden: z.boolean().optional() })).max(100).optional(),
+  donations: z.array(z.object({ id: z.string().max(100), ar: long, de: long, value: s, hidden: z.boolean().optional() })).max(100).optional(),
+  modeLabels: z.object({ admin: z.string().max(60), haj: z.string().max(60), leader: z.string().max(60) }).optional(),
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })
