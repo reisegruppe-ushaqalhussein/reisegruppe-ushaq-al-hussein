@@ -30,7 +30,7 @@ export type SiteContent = {
   trips: TripEntry[];
   hotels: { kadhimiya: string; karbala: string; najaf: string };
   program: { ar: string; de: string };
-  visa: { eu: string; nonEu: string };
+  visa: { eu: string; nonEu: string; airportsAr?: string; airportsDe?: string };
   payment: PaymentEntry;
   news: NewsEntry[];
   contacts: ContactEntry[];

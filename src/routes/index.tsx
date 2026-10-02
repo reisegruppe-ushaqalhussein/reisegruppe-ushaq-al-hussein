@@ -133,7 +133,16 @@ const tripFields: FieldDef[] = [
   { key: "date", ar: "التاريخ", de: "Datum", ltr: true },
   { key: "statusAr", ar: "الحالة (مثلاً: التسجيل مفتوح / اكتمل العدد)", de: "Status (AR)" }, { key: "statusDe", ar: "الحالة بالألمانية", de: "Status (DE)", ltr: true },
   { key: "descAr", ar: "الوصف", de: "Beschreibung (AR)", multiline: true }, { key: "descDe", ar: "الوصف بالألمانية", de: "Beschreibung (DE)", ltr: true, multiline: true },
+  { key: "programAr", ar: "برنامج هذه الرحلة", de: "Reiseprogramm (AR)", multiline: true }, { key: "programDe", ar: "البرنامج بالألمانية", de: "Reiseprogramm (DE)", ltr: true, multiline: true },
   { key: "visible", ar: "إظهار للزوار", de: "Sichtbar", checkbox: true },
+];
+const faqFields: FieldDef[] = [
+  { key: "qAr", ar: "السؤال", de: "Frage (AR)" }, { key: "qDe", ar: "السؤال بالألمانية", de: "Frage (DE)", ltr: true }, { key: "qEn", ar: "السؤال بالإنجليزية", de: "Frage (EN)", ltr: true },
+  { key: "aAr", ar: "الجواب", de: "Antwort (AR)", multiline: true }, { key: "aDe", ar: "الجواب بالألمانية", de: "Antwort (DE)", ltr: true, multiline: true }, { key: "aEn", ar: "الجواب بالإنجليزية", de: "Antwort (EN)", ltr: true, multiline: true },
+];
+const visaFields: FieldDef[] = [
+  { key: "eu", ar: "رسوم الفيزا — جواز أوروبي", de: "Visumgebühr EU", ltr: true }, { key: "nonEu", ar: "رسوم الفيزا — جواز غير أوروبي", de: "Visumgebühr Nicht-EU", ltr: true },
+  { key: "airportsAr", ar: "المطارات", de: "Flughäfen (AR)", multiline: true }, { key: "airportsDe", ar: "المطارات بالألمانية", de: "Flughäfen (DE)", ltr: true, multiline: true },
 ];
 const newsFields: FieldDef[] = [
   { key: "ar", ar: "العنوان", de: "Titel (AR)" }, { key: "de", ar: "العنوان بالألمانية", de: "Titel (DE)", ltr: true },
@@ -222,7 +231,9 @@ function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: s
   );
 }
 
-function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteContent["visa"]; payment: SiteContent["payment"] }) {
+function HomeView({ go, content, admin, payment }: { go: (view: View) => void; content: SiteContent; admin: AdminProps; payment: SiteContent["payment"] }) {
+  const visa = content.visa;
+  const saveContent = useSaveContent(admin?.password ?? "");
   const [visaOpen, setVisaOpen] = useState(false);
   const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
     { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
@@ -261,13 +272,14 @@ function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteC
         ))}
       </div>
 
-      <PrayerTimesCard />
-
-      <Button variant="outline" onClick={() => setVisaOpen(true)} className="mt-5 h-auto w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card">
+      <Button variant="outline" onClick={() => setVisaOpen(true)} className="mt-3 h-auto w-full justify-start gap-3 whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" aria-hidden="true" /></span>
         <span className="min-w-0 flex-1 text-primary"><Pair ar="الفيزا والمطارات" de="Visum & Flughäfen" /></span>
         <ChevronLeft className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
       </Button>
+      {admin && <div className="mt-2"><ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} /></div>}
+
+      <PrayerTimesCard />
       {payment?.visible && <PaymentCard payment={payment} />}
       <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
@@ -278,8 +290,8 @@ function HomeView({ go, visa, payment }: { go: (view: View) => void; visa: SiteC
           <div className="space-y-3 text-sm">
             <Pair ar={`• جواز أوروبي — ${visa.eu ? `رسوم الفيزا: ${visa.eu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• EU-Reisepass — ${visa.eu ? `Visumgebühr: ${visa.eu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
             <Pair ar={`• جواز غير أوروبي — ${visa.nonEu ? `رسوم الفيزا: ${visa.nonEu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• Nicht-EU-Reisepass — ${visa.nonEu ? `Visumgebühr: ${visa.nonEu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
-            <div className="border-t border-border pt-3">
-              <Pair ar="المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)." de="Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)." />
+            <div className="whitespace-pre-line border-t border-border pt-3">
+              <Pair ar={visa.airportsAr || "المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)."} de={visa.airportsDe || "Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)."} />
             </div>
           </div>
         </DialogContent>
@@ -293,6 +305,9 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
   const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => admin || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
+  const { lang } = useLang();
+  const faqs = content.faqs ?? defaultContent.faqs;
+  const visibleFaqs = faqs.filter((f) => !f.hidden);
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
   const [iraqOpen, setIraqOpen] = useState(false);
   return (
@@ -308,22 +323,27 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
 
       <div className="my-7 border-t border-border" />
       <ScreenTitle icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" />
-      {admin && <AddButton label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />}
+      {admin && <AddButton label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />}
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = trip.icon;
           const raw = content.trips.find((t) => t.id === trip.id)!;
-          return <div key={trip.id} className={raw.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}<Button key={trip.id} variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button></div>;
+          return <div key={trip.id} className={raw.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}{(raw.programAr || raw.programDe) && <div className="mb-2 rounded-md border border-secondary/40 bg-accent p-3 text-sm"><div className="mb-1 text-xs font-bold text-primary"><Pair ar="برنامج الرحلة" de="Reiseprogramm" /></div><div className="whitespace-pre-line"><Pair ar={raw.programAr ?? ""} de={raw.programDe ?? ""} /></div></div>}<Button variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button></div>;
         })}
       </div>
 
       <section className="mt-7">
         <ScreenTitle icon={BookOpen} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
-        <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
-          <FaqItem value="passport" questionAr="ما مدة صلاحية جواز السفر المطلوبة؟" questionDe="Wie lange muss der Reisepass gültig sein?" answerAr="يجب أن يكون جواز السفر صالحاً لمدة لا تقل عن ستة أشهر عند موعد السفر." answerDe="Der Reisepass muss zum Reisezeitpunkt noch mindestens sechs Monate gültig sein." />
-          <FaqItem value="visa" questionAr="هل أحتاج إلى فيزا؟" questionDe="Benötige ich ein Visum?" answerAr="تعتمد الفيزا ورسومها على نوع جواز السفر والوجهة. تُنشر التفاصيل المؤكدة قبل الرحلة." answerDe="Visum und Gebühren richten sich nach Reisepass und Reiseziel. Bestätigte Angaben werden vor der Reise veröffentlicht." />
-          <FaqItem value="baggage" questionAr="ما وزن الأمتعة المسموح؟" questionDe="Wie viel Gepäck ist erlaubt?" answerAr="يُحدد وزن الأمتعة حسب شركة الطيران والحجز، ويُعلن مع البرنامج النهائي للرحلة." answerDe="Die Freigepäckmenge richtet sich nach Fluggesellschaft und Buchung und wird mit dem endgültigen Reiseprogramm bekannt gegeben." />
-        </Accordion>
+        {admin && <AddButton label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} fields={faqFields} blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} />}
+        {admin ? (
+          <div className="space-y-3">
+            {faqs.map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div></div>)}
+          </div>
+        ) : visibleFaqs.length > 0 && (
+          <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
+            {visibleFaqs.map((f) => <FaqItem key={f.id} value={f.id} questionAr={f.qAr} questionDe={lang === "en" && f.qEn ? f.qEn : f.qDe} answerAr={f.aAr} answerDe={lang === "en" && f.aEn ? f.aEn : f.aDe} />)}
+          </Accordion>
+        )}
       </section>
 
       <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>
