@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAdminSession, useShowHidden } from "@/lib/admin-session";
@@ -100,13 +101,20 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
     try { await saveDuas(content.duas.filter((d) => d.id !== id)); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
   }
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic">| Bearbeiten</span></Button>
-      {showHidden && <Button size="sm" variant="outline" className={entry.hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
-        try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
-        catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
-      }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {entry.hidden ? "Restore" : "Hide"}</span></Button>}
-      <Button size="sm" variant="outline" className="text-destructive" onClick={onDelete}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
+    <div className="flex justify-end">
+      <DropdownMenu dir="rtl">
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="خيارات | Optionen" className="grid h-7 w-7 place-items-center rounded-full border border-border bg-background/80 shadow-sm backdrop-blur"><MoreHorizontal className="h-4 w-4" /></button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic opacity-70">| Bearbeiten</span></DropdownMenuItem>
+          {showHidden && <DropdownMenuItem onSelect={async () => {
+            try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
+            catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
+          }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic opacity-70">| {entry.hidden ? "Restore" : "Hide"}</span></DropdownMenuItem>}
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}><Trash2 />حذف <span className="text-xs italic opacity-70">| Löschen</span></DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {open && <DuaForm content={content} open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
     </div>
   );

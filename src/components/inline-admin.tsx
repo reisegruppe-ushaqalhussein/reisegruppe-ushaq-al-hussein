@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { saveOrQueue } from "@/lib/offline";
@@ -55,15 +56,22 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
   const [open, setOpen] = useState(false);
   const showHidden = useShowHidden();
   return (
-    <div className="mb-2 flex min-w-0 flex-wrap gap-1.5 [&>button]:h-8 [&>button]:px-2 [&>button]:text-xs">
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic">| Bearbeiten</span></Button>
-      {onVisibilityChange && showHidden && <Button size="sm" variant="outline" className={hidden ? "text-primary" : "text-muted-foreground"} onClick={async () => {
-        try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
-      }}>{hidden ? <Eye /> : <EyeOff />}{hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic">| {hidden ? "Restore" : "Hide"}</span></Button>}
-      <Button size="sm" variant="outline" className="text-destructive" onClick={async () => {
-        if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return;
-        try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
-      }}><Trash2 />حذف <span className="text-xs italic">| Löschen</span></Button>
+    <div className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end">
+      <DropdownMenu dir="rtl">
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="خيارات | Optionen" className={`pointer-events-auto m-1 grid h-7 w-7 place-items-center rounded-full border border-border bg-background/80 text-foreground shadow-sm backdrop-blur ${hidden ? "opacity-60" : ""}`}><MoreHorizontal className="h-4 w-4" /></button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[10rem]">
+          <DropdownMenuItem onSelect={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic opacity-70">| Bearbeiten</span></DropdownMenuItem>
+          {onVisibilityChange && showHidden && <DropdownMenuItem onSelect={async () => {
+            try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
+          }}>{hidden ? <Eye /> : <EyeOff />}{hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic opacity-70">| {hidden ? "Restore" : "Hide"}</span></DropdownMenuItem>}
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={async () => {
+            if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return;
+            try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
+          }}><Trash2 />حذف <span className="text-xs italic opacity-70">| Löschen</span></DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={fields} initial={item} onSubmit={onSave} />}
     </div>
   );
@@ -72,9 +80,9 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
 export function AddButton({ label, fields, blank, onAdd }: { label: { ar: string; de: string }; fields: FieldDef[]; blank: Row; onAdd: (row: Row) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   return (
-    <>
-      <Button variant="outline" className="mb-4 h-11 w-full border-dashed border-secondary text-primary" onClick={() => setOpen(true)}><Plus />{label.ar} <span className="text-xs italic">| {label.de}</span></Button>
+    <div className="mb-2 flex justify-end">
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${label.ar} | ${label.de}`} className="inline-flex h-7 items-center gap-1 rounded-full border border-secondary/60 bg-background/80 px-2.5 text-[11px] font-bold text-primary shadow-sm"><Plus className="h-3.5 w-3.5" />إضافة <span className="italic opacity-70">| Neu</span></button>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} />}
-    </>
+    </div>
   );
 }
