@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
@@ -202,11 +203,18 @@ function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
           <div className="gold-line mx-auto my-3 h-px w-24" />
           <Pair ar={viewTitles[view].ar} de={viewTitles[view].de} align="center" inverse />
         </div>
-        <span className="grid h-9 w-9 place-items-center rounded-md border border-secondary/50 text-secondary"><MoonStar className="h-5 w-5" aria-hidden="true" /></span>
+        <DarkModeToggle />
       </div>
       <LanguageSwitcher />
     </header>
   );
+}
+
+function DarkModeToggle() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => { const on = localStorage.getItem("dark-mode") === "1"; setDark(on); document.documentElement.classList.toggle("dark", on); }, []);
+  const flip = () => { const on = !dark; setDark(on); localStorage.setItem("dark-mode", on ? "1" : "0"); document.documentElement.classList.toggle("dark", on); navigator.vibrate?.(10); };
+  return <button type="button" onClick={flip} aria-pressed={dark} aria-label="الوضع الليلي | Nachtmodus" className="grid h-9 w-9 place-items-center rounded-md border border-secondary/50 text-secondary transition-colors hover:bg-secondary/15">{dark ? <Sun className="h-5 w-5" /> : <MoonStar className="h-5 w-5" />}</button>;
 }
 
 function LanguageSwitcher() {
@@ -276,11 +284,25 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
         ))}
       </div>
 
+      <FavoriteTrips content={content} go={go} />
       <PrayerTimesCard />
 
       {payment?.visible && <PaymentCard payment={payment} />}
     </div>
   );
+}
+
+function TripFavButton({ id }: { id: string }) {
+  const fav = useFavorites();
+  const on = fav.has(`trip:${id}`);
+  return <button type="button" onClick={() => fav.toggle(`trip:${id}`)} aria-pressed={on} aria-label="المفضلة | Favorit" className="absolute bottom-3 left-3 grid h-9 w-9 place-items-center rounded-full border border-secondary/50 bg-card text-secondary shadow-sm"><Star className={`h-4 w-4 ${on ? "fill-current" : ""}`} /></button>;
+}
+
+function FavoriteTrips({ content, go }: { content: SiteContent; go: (view: View) => void }) {
+  const { ids } = useFavorites();
+  const trips = content.trips.filter((t) => ids.includes(`trip:${t.id}`) && t.visible && !t.hidden);
+  if (!trips.length) return null;
+  return <section className="mt-6"><ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" /><div className="space-y-3">{trips.map((t) => <button key={t.id} type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button>)}</div></section>;
 }
 
 function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
@@ -308,7 +330,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
         {upcomingTrips.map((trip) => {
           const Icon = trip.icon;
           const raw = content.trips.find((t) => t.id === trip.id)!;
-          return <div key={trip.id} className={raw.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}{(raw.programAr || raw.programDe) && <div className="mb-2 rounded-md border border-secondary/40 bg-accent p-3 text-sm"><div className="mb-1 text-xs font-bold text-primary"><Pair ar="برنامج الرحلة" de="Reiseprogramm" /></div><div className="whitespace-pre-line"><Pair ar={raw.programAr ?? ""} de={raw.programDe ?? ""} /></div></div>}<Button variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button></div>;
+          return <div key={trip.id} className={`relative ${raw.hidden ? "opacity-55" : ""}`}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}{(raw.programAr || raw.programDe) && <div className="mb-2 rounded-md border border-secondary/40 bg-accent p-3 text-sm"><div className="mb-1 text-xs font-bold text-primary"><Pair ar="برنامج الرحلة" de="Reiseprogramm" /></div><div className="whitespace-pre-line"><Pair ar={raw.programAr ?? ""} de={raw.programDe ?? ""} /></div></div>}<Button variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="mt-2 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /></span></Button><TripFavButton id={trip.id} /></div>;
         })}
       </div>
 
@@ -607,9 +629,15 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   }, [arabicScale, germanScale, alignment, theme]);
   const night = theme === "navy";
   const bump = (d: number) => { setArabicScale((v) => Math.min(150, Math.max(80, v + d))); setGermanScale((v) => Math.min(150, Math.max(80, v + d))); };
+  const trFirst = readerLang === "de" || readerLang === "en";
+  const trText = readerLang === "en" && item.textEn ? item.textEn : item.translation;
+  const trBlock = <p lang={readerLang === "en" ? "en" : "de"} dir="ltr" className={`reader-de whitespace-pre-line leading-relaxed ${trFirst ? "font-semibold" : "mt-5 italic opacity-75"} ${alignment === "center" ? "text-center" : "text-left"}`}>{trText}</p>;
+  const [progress, setProgress] = useState(0);
+  useEffect(() => { const on = () => { const h = document.documentElement.scrollHeight - window.innerHeight; setProgress(h > 0 ? Math.min(100, (window.scrollY / h) * 100) : 0); }; on(); window.addEventListener("scroll", on, { passive: true }); return () => window.removeEventListener("scroll", on); }, []);
   const [focus, setFocus] = useState(false);
   useEffect(() => { document.body.classList.toggle("focus-mode", focus); return () => document.body.classList.remove("focus-mode"); }, [focus]);
-  return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-32" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
+  return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-44" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
+    {typeof document !== "undefined" && createPortal(<div className="pointer-events-none fixed inset-x-0 top-0 z-50 mx-auto h-1 w-full max-w-[420px]"><div className="h-full bg-secondary transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>, document.body)}
     <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant={focus ? "secondary" : "ghost"} size="icon" onClick={() => setFocus((v) => !v)} aria-pressed={focus} aria-label="وضع القراءة في الحرم | Lesemodus im Schrein">{focus ? <EyeOff /> : <Eye />}</Button><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
     <div className="sticky top-[61px] z-20 flex flex-wrap items-center justify-center gap-2 border-b border-current/10 bg-inherit px-4 py-2">
       <LayerToggle active={showTr} onClick={() => setShowTr((v) => !v)} label="الترجمة | Übersetzung"><Globe /></LayerToggle>
@@ -620,9 +648,9 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
       <Button variant="outline" size="icon" className="bg-transparent" onClick={() => bump(10)} disabled={arabicScale >= 150 && germanScale >= 150} aria-label="تكبير الخط | Schrift größer"><Plus /></Button>
       <Button variant={night ? "secondary" : "outline"} size="icon" className={night ? "" : "bg-transparent"} onClick={() => setTheme(night ? "warm" : "navy")} aria-pressed={night} aria-label="الوضع الليلي | Nachtmodus">{night ? <Sun /> : <Moon />}</Button>
     </div>
-    <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}>{showAr && <p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p>}{showAr && (showLatin || showTr) && <div className="my-7 border-t border-current/15" />}{showLatin && <p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p>}{showTr && <p lang="de" dir="ltr" className={`reader-de mt-5 whitespace-pre-line italic leading-relaxed opacity-75 ${alignment === "center" ? "text-center" : "text-left"}`}>{readerLang === "en" && item.textEn ? item.textEn : item.translation}</p>}{!showAr && !showLatin && !showTr && <p className="py-10 text-center text-sm opacity-60"><Pair ar="فعّل أحد أزرار العرض أعلاه لإظهار النص." de="Aktivieren Sie oben eine Ebene, um den Text anzuzeigen." align="center" /></p>}{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
+    <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}>{showTr && trFirst && <>{trBlock}{(showAr || showLatin) && <div className="my-7 border-t border-current/15" />}</>}{showAr && <p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p>}{showAr && (showLatin || showTr) && <div className="my-7 border-t border-current/15" />}{showLatin && <p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p>}{showTr && !trFirst && trBlock}{!showAr && !showLatin && !showTr && <p className="py-10 text-center text-sm opacity-60"><Pair ar="فعّل أحد أزرار العرض أعلاه لإظهار النص." de="Aktivieren Sie oben eine Ebene, um den Text anzuzeigen." align="center" /></p>}{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إعدادات القراءة" de="Leseeinstellungen" /></DialogTitle><DialogDescription><Pair ar="خصّص النص بما يناسب قراءتك." de="Passen Sie die Darstellung an Ihre Leseweise an." /></DialogDescription></DialogHeader><div className="space-y-5 pt-2"><ScaleControl ar="حجم النص العربي" de="Arabische Schriftgröße" value={arabicScale} onChange={setArabicScale} /><ScaleControl ar="حجم النص الألماني" de="Deutsche Schriftgröße" value={germanScale} onChange={setGermanScale} /><div><Pair ar="محاذاة النص" de="Textausrichtung" /><div className="mt-2 grid grid-cols-2 gap-2"><Button variant={alignment === "right" ? "default" : "outline"} onClick={() => setAlignment("right")}><AlignRight /><Pair ar="يمين" de="Rechts" align="center" inverse={alignment === "right"} /></Button><Button variant={alignment === "center" ? "default" : "outline"} onClick={() => setAlignment("center")}><AlignCenter /><Pair ar="وسط" de="Zentriert" align="center" inverse={alignment === "center"} /></Button></div></div><div><Pair ar="خلفية القراءة" de="Lesefläche" /><div className="mt-2 grid grid-cols-3 gap-2"><ThemeButton active={theme === "navy"} theme="navy" ar="كحلي" de="Dunkelblau" onClick={() => setTheme("navy")} /><ThemeButton active={theme === "white"} theme="white" ar="أبيض" de="Weiß" onClick={() => setTheme("white")} /><ThemeButton active={theme === "warm"} theme="warm" ar="دافئ" de="Warm" onClick={() => setTheme("warm")} /></div></div></div></DialogContent></Dialog>
-    {(item.reciters?.length ?? 0) > 0 && <ReciterPlayer key={item.id} reciters={item.reciters ?? []} />}
+    {(item.reciters?.length ?? 0) > 0 && <ReciterPlayer key={item.id} itemId={item.id} reciters={item.reciters ?? []} />}
   </div>;
 }
 
