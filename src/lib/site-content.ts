@@ -1,7 +1,7 @@
 export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; programAr?: string; programDe?: string; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
 export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean; hidden?: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
-export type DuaCategory = "karbala" | "najaf" | "kazimiyya" | "samarra" | "mashhad" | "qom" | "mecca-medina" | "general";
+export type DuaCategory = string;
 export const duaCategories: Array<{ id: DuaCategory; ar: string; de: string }> = [
   { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
   { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf" },
@@ -22,6 +22,12 @@ export type LocationKind = "hotel" | "shrine" | "gathering";
 export type LocationEntry = { id: string; kind: LocationKind; ar: string; de: string; address: string; mapsUrl: string; hidden?: boolean };
 export type FaqEntry = { id: string; qAr: string; qDe: string; qEn?: string; aAr: string; aDe: string; aEn?: string; hidden?: boolean };
 export type ResourceEntry = { id: string; ar: string; de: string; en?: string; textAr: string; textDe: string; textEn?: string; pdfUrl?: string; audioUrl?: string; place?: string; hidden?: boolean };
+export type TripTypeEntry = { id: string; ar: string; de: string; statusAr: string; statusDe: string; hidden?: boolean };
+export type ShrineEntry = { id: string; ar: string; de: string; imageUrl?: string; hidden?: boolean };
+export type NoteEntry = { id: string; ar: string; de: string; hidden?: boolean };
+export type EmergencyEntry = { id: string; ar: string; de: string; phone: string; hidden?: boolean };
+export type DonationEntry = { id: string; ar: string; de: string; value: string; hidden?: boolean };
+export type ModeLabels = { admin: string; haj: string; leader: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
 export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
 export type SiteContent = {
@@ -40,6 +46,12 @@ export type SiteContent = {
   faqs: FaqEntry[];
   occasions: ResourceEntry[];
   hadiths: ResourceEntry[];
+  tripTypes: TripTypeEntry[];
+  shrines: ShrineEntry[];
+  visaNotes: NoteEntry[];
+  emergency: EmergencyEntry[];
+  donations: DonationEntry[];
+  modeLabels: ModeLabels;
   trash?: TrashEntry[];
 };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
@@ -62,6 +74,17 @@ export const defaultContent: SiteContent = {
   ],
   occasions: [],
   hadiths: [],
+  tripTypes: [
+    { id: "iraq", ar: "زيارة العراق", de: "Irak-Reise", statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
+    { id: "umrah", ar: "العمرة", de: "Umrah", statusAr: "زيارة عامة", statusDe: "Allgemeine Reiseart" },
+    { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Zyarat Imam Rida (as)", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
+    { id: "hajj", ar: "الحج", de: "Hadsch", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
+  ],
+  shrines: duaCategories.filter((c) => c.id !== "general").map((c) => ({ id: c.id, ar: c.ar, de: c.de })),
+  visaNotes: [],
+  emergency: [],
+  donations: [],
+  modeLabels: { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة" },
   alert: { ar: "", de: "", active: false },
   duas: [
     { id: "ashura", ar: "زيارة عاشوراء", de: "Ziyarat Ashura", textAr: "السَّلامُ عَلَيْكَ يا أبا عَبْدِ اللهِ، السَّلامُ عَلَيْكَ يَا ابْنَ رَسُولِ اللهِ...", textDe: "As-salāmu ʿalayka yā Abā ʿAbdillāh, as-salāmu ʿalayka yabna Rasūlillāh... — Friede sei mit dir, o Abu Abdillah, Friede sei mit dir, o Sohn des Gesandten Gottes.", link: "" },
@@ -106,12 +129,18 @@ export function mergeContent(data: unknown): SiteContent {
     faqs: Array.isArray(d.faqs) ? d.faqs.map((item) => ({ ...item, hidden: item.hidden ?? false })) : defaultContent.faqs,
     occasions: Array.isArray(d.occasions) ? d.occasions.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
     hadiths: Array.isArray(d.hadiths) ? d.hadiths.map((item) => ({ ...item, hidden: item.hidden ?? false })) : [],
+    tripTypes: Array.isArray(d.tripTypes) ? d.tripTypes : defaultContent.tripTypes,
+    shrines: Array.isArray(d.shrines) ? d.shrines : defaultContent.shrines,
+    visaNotes: Array.isArray(d.visaNotes) ? d.visaNotes : [],
+    emergency: Array.isArray(d.emergency) ? d.emergency : [],
+    donations: Array.isArray(d.donations) ? d.donations : [],
+    modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
   };
 }
 
 /** Sections whose removed items go to the recycle bin. */
-export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths"] as const;
+export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations"] as const;
 const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in x && typeof (x as { id: unknown }).id === "string" ? `id:${(x as { id: string }).id}` : `j:${JSON.stringify(x)}`);
 
 /** Moves any items removed between prev and next into next.trash (works for every current and future section). */

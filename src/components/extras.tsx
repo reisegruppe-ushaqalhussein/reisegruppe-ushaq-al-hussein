@@ -87,6 +87,10 @@ const locationFields: FieldDef[] = [
   { key: "address", ar: "العنوان", de: "Adresse" },
   { key: "mapsUrl", ar: "رابط خرائط Google (اختياري)", de: "Google-Maps-Link (optional)", ltr: true },
 ];
+const emergencyFields: FieldDef[] = [
+  { key: "ar", ar: "الاسم / الجهة", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true },
+];
 const mapsHref = (l: LocationEntry) => l.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.address || l.ar || l.de)}`;
 
 export function GuideView({ content, admin }: { content: SiteContent; admin: Admin }) {
@@ -96,17 +100,28 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
   const emergencyContacts = showHidden ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
+  const emergency = content.emergency.filter((e) => showHidden || !e.hidden);
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
-      {emergencyContacts.length > 0 && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
+      {(emergencyContacts.length > 0 || emergency.length > 0 || admin) && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
         <h3 className="mb-3 text-sm font-extrabold text-secondary"><P ar="أرقام الطوارئ للحملة" de="Notfallnummern der Reisegruppe" inverse /></h3>
+        {admin && <div className="rounded-md bg-card p-2 text-foreground"><AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} /></div>}
         <div className="space-y-2">
           {emergencyContacts.map((c) => (
             <a key={c.id} href={telHref(c.phone)} className="flex items-center justify-between gap-3 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
               <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /></span>
               <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
             </a>
+          ))}
+          {emergency.map((c) => (
+            <div key={c.id} className={c.hidden ? "opacity-55" : ""}>
+              {admin && <div className="rounded-md bg-card px-2 pt-2 text-foreground"><ItemActions fields={emergencyFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...(row as EmergencyEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, emergency: content.emergency.filter((x) => x.id !== c.id) })} /></div>}
+              <a href={telHref(c.phone)} className="flex items-center justify-between gap-3 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
+                <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /><span dir="ltr" className="block text-xs opacity-80">{c.phone}</span></span>
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
+              </a>
+            </div>
           ))}
         </div>
       </section>}
@@ -116,6 +131,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
         return (
           <section key={k.id} className="mb-6">
             <h3 className="mb-3 flex items-center gap-2 font-bold text-primary"><k.icon className="h-5 w-5 text-secondary" /><P ar={k.ar} de={k.de} /></h3>
+            {admin && <AddButton label={{ ar: `إضافة — ${k.ar}`, de: `Hinzufügen — ${k.de}` }} fields={locationFields} blank={{ id: "", kind: k.id, ar: "", de: "", address: "", mapsUrl: "", hidden: false }} onAdd={(row) => commit([...all, { ...(row as LocationEntry), kind: k.id, id: `l${Date.now()}` }])} />}
             {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground"><P ar="سيتم الإعلان عنها لاحقاً" de="Wird noch bekannt gegeben" /></p> : (
               <div className="space-y-3">{items.map((l) => (
                  <div key={l.id} className={l.hidden ? "opacity-55" : ""}>
