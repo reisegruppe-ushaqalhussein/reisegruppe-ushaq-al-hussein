@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Compass, FileText, Music, ScrollText, Sparkles } from "lucide-react";
+import { ChevronDown, Star, Compass, FileText, Music, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
@@ -40,6 +40,13 @@ export function useFavorites() {
     window.dispatchEvent(new Event("favorites-change"));
   };
   return { ids, toggle, has: (id: string) => ids.includes(id) };
+}
+
+/** Universal gold star: saves any item (trip, dua, contact, info) to "My favorites". */
+export function FavStar({ id, className = "" }: { id: string; className?: string }) {
+  const fav = useFavorites();
+  const on = fav.has(id);
+  return <button type="button" onClick={(e) => { e.stopPropagation(); fav.toggle(id); }} aria-pressed={on} aria-label="المفضلة | Favorit" className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-secondary/50 bg-card text-secondary shadow-sm ${className}`}><Star className={`h-4 w-4 ${on ? "fill-current" : ""}`} /></button>;
 }
 
 /* ---------- Qibla ---------- */
@@ -129,10 +136,10 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide }: { item: Resourc
   return (
     <article className={`rounded-lg border border-border bg-card p-4 shadow-sm ${item.hidden ? "opacity-55" : ""}`}>
       {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} />}
-      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-start gap-2 text-right">
+      <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-start gap-2 text-right">
         <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </button></div>
       {open && <div className="mt-4 space-y-3 text-sm leading-relaxed">
         {text !== null ? text && <p dir={lang === "ar" ? "rtl" : "ltr"} className="whitespace-pre-line">{text}</p>
           : <>{item.textAr && <p dir="rtl" className="whitespace-pre-line">{item.textAr}</p>}{item.textDe && <p dir="ltr" lang="de" className="whitespace-pre-line italic text-muted-foreground">{item.textDe}</p>}</>}

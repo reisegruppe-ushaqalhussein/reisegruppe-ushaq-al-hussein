@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
+import { FavStar } from "@/components/group2";
 import type { ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
 
 type Admin = { password: string; content: SiteContent } | null;
@@ -120,7 +121,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
                  <div key={l.id} className={l.hidden ? "opacity-55" : ""}>
                    {admin && <ItemActions fields={locationFields} item={l} hidden={l.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
                   <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                    <h4 className="font-bold text-primary"><P ar={l.ar} de={l.de} /></h4>
+                    <div className="flex items-start gap-2"><h4 className="min-w-0 flex-1 font-bold text-primary"><P ar={l.ar} de={l.de} /></h4><FavStar id={`loc:${l.id}`} /></div>
                     {l.address && <p className="mt-1 text-sm text-muted-foreground">{l.address}</p>}
                     <Button asChild variant="outline" size="sm" className="mt-3 w-full"><a href={mapsHref(l)} target="_blank" rel="noreferrer"><Navigation />فتح في خرائط Google <span className="text-xs italic">| In Google Maps öffnen</span></a></Button>
                   </article>
