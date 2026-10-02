@@ -142,6 +142,8 @@ const contentSchema = z.object({
   emergency: z.array(z.object({ id: z.string().max(100), ar: s, de: s, phone: z.string().max(100), hidden: z.boolean().optional() })).max(100).optional(),
   donations: z.array(z.object({ id: z.string().max(100), ar: long, de: long, value: s, hidden: z.boolean().optional() })).max(100).optional(),
   donationIntro: z.object({ ar: long, de: long }).optional(),
+  memories: z.array(z.object({ id: z.string().max(100), imageUrl: z.string().max(5000), ar: s, de: s, place: s, date: z.string().max(20), hidden: z.boolean().optional() })).max(500).optional(),
+  reviewUrl: z.string().max(2000).optional(),
   modeLabels: z.object({ admin: z.string().max(60), haj: z.string().max(60), leader: z.string().max(60) }).optional(),
 });
 

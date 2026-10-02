@@ -27,6 +27,7 @@ export type ShrineEntry = { id: string; ar: string; de: string; imageUrl?: strin
 export type NoteEntry = { id: string; ar: string; de: string; hidden?: boolean };
 export type EmergencyEntry = { id: string; ar: string; de: string; phone: string; hidden?: boolean };
 export type DonationEntry = { id: string; ar: string; de: string; value: string; hidden?: boolean };
+export type MemoryEntry = { id: string; imageUrl: string; ar: string; de: string; place: string; date: string; hidden?: boolean };
 export type ModeLabels = { admin: string; haj: string; leader: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
 export type PaymentEntry = { visible: boolean; accountName: string; bankName: string; iban: string; bic: string };
@@ -53,6 +54,8 @@ export type SiteContent = {
   donations: DonationEntry[];
   modeLabels: ModeLabels;
   donationIntro?: { ar: string; de: string } | undefined;
+  memories: MemoryEntry[];
+  reviewUrl?: string | undefined;
   trash?: TrashEntry[];
 };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
@@ -85,6 +88,7 @@ export const defaultContent: SiteContent = {
   visaNotes: [],
   emergency: [],
   donations: [],
+  memories: [],
   modeLabels: { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة" },
   alert: { ar: "", de: "", active: false },
   duas: [
@@ -136,13 +140,15 @@ export function mergeContent(data: unknown): SiteContent {
     emergency: Array.isArray(d.emergency) ? d.emergency : [],
     donations: Array.isArray(d.donations) ? d.donations : [],
     donationIntro: d.donationIntro,
+    memories: Array.isArray(d.memories) ? d.memories : [],
+    reviewUrl: d.reviewUrl,
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
   };
 }
 
 /** Sections whose removed items go to the recycle bin. */
-export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations"] as const;
+export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories"] as const;
 const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in x && typeof (x as { id: unknown }).id === "string" ? `id:${(x as { id: string }).id}` : `j:${JSON.stringify(x)}`);
 
 /** Moves any items removed between prev and next into next.trash (works for every current and future section). */
