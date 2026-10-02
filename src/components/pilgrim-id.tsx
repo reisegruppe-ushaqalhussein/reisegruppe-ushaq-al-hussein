@@ -20,7 +20,7 @@ export const cities = [
   { id: "medina", ar: "المدينة المنورة", de: "Medina" },
   { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" },
 ];
-const cityOf = (id: string) => cities.find((c) => c.id === id) ?? cities[cities.length - 1];
+const cityOf = (id: string) => cities.find((c) => c.id === id) ?? cities[cities.length - 1]!;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
 export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string };
