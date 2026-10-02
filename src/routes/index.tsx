@@ -51,7 +51,7 @@ import {
   Type as TypeIcon,
   Languages,
   ScrollText,
-  Share2,
+  Share2, Share, Smartphone, SquarePlus,
   Soup,
   Sparkles,
   Star,
