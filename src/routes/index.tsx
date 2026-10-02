@@ -8,6 +8,7 @@ import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
+import { PilgrimIdView, ScrollToTop } from "@/components/pilgrim-id";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
@@ -109,7 +110,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -203,7 +204,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
   faqs: { ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)" },
   visa: { ar: "الفيزا والمطارات", de: "Visum & Flughäfen" },
-  memories: { ar: "ذكريات الزيارة", de: "Reiseerinnerungen" }, favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
+  memories: { ar: "ذكريات الزيارة", de: "Reiseerinnerungen" }, pilgrimId: { ar: "هويتي والطوارئ", de: "Ausweis & Notfall" }, favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
 };
 
 function useLongPress(cb: () => void, ms = 3000) {
@@ -285,6 +286,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
     { view: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
     { view: "visa", ar: "الفيزا والمطارات", de: "Visum & Flughäfen", icon: IdCard },
     { view: "memories", ar: "ذكريات الزيارة", de: "Reiseerinnerungen", icon: Sparkles },
+    { view: "pilgrimId", ar: "هويتي والطوارئ", de: "Ausweis & Notfall", icon: IdCard },
     { view: "favorites", ar: "محفوظاتي", de: "Meine Favoriten", icon: Star },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
@@ -863,6 +865,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "faqs" && <FaqView content={content} admin={admin} />}
         {view === "visa" && <VisaView content={content} admin={admin} />}
         {view === "memories" && <MemoriesView content={content} admin={admin} />}
+        {view === "pilgrimId" && <PilgrimIdView content={content} />}
+        <ScrollToTop />
         {view === "favorites" && <FavoritesView content={content} go={go} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
