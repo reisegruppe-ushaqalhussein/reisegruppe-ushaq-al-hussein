@@ -140,6 +140,9 @@ const faqFields: FieldDef[] = [
   { key: "qAr", ar: "السؤال", de: "Frage (AR)" }, { key: "qDe", ar: "السؤال بالألمانية", de: "Frage (DE)", ltr: true }, { key: "qEn", ar: "السؤال بالإنجليزية", de: "Frage (EN)", ltr: true },
   { key: "aAr", ar: "الجواب", de: "Antwort (AR)", multiline: true }, { key: "aDe", ar: "الجواب بالألمانية", de: "Antwort (DE)", ltr: true, multiline: true }, { key: "aEn", ar: "الجواب بالإنجليزية", de: "Antwort (EN)", ltr: true, multiline: true },
 ];
+const programFields: FieldDef[] = [
+  { key: "programAr", ar: "برنامج الرحلة (التجمع، الانطلاق، الفنادق)", de: "Programm (AR)", multiline: true }, { key: "programDe", ar: "البرنامج بالألمانية", de: "Programm (DE)", ltr: true, multiline: true },
+];
 const visaFields: FieldDef[] = [
   { key: "eu", ar: "رسوم الفيزا — جواز أوروبي", de: "Visumgebühr EU", ltr: true }, { key: "nonEu", ar: "رسوم الفيزا — جواز غير أوروبي", de: "Visumgebühr Nicht-EU", ltr: true },
   { key: "airportsAr", ar: "المطارات", de: "Flughäfen (AR)", multiline: true }, { key: "airportsDe", ar: "المطارات بالألمانية", de: "Flughäfen (DE)", ltr: true, multiline: true },
@@ -235,6 +238,9 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
   const visa = content.visa;
   const saveContent = useSaveContent(admin?.password ?? "");
   const [visaOpen, setVisaOpen] = useState(false);
+  const { lang } = useLang();
+  const faqs = content.faqs ?? defaultContent.faqs;
+  const visibleFaqs = faqs.filter((f) => !f.hidden);
   const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
     { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
     { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
@@ -280,6 +286,20 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
       {admin && <div className="mt-2"><ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} /></div>}
 
       <PrayerTimesCard />
+
+      <section className="mt-7">
+        <ScreenTitle icon={BookOpen} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
+        {admin && <AddButton label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} fields={faqFields} blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} />}
+        {admin ? (
+          <div className="space-y-3">
+            {faqs.map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
+          </div>
+        ) : visibleFaqs.length > 0 && (
+          <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
+            {visibleFaqs.map((f) => <FaqItem key={f.id} value={f.id} questionAr={f.qAr} questionDe={lang === "en" && f.qEn ? f.qEn : f.qDe} answerAr={f.aAr} answerDe={lang === "en" && f.aEn ? f.aEn : f.aDe} />)}
+          </Accordion>
+        )}
+      </section>
       {payment?.visible && <PaymentCard payment={payment} />}
       <Dialog open={visaOpen} onOpenChange={setVisaOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
@@ -305,9 +325,6 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
   const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => admin || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
-  const { lang } = useLang();
-  const faqs = content.faqs ?? defaultContent.faqs;
-  const visibleFaqs = faqs.filter((f) => !f.hidden);
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
   const [iraqOpen, setIraqOpen] = useState(false);
   return (
@@ -332,19 +349,6 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
         })}
       </div>
 
-      <section className="mt-7">
-        <ScreenTitle icon={BookOpen} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
-        {admin && <AddButton label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} fields={faqFields} blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} />}
-        {admin ? (
-          <div className="space-y-3">
-            {faqs.map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div></div>)}
-          </div>
-        ) : visibleFaqs.length > 0 && (
-          <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
-            {visibleFaqs.map((f) => <FaqItem key={f.id} value={f.id} questionAr={f.qAr} questionDe={lang === "en" && f.qEn ? f.qEn : f.qDe} answerAr={f.aAr} answerDe={lang === "en" && f.aEn ? f.aEn : f.aDe} />)}
-          </Accordion>
-        )}
-      </section>
 
       <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
@@ -391,6 +395,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
                 </DialogHeader>
                 <div className="mt-5 rounded-lg border border-border bg-muted p-4">
                   <h3 className="text-base text-primary"><Pair ar="برنامج الرحلة لهذا الموعد" de="Reiseprogramm für diesen Termin" /></h3>
+                  {admin && <div className="mt-2"><ItemActions fields={programFields} item={{ programAr: content.trips.find((t) => t.id === selected.id)?.programAr ?? "", programDe: content.trips.find((t) => t.id === selected.id)?.programDe ?? "" }} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === selected.id ? { ...t, programAr: String(row.programAr ?? ""), programDe: String(row.programDe ?? "") } : t)))} onDelete={() => saveTrips(content.trips.map((t) => (t.id === selected.id ? { ...t, programAr: "", programDe: "" } : t)))} /></div>}
                   <div className="mt-3 text-sm"><div className="whitespace-pre-line"><Pair ar={content.trips.find((t) => t.id === selected.id)?.programAr || program.ar} de={content.trips.find((t) => t.id === selected.id)?.programDe || program.de} /></div></div>
                 </div>
                 <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>
