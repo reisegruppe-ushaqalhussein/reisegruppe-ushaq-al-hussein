@@ -52,7 +52,7 @@ export type SiteContent = {
   emergency: EmergencyEntry[];
   donations: DonationEntry[];
   modeLabels: ModeLabels;
-  donationIntro?: { ar: string; de: string };
+  donationIntro?: { ar: string; de: string } | undefined;
   trash?: TrashEntry[];
 };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
