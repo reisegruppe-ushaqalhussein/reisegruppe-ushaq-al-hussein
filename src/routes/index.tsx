@@ -7,6 +7,7 @@ import { defaultContacts, defaultContent, duaCategoryOf, type ContactEntry, type
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
+import { MemoriesView } from "@/components/memories";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
@@ -108,7 +109,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -283,6 +284,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
     { view: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
     { view: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
     { view: "visa", ar: "الفيزا والمطارات", de: "Visum & Flughäfen", icon: IdCard },
+    { view: "memories", ar: "ذكريات الزيارة", de: "Reiseerinnerungen", icon: Sparkles },
     { view: "favorites", ar: "محفوظاتي", de: "Meine Favoriten", icon: Star },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
@@ -812,7 +814,7 @@ function DonationsView({ content, admin }: { content: SiteContent; admin: AdminP
   const showHidden = useShowHidden();
   const list = content.donations;
   const intro = content.donationIntro ?? { ar: "ساهم في تيسير أمر زوار غير قادرين على تغطية تكاليف الزيارة، وفي دعم استمرار الحملة.", de: "Helfen Sie Pilgern, die ihre Reisekosten nicht selbst tragen können, und unterstützen Sie den Fortbestand der Reisegruppe." };
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /><section className="relative rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" />{admin && <ItemActions fields={noteFields} item={intro} onSave={(row) => saveContent({ ...content, donationIntro: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } })} onDelete={() => saveContent({ ...content, donationIntro: { ar: "", de: "" } })} />}{(intro.ar || intro.de) && <p className="whitespace-pre-line text-sm"><Pair ar={intro.ar} de={intro.de} inverse /></p>}<Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href="https://wa.me/49015773055365" target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="للمساهمة تواصل مع الحاج ياسر الدر" de="Für Spenden Hajj Yasser Aldor kontaktieren" align="center" /></a></Button></section>
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /><section className="relative rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" />{admin && <div className="absolute left-2 top-2 z-10"><ItemActions fields={noteFields} item={intro} onSave={(row) => saveContent({ ...content, donationIntro: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } })} onDelete={() => saveContent({ ...content, donationIntro: { ar: "", de: "" } })} /></div>}{(intro.ar || intro.de) && <p className="whitespace-pre-line text-sm"><Pair ar={intro.ar} de={intro.de} inverse /></p>}<Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href="https://wa.me/49015773055365" target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="للمساهمة تواصل مع الحاج ياسر الدر" de="Für Spenden Hajj Yasser Aldor kontaktieren" align="center" /></a></Button></section>
     <div className="mt-5">{admin && <AddButton label={{ ar: "إضافة رقم أو حساب", de: "Nummer/Konto hinzufügen" }} fields={donationFields} blank={{ ar: "", de: "", value: "" }} onAdd={(row) => saveContent({ ...content, donations: [...list, { ...(row as DonationEntry), id: `d${Date.now()}` }] })} />}
     <div className="space-y-3">{list.filter((d) => showHidden || !d.hidden).map((d) => <div key={d.id} className={d.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={donationFields} item={d} hidden={d.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, donations: list.map((x) => (x.id === d.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, donations: list.map((x) => (x.id === d.id ? { ...(row as DonationEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, donations: list.filter((x) => x.id !== d.id) })} />}<section className="rounded-lg border border-border bg-card p-4 text-sm shadow-sm"><div className="font-bold text-primary"><Pair ar={d.ar} de={d.de} /></div>{d.value && <div className="mt-2 flex items-center gap-2"><p dir="ltr" className="min-w-0 flex-1 break-all text-left font-bold">{d.value}</p><Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(d.value).then(() => navigator.vibrate?.(30)).catch(() => {}); }}><Copy />نسخ</Button></div>}</section></div>)}</div></div>
   </div>;
@@ -860,6 +862,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
         {view === "faqs" && <FaqView content={content} admin={admin} />}
         {view === "visa" && <VisaView content={content} admin={admin} />}
+        {view === "memories" && <MemoriesView content={content} admin={admin} />}
         {view === "favorites" && <FavoritesView content={content} go={go} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
