@@ -55,19 +55,36 @@ export function AdminBar({ content }: { content: SiteContent }) {
       setAlerts(r.failures.filter((f) => f.at > seen).length);
     }).catch(() => {});
   }, [s?.role, s?.password, secOpen, overview]);
+  const [menu, setMenu] = useState(false);
+  const [labels, setLabels] = useState({ admin: "الإدارة", haj: "معاينة كحاج" });
+  useEffect(() => { try { setLabels((l) => ({ ...l, ...JSON.parse(localStorage.getItem("admin-mode-labels") ?? "{}") })); } catch { /* keep defaults */ } }, []);
   if (!s) return null;
   const isAdmin = s.role === "admin";
   const trashCount = content.trash?.length ?? 0;
-  const btn = "h-8 gap-1 px-2 text-[11px] text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground";
+  const rename = () => {
+    const admin = window.prompt("اسم وضع الإدارة | Name Admin-Modus", labels.admin);
+    if (admin === null) return;
+    const haj = window.prompt("اسم وضع المعاينة | Name Vorschau-Modus", labels.haj);
+    if (haj === null) return;
+    const next = { admin: admin.trim() || "الإدارة", haj: haj.trim() || "معاينة كحاج" };
+    setLabels(next); localStorage.setItem("admin-mode-labels", JSON.stringify(next));
+  };
+  const btn = "h-9 w-full justify-start gap-2 px-3 text-xs text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground";
+  const badge = isAdmin ? (s.mode === "admin" ? `${labels.admin} ✏️` : `${labels.haj} 👁️`) : "مسؤول الحملة 📿";
   return (
     <>
-      <div className="sticky top-0 z-50 flex flex-wrap items-center justify-center gap-1 border-b border-secondary bg-primary px-2 py-1.5 text-primary-foreground shadow-md" dir="rtl">
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-extrabold text-secondary-foreground">{isAdmin ? (s.mode === "admin" ? "الإدارة ✏️" : "معاينة كحاج 👁️") : "مسؤول الحملة 📿"}</span>
-        {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setMode(s.mode === "admin" ? "haj" : "admin")}>{s.mode === "admin" ? <><Eye className="h-3.5 w-3.5" />معاينة كحاج</> : <><Pencil className="h-3.5 w-3.5" />وضع الإدارة</>}</Button>}
-        {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setTrashOpen(true)}><Trash2 className="h-3.5 w-3.5" />المحذوفات{trashCount > 0 && <span className="rounded-full bg-secondary px-1.5 text-[10px] text-secondary-foreground">{trashCount}</span>}</Button>}
-        {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setSecOpen(true)}><ShieldAlert className="h-3.5 w-3.5" />الأمان{alerts > 0 && <span className="rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">{alerts}</span>}</Button>}
-        {isAdmin && <Button asChild size="sm" variant="ghost" className={btn}><Link to="/admin"><LayoutDashboard className="h-3.5 w-3.5" />اللوحة</Link></Button>}
-        <Button size="sm" variant="ghost" className={btn} onClick={() => { if (window.confirm("تسجيل الخروج من هذا الجهاز؟\nAuf diesem Gerät abmelden?")) logout(); }}><LogOut className="h-3.5 w-3.5" />خروج</Button>
+      <div className="fixed left-2 top-2 z-50 text-primary-foreground" dir="rtl">
+        <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="القائمة | Menü" className="flex items-center gap-1.5 rounded-full border border-secondary bg-primary/95 px-2.5 py-1 text-[10px] font-extrabold shadow-md backdrop-blur">
+          <span>{badge}</span>{alerts > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}<span className="text-sm leading-none tracking-widest">⋯</span>
+        </button>
+        {menu && <div className="mt-1 w-52 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setMode(s.mode === "admin" ? "haj" : "admin")}>{s.mode === "admin" ? <><Eye className="h-3.5 w-3.5" />{labels.haj}</> : <><Pencil className="h-3.5 w-3.5" />{labels.admin}</>}</Button>}
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={rename}><Pencil className="h-3.5 w-3.5" />تعديل الأسماء | Namen</Button>}
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setTrashOpen(true)}><Trash2 className="h-3.5 w-3.5" />المحذوفات{trashCount > 0 && <span className="rounded-full bg-secondary px-1.5 text-[10px] text-secondary-foreground">{trashCount}</span>}</Button>}
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setSecOpen(true)}><ShieldAlert className="h-3.5 w-3.5" />الأمان{alerts > 0 && <span className="rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">{alerts}</span>}</Button>}
+          {isAdmin && <Button asChild size="sm" variant="ghost" className={btn}><Link to="/admin"><LayoutDashboard className="h-3.5 w-3.5" />اللوحة</Link></Button>}
+          <Button size="sm" variant="ghost" className={btn} onClick={() => { if (window.confirm("تسجيل الخروج من هذا الجهاز؟\nAuf diesem Gerät abmelden?")) logout(); }}><LogOut className="h-3.5 w-3.5" />خروج</Button>
+        </div>}
       </div>
       {isAdmin && trashOpen && <TrashDialog open={trashOpen} onOpenChange={setTrashOpen} content={content} password={s.password} />}
       {isAdmin && secOpen && <SecurityDialog open={secOpen} onOpenChange={setSecOpen} password={s.password} />}
