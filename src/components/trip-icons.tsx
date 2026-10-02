@@ -3,7 +3,7 @@ const base = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strok
 
 /** Shrine dome with two minarets — Iraq (Karbala / Najaf). */
 export function IraqIcon(p: P) {
-  return <svg {...base} {...p}><path d="M12 3v1.5" /><path d="M7.5 12a4.5 4.5 0 0 1 9 0" /><path d="M12 4.5c-2.5 1.5-4.5 4-4.5 7.5" opacity="0" /><path d="M6.5 12h11v8h-11z" /><path d="M10.5 20v-3a1.5 1.5 0 0 1 3 0v3" /><path d="M3.5 20V9l1-1.5 1 1.5v11" /><path d="M18.5 20V9l1-1.5 1 1.5v11" /><path d="M2.5 20h19" /></svg>;
+  return <svg {...base} {...p}><path d="M12 3v1.5" /><path d="M7.5 12a4.5 4.5 0 0 1 9 0" /><path d="M6.5 12h11v8h-11z" /><path d="M10.5 20v-3a1.5 1.5 0 0 1 3 0v3" /><path d="M3.5 20V9l1-1.5 1 1.5v11" /><path d="M18.5 20V9l1-1.5 1 1.5v11" /><path d="M2.5 20h19" /></svg>;
 }
 
 /** Kaaba — Umrah. */
