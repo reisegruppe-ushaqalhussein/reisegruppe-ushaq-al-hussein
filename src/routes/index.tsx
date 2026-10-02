@@ -634,6 +634,25 @@ function ThemeButton({ active, theme, ar, de, onClick }: { active: boolean; them
   return <Button variant={active ? "default" : "outline"} onClick={onClick} className="h-auto flex-col gap-2 px-1 py-2"><span className="reader-theme-swatch h-6 w-6 rounded-full border border-border" data-swatch={theme} /><Pair ar={ar} de={de} align="center" inverse={active} /></Button>;
 }
 
+function VisaView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  const saveContent = useSaveContent(admin?.password ?? "");
+  const visa = content.visa;
+  return (
+    <div className="screen-enter px-4 py-7">
+      <ScreenTitle icon={IdCard} ar="الفيزا والمطارات" de="Visum & Flughäfen" />
+      {admin && <div className="mb-3"><ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} /></div>}
+      <section className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm">
+        <Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" />
+        <Pair ar={`• جواز أوروبي — ${visa.eu ? `رسوم الفيزا: ${visa.eu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• EU-Reisepass — ${visa.eu ? `Visumgebühr: ${visa.eu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
+        <Pair ar={`• جواز غير أوروبي — ${visa.nonEu ? `رسوم الفيزا: ${visa.nonEu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• Nicht-EU-Reisepass — ${visa.nonEu ? `Visumgebühr: ${visa.nonEu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
+        <div className="whitespace-pre-line border-t border-border pt-3">
+          <Pair ar={visa.airportsAr || "المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)."} de={visa.airportsDe || "Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)."} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const { lang } = useLang();
@@ -700,6 +719,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "occasions" && <ResourcesView content={content} admin={admin} kind="occasions" />}
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
         {view === "faqs" && <FaqView content={content} admin={admin} />}
+        {view === "visa" && <VisaView content={content} admin={admin} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
           <PushButton />
