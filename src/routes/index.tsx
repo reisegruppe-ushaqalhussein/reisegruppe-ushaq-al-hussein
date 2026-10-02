@@ -391,7 +391,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
                 </DialogHeader>
                 <div className="mt-5 rounded-lg border border-border bg-muted p-4">
                   <h3 className="text-base text-primary"><Pair ar="برنامج الرحلة لهذا الموعد" de="Reiseprogramm für diesen Termin" /></h3>
-                  <div className="mt-3 text-sm"><Pair ar={program.ar} de={program.de} /></div>
+                  <div className="mt-3 text-sm"><div className="whitespace-pre-line"><Pair ar={content.trips.find((t) => t.id === selected.id)?.programAr || program.ar} de={content.trips.find((t) => t.id === selected.id)?.programDe || program.de} /></div></div>
                 </div>
                 <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>
               </div>
@@ -696,7 +696,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
-        {view === "home" && <HomeView go={go} visa={content.visa} payment={content.payment ?? defaultContent.payment} />}
+        {view === "home" && <HomeView go={go} content={content} admin={admin} payment={content.payment ?? defaultContent.payment} />}
         {view === "trips" && <TripsView content={content} admin={admin} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView content={content} admin={admin} />}
