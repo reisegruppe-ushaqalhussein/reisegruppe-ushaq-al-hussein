@@ -357,3 +357,5 @@
 @keyframes alert-glow {
   50% { box-shadow: 0 0 0 1px var(--color-secondary), 0 0 6px color-mix(in oklab, var(--color-secondary) 25%, transparent); }
 }
+
+html, body { overflow-x: hidden; max-width: 100%; }

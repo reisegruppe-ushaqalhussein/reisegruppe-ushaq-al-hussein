@@ -91,7 +91,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   const all = content.locations;
   const available = admin ? all : all.filter((item) => !item.hidden);
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
-  const emergencyContacts = admin ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden) : [];
+  const emergencyContacts = admin ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
