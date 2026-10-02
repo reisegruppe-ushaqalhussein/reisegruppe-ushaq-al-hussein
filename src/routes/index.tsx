@@ -203,7 +203,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
   faqs: { ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)" },
   visa: { ar: "الفيزا والمطارات", de: "Visum & Flughäfen" },
-  favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
+  memories: { ar: "ذكريات الزيارة", de: "Reiseerinnerungen" }, favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
 };
 
 function useLongPress(cb: () => void, ms = 3000) {
