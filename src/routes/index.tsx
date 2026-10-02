@@ -803,16 +803,14 @@ function Index() {
 
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
-  const [welcomed, setWelcomed] = useState<boolean | null>(null);
+  const [welcomed, setWelcomed] = useState(false);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  useEffect(() => { setWelcomed(window.localStorage.getItem("welcome-seen") === "true"); }, []);
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   return (
     <div className="min-h-screen bg-muted">
-      {welcomed === null && <div className="fixed inset-0 z-[100] bg-background" aria-hidden="true" />}
-      {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} canGoBack={typeof window !== "undefined" && window.localStorage.getItem("welcome-seen") === "true"} />}
+      {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
         <AdminBar content={content} />
         <AppHeader view={view} onHome={() => go("home")} />
