@@ -7,21 +7,51 @@ function hash(input: string, salt: string) {
   return createHash("sha256").update(salt + input, "utf8").digest("hex");
 }
 
-async function passwordMatches(input: string) {
+export type AccessRole = "admin" | "haj";
+
+async function storedMatches(key: string, input: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("admin_settings").select("value").eq("key", "password").maybeSingle();
-  if (data?.value) {
-    const [salt, stored] = data.value.split(":");
-    if (!salt || !stored) return false;
-    const a = Buffer.from(hash(input, salt), "hex");
-    const b = Buffer.from(stored, "hex");
-    return a.length === b.length && timingSafeEqual(a, b);
+  const { data } = await supabaseAdmin.from("admin_settings").select("value").eq("key", key).maybeSingle();
+  if (!data?.value) return null; // not set
+  const [salt, stored] = data.value.split(":");
+  if (!salt || !stored) return false;
+  const a = Buffer.from(hash(input, salt), "hex");
+  const b = Buffer.from(stored, "hex");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Identifies which role (general admin or campaign leader) a secret code belongs to. */
+async function verifyRole(input: string): Promise<AccessRole | null> {
+  if (!input) return null;
+  const admin = await storedMatches("password", input);
+  if (admin === true) return "admin";
+  if (admin === null) {
+    const expected = process.env["ADMIN_PASSWORD"];
+    if (expected) {
+      const a = createHash("sha256").update(input, "utf8").digest();
+      const b = createHash("sha256").update(expected, "utf8").digest();
+      if (timingSafeEqual(a, b)) return "admin";
+    }
   }
-  const expected = process.env["ADMIN_PASSWORD"];
-  if (!expected) return false;
-  const a = createHash("sha256").update(input, "utf8").digest();
-  const b = createHash("sha256").update(expected, "utf8").digest();
-  return timingSafeEqual(a, b);
+  if ((await storedMatches("haj_password", input)) === true) return "haj";
+  return null;
+}
+
+async function passwordMatches(input: string) {
+  return (await verifyRole(input)) !== null;
+}
+
+type DeviceRow = { id: string; role: AccessRole; ua: string; firstSeen: number; lastSeen: number };
+type FailRow = { ua: string; at: number };
+
+async function readJson<T>(key: string, fallback: T): Promise<T> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("admin_settings").select("value").eq("key", key).maybeSingle();
+  try { return data?.value ? (JSON.parse(data.value) as T) : fallback; } catch { return fallback; }
+}
+async function writeJson(key: string, value: unknown) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin.from("admin_settings").upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
 }
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async (): Promise<SiteContent> => {
@@ -31,19 +61,59 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
 });
 
 export const checkAdminPassword = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ password: z.string().max(200) }).parse(d))
-  .handler(async ({ data }) => ({ ok: await passwordMatches(data.password) }));
+  .validator((d) => z.object({ password: z.string().max(200), deviceId: z.string().max(100).optional(), ua: z.string().max(300).optional(), login: z.boolean().optional() }).parse(d))
+  .handler(async ({ data }) => {
+    const role = await verifyRole(data.password);
+    const now = Date.now();
+    try {
+      if (role && data.deviceId) {
+        const devices = (await readJson<DeviceRow[]>("devices", [])).filter((d) => d.id !== data.deviceId);
+        const prev = (await readJson<DeviceRow[]>("devices", [])).find((d) => d.id === data.deviceId);
+        devices.push({ id: data.deviceId, role, ua: data.ua ?? "", firstSeen: prev?.firstSeen ?? now, lastSeen: now });
+        await writeJson("devices", devices.slice(-50));
+      } else if (!role && data.login && data.password) {
+        const fails = await readJson<FailRow[]>("failures", []);
+        fails.push({ ua: data.ua ?? "", at: now });
+        await writeJson("failures", fails.slice(-100));
+      }
+    } catch (e) { console.error("access log", e); }
+    return { ok: role !== null, role };
+  });
 
 export const changeAdminPassword = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ password: z.string().max(200), newPassword: z.string().min(6).max(200) }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200), newPassword: z.string().min(6).max(200), target: z.enum(["admin", "haj"]).optional() }).parse(d))
   .handler(async ({ data }) => {
-    if (!(await passwordMatches(data.password))) return { ok: false as const };
+    if ((await verifyRole(data.password)) !== "admin") return { ok: false as const };
+    const target = data.target ?? "admin";
+    const other = target === "admin" ? "haj_password" : "password";
+    if ((await storedMatches(other, data.newPassword)) === true) return { ok: false as const };
     const salt = randomBytes(16).toString("hex");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("admin_settings")
-      .upsert({ key: "password", value: `${salt}:${hash(data.newPassword, salt)}`, updated_at: new Date().toISOString() });
+      .upsert({ key: target === "admin" ? "password" : "haj_password", value: `${salt}:${hash(data.newPassword, salt)}`, updated_at: new Date().toISOString() });
     if (error) throw new Error("Save failed");
+    // Devices of the changed role must sign in again with the new code.
+    const devices = await readJson<DeviceRow[]>("devices", []);
+    await writeJson("devices", devices.filter((d) => d.role !== target));
+    return { ok: true as const };
+  });
+
+export const getSecurityOverview = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200) }).parse(d))
+  .handler(async ({ data }) => {
+    if ((await verifyRole(data.password)) !== "admin") return { ok: false as const, devices: [] as DeviceRow[], failures: [] as FailRow[], hajSet: false };
+    const devices = await readJson<DeviceRow[]>("devices", []);
+    const failures = await readJson<FailRow[]>("failures", []);
+    const hajSet = (await storedMatches("haj_password", "\u0000")) !== null;
+    return { ok: true as const, devices: devices.sort((a, b) => b.lastSeen - a.lastSeen), failures: failures.slice(-30).reverse(), hajSet };
+  });
+
+export const clearSecurityLog = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), what: z.enum(["failures", "devices"]) }).parse(d))
+  .handler(async ({ data }) => {
+    if ((await verifyRole(data.password)) !== "admin") return { ok: false as const };
+    await writeJson(data.what, []);
     return { ok: true as const };
   });
 
