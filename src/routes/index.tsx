@@ -51,7 +51,7 @@ import {
   Type as TypeIcon,
   Languages,
   ScrollText,
-  Share2,
+  Share2, Share, Smartphone, SquarePlus,
   Soup,
   Sparkles,
   Star,
@@ -103,7 +103,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa";
+type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -186,6 +186,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
   faqs: { ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)" },
   visa: { ar: "الفيزا والمطارات", de: "Visum & Flughäfen" },
+  favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
 };
 
 function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
@@ -259,6 +260,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
     { view: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
     { view: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
     { view: "visa", ar: "الفيزا والمطارات", de: "Visum & Flughäfen", icon: IdCard },
+    { view: "favorites", ar: "محفوظاتي", de: "Meine Favoriten", icon: Star },
     { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
   ];
   return (
@@ -284,7 +286,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
         ))}
       </div>
 
-      <FavoriteTrips content={content} go={go} />
+      <InstallButton />
       <PrayerTimesCard />
 
       {payment?.visible && <PaymentCard payment={payment} />}
@@ -298,11 +300,18 @@ function TripFavButton({ id }: { id: string }) {
   return <button type="button" onClick={() => fav.toggle(`trip:${id}`)} aria-pressed={on} aria-label="المفضلة | Favorit" className="absolute bottom-3 left-3 grid h-9 w-9 place-items-center rounded-full border border-secondary/50 bg-card text-secondary shadow-sm"><Star className={`h-4 w-4 ${on ? "fill-current" : ""}`} /></button>;
 }
 
-function FavoriteTrips({ content, go }: { content: SiteContent; go: (view: View) => void }) {
+function FavoritesView({ content, go }: { content: SiteContent; go: (view: View) => void }) {
   const { ids } = useFavorites();
+  const [reader, setReader] = useState<ReaderItem | null>(null);
   const trips = content.trips.filter((t) => ids.includes(`trip:${t.id}`) && t.visible && !t.hidden);
-  if (!trips.length) return null;
-  return <section className="mt-6"><ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" /><div className="space-y-3">{trips.map((t) => <button key={t.id} type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button>)}</div></section>;
+  const duas = content.duas.filter((d) => ids.includes(d.id) && !d.hidden).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) }));
+  if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
+  return <div className="screen-enter px-4 py-7">
+    <ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" />
+    {!trips.length && !duas.length && <p className="rounded-lg border border-dashed border-secondary/50 bg-card p-6 text-center text-sm"><Pair ar="لم تضف شيئاً بعد — اضغط على النجمة ⭐ بجانب أي رحلة أو دعاء لحفظه هنا." de="Noch nichts gespeichert — tippen Sie auf den Stern ⭐ bei einer Reise oder einem Gebet." align="center" /></p>}
+    {trips.length > 0 && <section className="mb-7"><h3 className="mb-3 text-sm font-bold text-primary"><Pair ar="رحلاتي" de="Meine Reisen" /></h3><div className="space-y-3">{trips.map((t) => { const days = (() => { const m = t.date.match(/(\d{2})\.(\d{2})\.(\d{4})/); if (!m) return null; const d = Math.ceil((new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() - Date.now()) / 86400000); return d > 0 ? d : null; })(); return <div key={t.id} className="relative"><button type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 pb-12 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{days && <span className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary"><Pair ar={`متبقٍ ${days} يوماً على الانطلاق ✈️`} de={`Noch ${days} Tage bis zur Abreise ✈️`} /></span>}{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button><TripFavButton id={t.id} /></div>; })}</div></section>}
+    {duas.length > 0 && <section><h3 className="mb-3 text-sm font-bold text-primary"><Pair ar="أدعيتي وزياراتي" de="Meine Gebete & Ziyarat" /></h3><div className="space-y-3">{duas.map((d) => <ReaderListButton key={d.id} item={d} onRead={setReader} />)}</div></section>}
+  </div>;
 }
 
 function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
@@ -458,6 +467,31 @@ function PushButton() {
   }}><Bell />{state === "on" ? <>الإشعارات العاجلة مفعّلة <span className="text-xs italic">| Eilmeldungen aktiv</span></> : <>تفعيل الإشعارات العاجلة <span className="text-xs italic">| Eilmeldungen aktivieren</span></>}</Button>;
 }
 
+function InstallButton() {
+  const [evt, setEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  const [installed, setInstalled] = useState(false);
+  const [iosHelp, setIosHelp] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone) setInstalled(true);
+    const h = (e: Event) => { e.preventDefault(); setEvt(e as Event & { prompt: () => Promise<void> }); };
+    const done = () => setInstalled(true);
+    window.addEventListener("beforeinstallprompt", h); window.addEventListener("appinstalled", done);
+    return () => { window.removeEventListener("beforeinstallprompt", h); window.removeEventListener("appinstalled", done); };
+  }, []);
+  if (installed) return null;
+  const click = async () => {
+    if (evt) { await evt.prompt(); setEvt(null); return; }
+    setIosHelp(true);
+  };
+  return <>
+    <Button onClick={click} className="mt-5 h-14 w-full gap-2 bg-secondary text-secondary-foreground shadow-md hover:bg-secondary/90"><Smartphone /><Pair ar="تثبيت التطبيق على هاتفك 📲" de="App auf dem Handy installieren" align="center" /></Button>
+    <Dialog open={iosHelp} onOpenChange={setIosHelp}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إضافة التطبيق للشاشة الرئيسية" de="Zum Home-Bildschirm hinzufügen" /></DialogTitle><DialogDescription><Pair ar="خطوتان فقط:" de="Nur zwei Schritte:" /></DialogDescription></DialogHeader><ol className="space-y-4 text-sm">
+      <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><Share /></span><Pair ar="1. اضغط زر المشاركة أسفل الشاشة في Safari (أو قائمة ⋮ في المتصفحات الأخرى)." de="1. Tippen Sie unten in Safari auf „Teilen“ (bzw. Menü ⋮ in anderen Browsern)." /></li>
+      <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><SquarePlus /></span><Pair ar="2. اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة»." de="2. Wählen Sie „Zum Home-Bildschirm“ und dann „Hinzufügen“." /></li>
+    </ol></DialogContent></Dialog>
+  </>;
+}
+
 function ShareButton() {
   const share = () => {
     const url = window.location.origin;
@@ -569,13 +603,10 @@ function DuasView({ content }: { content: SiteContent }) {
   const [shrineId, setShrineId] = useState<string | null>(null);
   const shrine = shrines.find((s) => s.id === shrineId) ?? null;
   const [reader, setReader] = useState<ReaderItem | null>(null);
-  const { ids: favIds } = useFavorites();
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
-  const favEntries = managedEntries.filter((e) => favIds.includes(e.id));
   return (
     <div className="screen-enter px-4 py-7">
-      {favEntries.length > 0 && <section className="mb-7"><ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" /><div className="space-y-3">{favEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} />)}</div></section>}
       <ScreenTitle icon={BookOpen} ar="العتبات المقدسة" de="Heilige Stätten" />
       <div className="grid grid-cols-2 gap-3">
         {shrines.map((item) => (
@@ -637,7 +668,6 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   const [focus, setFocus] = useState(false);
   useEffect(() => { document.body.classList.toggle("focus-mode", focus); return () => document.body.classList.remove("focus-mode"); }, [focus]);
   return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-44" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
-    {typeof document !== "undefined" && createPortal(<div className="pointer-events-none fixed inset-x-0 top-0 z-50 mx-auto h-1 w-full max-w-[420px]"><div className="h-full bg-secondary transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>, document.body)}
     <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant={focus ? "secondary" : "ghost"} size="icon" onClick={() => setFocus((v) => !v)} aria-pressed={focus} aria-label="وضع القراءة في الحرم | Lesemodus im Schrein">{focus ? <EyeOff /> : <Eye />}</Button><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
     <div className="sticky top-[61px] z-20 flex flex-wrap items-center justify-center gap-2 border-b border-current/10 bg-inherit px-4 py-2">
       <LayerToggle active={showTr} onClick={() => setShowTr((v) => !v)} label="الترجمة | Übersetzung"><Globe /></LayerToggle>
@@ -647,6 +677,7 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
       <Button variant="outline" size="icon" className="bg-transparent" onClick={() => bump(-10)} disabled={arabicScale <= 80 && germanScale <= 80} aria-label="تصغير الخط | Schrift kleiner"><Minus /></Button>
       <Button variant="outline" size="icon" className="bg-transparent" onClick={() => bump(10)} disabled={arabicScale >= 150 && germanScale >= 150} aria-label="تكبير الخط | Schrift größer"><Plus /></Button>
       <Button variant={night ? "secondary" : "outline"} size="icon" className={night ? "" : "bg-transparent"} onClick={() => setTheme(night ? "warm" : "navy")} aria-pressed={night} aria-label="الوضع الليلي | Nachtmodus">{night ? <Sun /> : <Moon />}</Button>
+      <div className="pointer-events-none absolute inset-x-0 -bottom-[5px] h-[5px] bg-current/10"><div className="h-full rounded-full bg-secondary shadow-[0_0_10px_var(--color-secondary)] transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>
     </div>
     <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}>{showTr && trFirst && <>{trBlock}{(showAr || showLatin) && <div className="my-7 border-t border-current/15" />}</>}{showAr && <p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p>}{showAr && (showLatin || showTr) && <div className="my-7 border-t border-current/15" />}{showLatin && <p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p>}{showTr && !trFirst && trBlock}{!showAr && !showLatin && !showTr && <p className="py-10 text-center text-sm opacity-60"><Pair ar="فعّل أحد أزرار العرض أعلاه لإظهار النص." de="Aktivieren Sie oben eine Ebene, um den Text anzuzeigen." align="center" /></p>}{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إعدادات القراءة" de="Leseeinstellungen" /></DialogTitle><DialogDescription><Pair ar="خصّص النص بما يناسب قراءتك." de="Passen Sie die Darstellung an Ihre Leseweise an." /></DialogDescription></DialogHeader><div className="space-y-5 pt-2"><ScaleControl ar="حجم النص العربي" de="Arabische Schriftgröße" value={arabicScale} onChange={setArabicScale} /><ScaleControl ar="حجم النص الألماني" de="Deutsche Schriftgröße" value={germanScale} onChange={setGermanScale} /><div><Pair ar="محاذاة النص" de="Textausrichtung" /><div className="mt-2 grid grid-cols-2 gap-2"><Button variant={alignment === "right" ? "default" : "outline"} onClick={() => setAlignment("right")}><AlignRight /><Pair ar="يمين" de="Rechts" align="center" inverse={alignment === "right"} /></Button><Button variant={alignment === "center" ? "default" : "outline"} onClick={() => setAlignment("center")}><AlignCenter /><Pair ar="وسط" de="Zentriert" align="center" inverse={alignment === "center"} /></Button></div></div><div><Pair ar="خلفية القراءة" de="Lesefläche" /><div className="mt-2 grid grid-cols-3 gap-2"><ThemeButton active={theme === "navy"} theme="navy" ar="كحلي" de="Dunkelblau" onClick={() => setTheme("navy")} /><ThemeButton active={theme === "white"} theme="white" ar="أبيض" de="Weiß" onClick={() => setTheme("white")} /><ThemeButton active={theme === "warm"} theme="warm" ar="دافئ" de="Warm" onClick={() => setTheme("warm")} /></div></div></div></DialogContent></Dialog>
@@ -727,6 +758,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   useEffect(() => { setWelcomed(window.localStorage.getItem("welcome-seen") === "true"); }, []);
+  useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   return (
     <div className="min-h-screen bg-muted">
       {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} canGoBack={typeof window !== "undefined" && window.localStorage.getItem("welcome-seen") === "true"} />}
@@ -748,6 +780,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
         {view === "faqs" && <FaqView content={content} admin={admin} />}
         {view === "visa" && <VisaView content={content} admin={admin} />}
+        {view === "favorites" && <FavoritesView content={content} go={go} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
           <button type="button" onClick={() => { setWelcomed(false); window.scrollTo({ top: 0 }); }} className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-secondary px-4 py-2 text-xs font-bold text-primary hover:bg-accent"><Pair ar="شاشة البداية وتغيير اللغة" de="Startbildschirm & Sprache" align="center" /></button>
           <PushButton />
