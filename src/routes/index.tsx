@@ -584,6 +584,7 @@ function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBac
 }
 
 function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void }) {
+  const { lang: readerLang } = useLang();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showAr, setShowAr] = useState(true);
   const [showLatin, setShowLatin] = useState(true);
