@@ -9,9 +9,11 @@ import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/du
 import { ReciterPlayer } from "@/components/audio-player";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
+import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
+import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
 import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
-import { QiblaView, ResourcesView, useFavorites } from "@/components/group2";
+import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
@@ -92,6 +94,8 @@ export const Route = createFileRoute("/")({
   component: Index,
   errorComponent: ({ error }) => (error instanceof OfflineMissingError || (typeof navigator !== "undefined" && !navigator.onLine) ? <OfflineFallback /> : <div className="p-6 text-center">تعذّر تحميل المحتوى | Inhalt konnte nicht geladen werden</div>),
 });
+
+if (typeof window !== "undefined") window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); (window as unknown as { __installEvt?: Event }).__installEvt = e; });
 
 const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: fetchContentOfflineFirst, networkMode: "offlineFirst", retry: 1 });
 
@@ -189,7 +193,14 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
 };
 
+function useLongPress(cb: () => void, ms = 3000) {
+  const t = useRef<number | null>(null);
+  const clear = () => { if (t.current) window.clearTimeout(t.current); t.current = null; };
+  return { onPointerDown: () => { clear(); t.current = window.setTimeout(() => { navigator.vibrate?.(40); cb(); }, ms); }, onPointerUp: clear, onPointerLeave: clear, onPointerCancel: clear, onContextMenu: (e: React.MouseEvent) => e.preventDefault() };
+}
+
 function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
+  const longPress = useLongPress(openGateway);
   return (
     <header className="bg-primary px-5 pb-5 pt-6 text-primary-foreground">
       <div className="flex items-center justify-between gap-4">
@@ -199,7 +210,7 @@ function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
           </Button>
         ) : <span className="h-9 w-9" />}
         <div className="min-w-0 flex-1 text-center">
-          <p className="text-sm font-extrabold">حملة عشاق الحسين (ع) — ألمانيا</p>
+          <p {...longPress} className="select-none text-sm font-extrabold [-webkit-touch-callout:none]">حملة عشاق الحسين (ع) — ألمانيا</p>
           <p lang="de" dir="ltr" className="mt-1 text-[10px] font-medium text-primary-foreground/65">Reisegruppe Ushaq al-Hussein (as) — Deutschland</p>
           <div className="gold-line mx-auto my-3 h-px w-24" />
           <Pair ar={viewTitles[view].ar} de={viewTitles[view].de} align="center" inverse />
@@ -300,23 +311,42 @@ function TripFavButton({ id }: { id: string }) {
   return <button type="button" onClick={() => fav.toggle(`trip:${id}`)} aria-pressed={on} aria-label="المفضلة | Favorit" className="absolute bottom-3 left-3 grid h-9 w-9 place-items-center rounded-full border border-secondary/50 bg-card text-secondary shadow-sm"><Star className={`h-4 w-4 ${on ? "fill-current" : ""}`} /></button>;
 }
 
+type FavTab = "all" | "trips" | "duas" | "contacts" | "info";
 function FavoritesView({ content, go }: { content: SiteContent; go: (view: View) => void }) {
   const { ids } = useFavorites();
   const [reader, setReader] = useState<ReaderItem | null>(null);
+  const [tab, setTab] = useState<FavTab>("all");
   const trips = content.trips.filter((t) => ids.includes(`trip:${t.id}`) && t.visible && !t.hidden);
   const duas = content.duas.filter((d) => ids.includes(d.id) && !d.hidden).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) }));
+  const contacts = content.contacts.filter((c) => ids.includes(`contact:${c.id}`) && !c.hidden && c.visible !== false);
+  const info: Array<{ key: string; ar: string; de: string; bodyAr: string; bodyDe: string; view: View }> = [
+    ...content.news.filter((n) => !n.hidden && ids.includes(`news:${n.ar || n.de}`)).map((n) => ({ key: `n${n.ar}${n.de}`, ar: n.ar, de: n.de, bodyAr: n.bodyAr, bodyDe: n.bodyDe, view: "news" as View })),
+    ...content.faqs.filter((f) => !f.hidden && ids.includes(`faq:${f.id}`)).map((f) => ({ key: `f${f.id}`, ar: f.qAr, de: f.qDe, bodyAr: f.aAr, bodyDe: f.aDe, view: "faqs" as View })),
+    ...content.locations.filter((l) => !l.hidden && ids.includes(`loc:${l.id}`)).map((l) => ({ key: `l${l.id}`, ar: l.ar, de: l.de, bodyAr: l.address, bodyDe: "", view: "guide" as View })),
+    ...[...content.occasions.map((r) => ({ r, view: "occasions" as View })), ...content.hadiths.map((r) => ({ r, view: "hadiths" as View }))].filter(({ r }) => !r.hidden && ids.includes(`res:${r.id}`)).map(({ r, view }) => ({ key: `r${r.id}`, ar: r.ar, de: r.de, bodyAr: "", bodyDe: "", view })),
+  ];
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
+  const total = trips.length + duas.length + contacts.length + info.length;
+  const tabs: Array<{ id: FavTab; ar: string; de: string; n: number }> = [
+    { id: "all", ar: "الكل", de: "Alle", n: total }, { id: "trips", ar: "✈️ الرحلات", de: "Reisen", n: trips.length }, { id: "duas", ar: "📖 الأدعية", de: "Gebete", n: duas.length }, { id: "contacts", ar: "📞 الاتصال", de: "Kontakte", n: contacts.length }, { id: "info", ar: "📌 إرشادات", de: "Hinweise", n: info.length },
+  ];
+  const show = (t: FavTab) => tab === "all" || tab === t;
+  const H = ({ ar, de }: { ar: string; de: string }) => <h3 className="mb-3 text-sm font-bold text-primary"><Pair ar={ar} de={de} /></h3>;
   return <div className="screen-enter px-4 py-7">
     <ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" />
-    {!trips.length && !duas.length && <p className="rounded-lg border border-dashed border-secondary/50 bg-card p-6 text-center text-sm"><Pair ar="لم تضف شيئاً بعد — اضغط على النجمة ⭐ بجانب أي رحلة أو دعاء لحفظه هنا." de="Noch nichts gespeichert — tippen Sie auf den Stern ⭐ bei einer Reise oder einem Gebet." align="center" /></p>}
-    {trips.length > 0 && <section className="mb-7"><h3 className="mb-3 text-sm font-bold text-primary"><Pair ar="رحلاتي" de="Meine Reisen" /></h3><div className="space-y-3">{trips.map((t) => { const days = (() => { const m = t.date.match(/(\d{2})\.(\d{2})\.(\d{4})/); if (!m) return null; const d = Math.ceil((new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() - Date.now()) / 86400000); return d > 0 ? d : null; })(); return <div key={t.id} className="relative"><button type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 pb-12 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{days && <span className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary"><Pair ar={`متبقٍ ${days} يوماً على الانطلاق ✈️`} de={`Noch ${days} Tage bis zur Abreise ✈️`} /></span>}{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button><TripFavButton id={t.id} /></div>; })}</div></section>}
-    {duas.length > 0 && <section><h3 className="mb-3 text-sm font-bold text-primary"><Pair ar="أدعيتي وزياراتي" de="Meine Gebete & Ziyarat" /></h3><div className="space-y-3">{duas.map((d) => <ReaderListButton key={d.id} item={d} onRead={setReader} />)}</div></section>}
+    <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1">{tabs.map((t) => <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-pressed={tab === t.id} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${tab === t.id ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-card text-primary"}`}><Pair ar={`${t.ar} (${t.n})`} de={t.de} align="center" /></button>)}</div>
+    {!total && <p className="rounded-lg border border-dashed border-secondary/50 bg-card p-6 text-center text-sm"><Pair ar="لم تضف شيئاً بعد — اضغط على النجمة ⭐ بجانب أي رحلة أو دعاء أو رقم أو معلومة لحفظها هنا." de="Noch nichts gespeichert — tippen Sie auf den Stern ⭐ bei einer Reise, einem Gebet, Kontakt oder Hinweis." align="center" /></p>}
+    {show("trips") && trips.length > 0 && <section className="mb-7"><H ar="رحلاتي" de="Meine Reisen" /><div className="space-y-3">{trips.map((t) => { const days = (() => { const m = t.date.match(/(\d{2})\.(\d{2})\.(\d{4})/); if (!m) return null; const d = Math.ceil((new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() - Date.now()) / 86400000); return d > 0 ? d : null; })(); return <div key={t.id} className="relative"><button type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 pb-12 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{days && <span className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary"><Pair ar={`متبقٍ ${days} يوماً على الانطلاق ✈️`} de={`Noch ${days} Tage bis zur Abreise ✈️`} /></span>}{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button><TripFavButton id={t.id} /></div>; })}</div></section>}
+    {show("duas") && duas.length > 0 && <section className="mb-7"><H ar="أدعيتي وزياراتي" de="Meine Gebete & Ziyarat" /><div className="space-y-3">{duas.map((d) => <ReaderListButton key={d.id} item={d} onRead={setReader} />)}</div></section>}
+    {show("contacts") && contacts.length > 0 && <section className="mb-7"><H ar="أرقامي المهمة" de="Wichtige Kontakte" /><div className="space-y-3">{contacts.map((c) => <article key={c.id} className="rounded-lg border border-secondary/50 bg-card p-4 shadow-sm"><div className="flex items-start gap-2"><div className="min-w-0 flex-1 text-primary"><Pair ar={c.ar} de={c.de} /></div><FavStar id={`contact:${c.id}`} /></div><p className="mt-1 text-xs"><Pair ar={c.roleAr} de={c.roleDe} /></p><div className="mt-3 grid grid-cols-2 gap-2"><Button asChild className="h-11"><a href={telHref(c.phone)}><Phone /><span dir="ltr">{c.phone}</span></a></Button>{c.whatsapp && <Button asChild className="h-11 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={c.whatsapp} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a></Button>}</div></article>)}</div></section>}
+    {show("info") && info.length > 0 && <section className="mb-7"><H ar="إرشادات ومعلومات محفوظة" de="Gespeicherte Hinweise" /><div className="space-y-3">{info.map((i) => <button key={i.key} type="button" onClick={() => go(i.view)} className="w-full rounded-lg border border-secondary/50 bg-card p-4 text-right shadow-sm"><span className="text-primary"><Pair ar={i.ar} de={i.de} /></span>{(i.bodyAr || i.bodyDe) && <span className="mt-2 block whitespace-pre-line text-sm"><Pair ar={i.bodyAr} de={i.bodyDe || i.bodyAr} /></span>}</button>)}</div></section>}
   </div>;
 }
 
 function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
-  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => admin || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
+  const showHidden = useShowHidden();
+  const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => showHidden || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; return { ...t, ...m, statusAr: t.statusAr || m.statusAr, statusDe: t.statusDe || m.statusDe }; });
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
@@ -413,17 +443,18 @@ function RegistrationView() {
 function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const contacts = content.contacts ?? defaultContacts;
-  const shownContacts = admin ? contacts : contacts.filter((contact) => contact.visible !== false && !contact.hidden);
+  const showHidden = useShowHidden();
+  const shownContacts = showHidden ? contacts : contacts.filter((contact) => contact.visible !== false && !contact.hidden);
   const saveContacts = (next: ContactEntry[]) => saveContent({ ...content, contacts: next });
   if (!admin && !content.contactsVisible) return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><Pair ar="جهات التواصل غير متاحة حالياً." de="Die Kontaktdaten sind derzeit nicht verfügbar." align="center" /></p></div>;
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Phone} ar="أرقام التواصل" de="Kontaktnummern" /><SocialLinks showEmail /><div className="mt-5 space-y-3">
     {admin && <AddButton label={{ ar: "إضافة جهة تواصل", de: "Neuen Kontakt hinzufügen" }} fields={contactFields} blank={{ ar: "", de: "", roleAr: "", roleDe: "", phone: "", whatsapp: "", visible: true, hidden: false }} onAdd={(row) => saveContacts([...contacts, { ...(row as ContactEntry), id: `c${Date.now()}` }])} />}
-    {shownContacts.map((contact) => <div key={contact.id} className={contact.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={contactFields} item={contact} hidden={contact.hidden ?? false} onVisibilityChange={(hidden) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...c, hidden, visible: hidden ? (c.visible ?? true) : true } : c)))} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id, hidden: c.hidden ?? false } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h3 className="text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
+    {shownContacts.map((contact) => <div key={contact.id} className={contact.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={contactFields} item={contact} hidden={contact.hidden ?? false} onVisibilityChange={(hidden) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...c, hidden, visible: hidden ? (c.visible ?? true) : true } : c)))} onSave={(row) => saveContacts(contacts.map((c) => (c.id === contact.id ? { ...(row as ContactEntry), id: c.id, hidden: c.hidden ?? false } : c)))} onDelete={() => saveContacts(contacts.filter((c) => c.id !== contact.id))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><div className="flex items-start gap-2"><h3 className="min-w-0 flex-1 text-primary"><Pair ar={contact.ar} de={contact.de} /></h3><FavStar id={`contact:${contact.id}`} /></div><p className="mt-2 text-sm"><Pair ar={contact.roleAr} de={contact.roleDe} /></p><p dir="ltr" className="mt-3 text-right text-sm font-bold">{contact.phone}</p><div className="mt-4 grid grid-cols-2 gap-2"><Button asChild className="h-12"><a href={telHref(contact.phone)}><Phone /><Pair ar="اتصال" de="Anrufen" align="center" /></a></Button>{contact.whatsapp && <Button asChild className="h-12 bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><a href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="واتساب" de="WhatsApp" align="center" /></a></Button>}</div></article></div>)}
   </div></div>;
 }
 
 function FaqItem({ value, questionAr, questionDe, answerAr, answerDe }: { value: string; questionAr: string; questionDe: string; answerAr: string; answerDe: string }) {
-  return <AccordionItem value={value}><AccordionTrigger className="gap-3 text-right hover:no-underline"><Pair ar={questionAr} de={questionDe} /></AccordionTrigger><AccordionContent className="text-sm"><Pair ar={answerAr} de={answerDe} /></AccordionContent></AccordionItem>;
+  return <AccordionItem value={value}><AccordionTrigger className="gap-3 text-right hover:no-underline"><Pair ar={questionAr} de={questionDe} /></AccordionTrigger><AccordionContent className="text-sm"><Pair ar={answerAr} de={answerDe} /><div className="mt-3 flex justify-end"><FavStar id={`faq:${value}`} /></div></AccordionContent></AccordionItem>;
 }
 
 function SocialLinks({ showEmail = false }: { showEmail?: boolean }) {
@@ -473,6 +504,8 @@ function InstallButton() {
   const [iosHelp, setIosHelp] = useState(false);
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone) setInstalled(true);
+    const early = (window as unknown as { __installEvt?: Event & { prompt: () => Promise<void> } }).__installEvt;
+    if (early) setEvt(early);
     const h = (e: Event) => { e.preventDefault(); setEvt(e as Event & { prompt: () => Promise<void> }); };
     const done = () => setInstalled(true);
     window.addEventListener("beforeinstallprompt", h); window.addEventListener("appinstalled", done);
@@ -480,15 +513,19 @@ function InstallButton() {
   }, []);
   if (installed) return null;
   const click = async () => {
-    if (evt) { await evt.prompt(); setEvt(null); return; }
+    const e = evt ?? (window as unknown as { __installEvt?: Event & { prompt: () => Promise<void> } }).__installEvt ?? null;
+    if (e) { await e.prompt(); setEvt(null); (window as unknown as { __installEvt?: unknown }).__installEvt = undefined; return; }
     setIosHelp(true);
   };
   return <>
     <Button onClick={click} className="mt-5 h-14 w-full gap-2 bg-secondary text-secondary-foreground shadow-md hover:bg-secondary/90"><Smartphone /><Pair ar="تثبيت التطبيق على هاتفك 📲" de="App auf dem Handy installieren" align="center" /></Button>
-    <Dialog open={iosHelp} onOpenChange={setIosHelp}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إضافة التطبيق للشاشة الرئيسية" de="Zum Home-Bildschirm hinzufügen" /></DialogTitle><DialogDescription><Pair ar="خطوتان فقط:" de="Nur zwei Schritte:" /></DialogDescription></DialogHeader><ol className="space-y-4 text-sm">
+    <Dialog open={iosHelp} onOpenChange={setIosHelp}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إضافة التطبيق للشاشة الرئيسية" de="Zum Home-Bildschirm hinzufügen" /></DialogTitle><DialogDescription><Pair ar="خطوتان فقط:" de="Nur zwei Schritte:" /></DialogDescription></DialogHeader>{typeof navigator !== "undefined" && /android/i.test(navigator.userAgent) ? <ol className="space-y-4 text-sm">
+      <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground font-bold">⋮</span><Pair ar="1. اضغط قائمة ⋮ أعلى المتصفح (Chrome أو Samsung Internet ☰)." de="1. Tippen Sie oben auf das Menü ⋮ (Chrome bzw. Samsung Internet ☰)." /></li>
+      <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><SquarePlus /></span><Pair ar="2. اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»." de="2. Wählen Sie „App installieren“ bzw. „Zum Startbildschirm hinzufügen“." /></li>
+    </ol> : <ol className="space-y-4 text-sm">
       <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><Share /></span><Pair ar="1. اضغط زر المشاركة أسفل الشاشة في Safari (أو قائمة ⋮ في المتصفحات الأخرى)." de="1. Tippen Sie unten in Safari auf „Teilen“ (bzw. Menü ⋮ in anderen Browsern)." /></li>
       <li className="flex items-start gap-3 rounded-md bg-accent p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><SquarePlus /></span><Pair ar="2. اختر «إضافة إلى الشاشة الرئيسية» ثم «إضافة»." de="2. Wählen Sie „Zum Home-Bildschirm“ und dann „Hinzufügen“." /></li>
-    </ol></DialogContent></Dialog>
+    </ol>}</DialogContent></Dialog>
   </>;
 }
 
@@ -504,10 +541,11 @@ function ShareButton() {
 function NewsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const news = content.news;
+  const showHidden = useShowHidden();
   const saveNews = (next: NewsEntry[]) => saveContent({ ...content, news: next });
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" />
     {admin && <AddButton label={{ ar: "إضافة خبر جديد", de: "Neue Meldung hinzufügen" }} fields={newsFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "", hidden: false }} onAdd={(row) => saveNews([row as NewsEntry, ...news])} />}
-    <div className="space-y-3">{news.map((item, i) => (!item.hidden || admin) && (item.ar || item.de || admin) ? <div key={i} className={item.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={newsFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={(hidden) => saveNews(news.map((n, j) => (j === i ? { ...n, hidden } : n)))} onSave={(row) => saveNews(news.map((n, j) => (j === i ? { ...(row as NewsEntry), hidden: n.hidden ?? false } : n)))} onDelete={() => saveNews(news.filter((_, j) => j !== i))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><span className="mb-3 grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article></div> : null)}</div></div>;
+    <div className="space-y-3">{news.map((item, i) => (!item.hidden || showHidden) && (item.ar || item.de || admin) ? <div key={i} className={item.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={newsFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={(hidden) => saveNews(news.map((n, j) => (j === i ? { ...n, hidden } : n)))} onSave={(row) => saveNews(news.map((n, j) => (j === i ? { ...(row as NewsEntry), hidden: n.hidden ?? false } : n)))} onDelete={() => saveNews(news.filter((_, j) => j !== i))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><div className="mb-3 flex items-start justify-between"><span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span><FavStar id={`news:${item.ar || item.de}`} /></div><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article></div> : null)}</div></div>;
 }
 
 const prayerNames: Array<{ key: string; ar: string; de: string }> = [
@@ -588,7 +626,8 @@ function DuasView({ content }: { content: SiteContent }) {
   const duas = content.duas;
   const adminPw = useAdminPassword();
   const admin: AdminCtx = adminPw ? { password: adminPw, content } : null;
-  const managedEntries = useMemo(() => duas.filter((d) => (d.ar || d.de) && (admin || !d.hidden)).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [admin, duas]);
+  const showHidden = useShowHidden();
+  const managedEntries = useMemo(() => duas.filter((d) => (d.ar || d.de) && (showHidden || !d.hidden)).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [showHidden, duas]);
   const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const shrines: Shrine[] = [
     { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela", image: shrineImage, entries: inCat("karbala") },
@@ -646,6 +685,7 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   const [germanScale, setGermanScale] = useState(100);
   const [alignment, setAlignment] = useState<"right" | "center">("right");
   const [theme, setTheme] = useState<"navy" | "white" | "warm">("warm");
+  const [font, setFont] = useState<ReaderFont>("amiri");
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem("ziyarat-reader-settings") ?? "{}");
@@ -653,11 +693,12 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
       if (typeof saved.germanScale === "number") setGermanScale(Math.min(150, Math.max(80, saved.germanScale)));
       if (saved.alignment === "right" || saved.alignment === "center") setAlignment(saved.alignment);
       if (saved.theme === "navy" || saved.theme === "white" || saved.theme === "warm") setTheme(saved.theme);
+      if (readerFonts.some((f) => f.id === saved.font)) setFont(saved.font);
     } catch { /* Keep the reader defaults when saved preferences are invalid. */ }
   }, []);
   useEffect(() => {
-    window.localStorage.setItem("ziyarat-reader-settings", JSON.stringify({ arabicScale, germanScale, alignment, theme }));
-  }, [arabicScale, germanScale, alignment, theme]);
+    window.localStorage.setItem("ziyarat-reader-settings", JSON.stringify({ arabicScale, germanScale, alignment, theme, font }));
+  }, [arabicScale, germanScale, alignment, theme, font]);
   const night = theme === "navy";
   const bump = (d: number) => { setArabicScale((v) => Math.min(150, Math.max(80, v + d))); setGermanScale((v) => Math.min(150, Math.max(80, v + d))); };
   const trFirst = readerLang === "de" || readerLang === "en";
@@ -667,7 +708,7 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   useEffect(() => { const on = () => { const h = document.documentElement.scrollHeight - window.innerHeight; setProgress(h > 0 ? Math.min(100, (window.scrollY / h) * 100) : 0); }; on(); window.addEventListener("scroll", on, { passive: true }); return () => window.removeEventListener("scroll", on); }, []);
   const [focus, setFocus] = useState(false);
   useEffect(() => { document.body.classList.toggle("focus-mode", focus); return () => document.body.classList.remove("focus-mode"); }, [focus]);
-  return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-44" data-reader-theme={theme} data-ar-scale={arabicScale} data-de-scale={germanScale}>
+  return <div className="reader-shell screen-enter min-h-[calc(100vh-11rem)] pb-44" data-reader-theme={theme} data-reader-font={font} data-ar-scale={arabicScale} data-de-scale={germanScale}>
     <div className="sticky top-0 z-20 flex items-center justify-between border-b border-current/10 bg-inherit px-4 py-3 backdrop-blur-md"><Button variant="ghost" size="icon" onClick={onBack} aria-label="العودة | Zurück"><ArrowLeft className="rotate-180" /></Button><h2 className="min-w-0 flex-1 px-2 text-center text-sm"><Pair ar={item.ar} de={item.de} align="center" inverse={theme === "navy"} /></h2><Button variant={focus ? "secondary" : "ghost"} size="icon" onClick={() => setFocus((v) => !v)} aria-pressed={focus} aria-label="وضع القراءة في الحرم | Lesemodus im Schrein">{focus ? <EyeOff /> : <Eye />}</Button><Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="إعدادات القراءة | Leseeinstellungen"><Settings /></Button></div>
     <div className="sticky top-[61px] z-20 flex flex-wrap items-center justify-center gap-2 border-b border-current/10 bg-inherit px-4 py-2">
       <LayerToggle active={showTr} onClick={() => setShowTr((v) => !v)} label="الترجمة | Übersetzung"><Globe /></LayerToggle>
@@ -680,10 +721,18 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
       <div className="pointer-events-none absolute inset-x-0 -bottom-[5px] h-[5px] bg-current/10"><div className="h-full rounded-full bg-secondary shadow-[0_0_10px_var(--color-secondary)] transition-[width] duration-150" style={{ width: `${progress}%` }} /></div>
     </div>
     <article className={`reader-copy px-5 py-8 ${alignment === "center" ? "text-center" : "text-right"}`}>{showTr && trFirst && <>{trBlock}{(showAr || showLatin) && <div className="my-7 border-t border-current/15" />}</>}{showAr && <p lang="ar" dir="rtl" className="reader-ar whitespace-pre-line font-bold leading-[2.25]">{item.textAr}</p>}{showAr && (showLatin || showTr) && <div className="my-7 border-t border-current/15" />}{showLatin && <p lang="de-Latn" dir="ltr" className={`reader-de whitespace-pre-line font-semibold leading-relaxed ${alignment === "center" ? "text-center" : "text-left"}`}>{item.latin}</p>}{showTr && !trFirst && trBlock}{!showAr && !showLatin && !showTr && <p className="py-10 text-center text-sm opacity-60"><Pair ar="فعّل أحد أزرار العرض أعلاه لإظهار النص." de="Aktivieren Sie oben eine Ebene, um den Text anzuzeigen." align="center" /></p>}{item.link && <Button asChild variant="outline" className="mt-8 h-12 w-full"><a href={item.link} target="_blank" rel="noreferrer"><Download /><Pair ar="تحميل النص الكامل" de="Vollständigen Text herunterladen" align="center" /></a></Button>}</article>
-    <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إعدادات القراءة" de="Leseeinstellungen" /></DialogTitle><DialogDescription><Pair ar="خصّص النص بما يناسب قراءتك." de="Passen Sie die Darstellung an Ihre Leseweise an." /></DialogDescription></DialogHeader><div className="space-y-5 pt-2"><ScaleControl ar="حجم النص العربي" de="Arabische Schriftgröße" value={arabicScale} onChange={setArabicScale} /><ScaleControl ar="حجم النص الألماني" de="Deutsche Schriftgröße" value={germanScale} onChange={setGermanScale} /><div><Pair ar="محاذاة النص" de="Textausrichtung" /><div className="mt-2 grid grid-cols-2 gap-2"><Button variant={alignment === "right" ? "default" : "outline"} onClick={() => setAlignment("right")}><AlignRight /><Pair ar="يمين" de="Rechts" align="center" inverse={alignment === "right"} /></Button><Button variant={alignment === "center" ? "default" : "outline"} onClick={() => setAlignment("center")}><AlignCenter /><Pair ar="وسط" de="Zentriert" align="center" inverse={alignment === "center"} /></Button></div></div><div><Pair ar="خلفية القراءة" de="Lesefläche" /><div className="mt-2 grid grid-cols-3 gap-2"><ThemeButton active={theme === "navy"} theme="navy" ar="كحلي" de="Dunkelblau" onClick={() => setTheme("navy")} /><ThemeButton active={theme === "white"} theme="white" ar="أبيض" de="Weiß" onClick={() => setTheme("white")} /><ThemeButton active={theme === "warm"} theme="warm" ar="دافئ" de="Warm" onClick={() => setTheme("warm")} /></div></div></div></DialogContent></Dialog>
+    <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl"><DialogHeader className="text-right"><DialogTitle><Pair ar="إعدادات القراءة" de="Leseeinstellungen" /></DialogTitle><DialogDescription><Pair ar="خصّص النص بما يناسب قراءتك." de="Passen Sie die Darstellung an Ihre Leseweise an." /></DialogDescription></DialogHeader><div className="space-y-5 pt-2"><ScaleControl ar="حجم النص العربي" de="Arabische Schriftgröße" value={arabicScale} onChange={setArabicScale} /><ScaleControl ar="حجم النص الألماني" de="Deutsche Schriftgröße" value={germanScale} onChange={setGermanScale} /><div><Pair ar="شكل الخط" de="Schriftart" /><div className="mt-2 grid grid-cols-2 gap-2">{readerFonts.map((f) => <Button key={f.id} variant={font === f.id ? "default" : "outline"} onClick={() => setFont(f.id)} className="h-auto flex-col gap-0.5 py-2" data-font-sample={f.id}><span className="reader-font-sample text-lg leading-tight">{f.sample}</span><span className="text-[10px] opacity-80">{f.ar} | {f.de}</span></Button>)}</div></div><div><Pair ar="محاذاة النص" de="Textausrichtung" /><div className="mt-2 grid grid-cols-2 gap-2"><Button variant={alignment === "right" ? "default" : "outline"} onClick={() => setAlignment("right")}><AlignRight /><Pair ar="يمين" de="Rechts" align="center" inverse={alignment === "right"} /></Button><Button variant={alignment === "center" ? "default" : "outline"} onClick={() => setAlignment("center")}><AlignCenter /><Pair ar="وسط" de="Zentriert" align="center" inverse={alignment === "center"} /></Button></div></div><div><Pair ar="خلفية القراءة" de="Lesefläche" /><div className="mt-2 grid grid-cols-3 gap-2"><ThemeButton active={theme === "navy"} theme="navy" ar="كحلي" de="Dunkelblau" onClick={() => setTheme("navy")} /><ThemeButton active={theme === "white"} theme="white" ar="أبيض" de="Weiß" onClick={() => setTheme("white")} /><ThemeButton active={theme === "warm"} theme="warm" ar="دافئ" de="Warm" onClick={() => setTheme("warm")} /></div></div></div></DialogContent></Dialog>
     {(item.reciters?.length ?? 0) > 0 && <ReciterPlayer key={item.id} itemId={item.id} reciters={item.reciters ?? []} />}
   </div>;
 }
+
+type ReaderFont = "amiri" | "naskh" | "scheherazade" | "cairo";
+const readerFonts: Array<{ id: ReaderFont; ar: string; de: string; sample: string }> = [
+  { id: "amiri", ar: "مصحفي كلاسيكي", de: "Klassisch", sample: "بِسْمِ اللهِ" },
+  { id: "naskh", ar: "نسخ واضح", de: "Naskh klar", sample: "بِسْمِ اللهِ" },
+  { id: "scheherazade", ar: "عثماني تقليدي", de: "Traditionell", sample: "بِسْمِ اللهِ" },
+  { id: "cairo", ar: "حديث بسيط", de: "Modern", sample: "بِسْمِ اللهِ" },
+];
 
 function ScaleControl({ ar, de, value, onChange }: { ar: string; de: string; value: number; onChange: (value: number) => void }) {
   return <div><div className="flex items-center justify-between gap-3"><Pair ar={ar} de={de} /><span dir="ltr" className="text-sm font-bold text-secondary">{value}%</span></div><input aria-label={`${ar} | ${de}`} type="range" min="80" max="150" step="10" value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-3 w-full accent-secondary" /></div>;
@@ -717,13 +766,14 @@ function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }
   const { lang } = useLang();
   const faqs = content.faqs ?? defaultContent.faqs;
   const visibleFaqs = faqs.filter((f) => !f.hidden);
+  const showHidden = useShowHidden();
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={HelpCircle} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
       {admin && <div className="mb-3"><AddButton label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} fields={faqFields} blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} /></div>}
       {admin ? (
         <div className="space-y-3">
-          {faqs.map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
+          {faqs.filter((f) => showHidden || !f.hidden).map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
         </div>
       ) : visibleFaqs.length > 0 && (
         <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
@@ -753,7 +803,7 @@ function Index() {
 
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
-  const [welcomed, setWelcomed] = useState(false);
+  const [welcomed, setWelcomed] = useState<boolean | null>(null);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
@@ -761,8 +811,10 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   return (
     <div className="min-h-screen bg-muted">
-      {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} canGoBack={typeof window !== "undefined" && window.localStorage.getItem("welcome-seen") === "true"} />}
+      {welcomed === null && <div className="fixed inset-0 z-[100] bg-background" aria-hidden="true" />}
+      {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} canGoBack={typeof window !== "undefined" && window.localStorage.getItem("welcome-seen") === "true"} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
+        <AdminBar content={content} />
         <AppHeader view={view} onHome={() => go("home")} />
         <AlertBanner alert={content.alert} />
         {view === "home" && <HomeView go={go} content={content} admin={admin} payment={content.payment ?? defaultContent.payment} />}
@@ -786,12 +838,13 @@ function CampaignApp({ content }: { content: SiteContent }) {
           <PushButton />
           <ShareButton />
           <SocialLinks />
-          <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:border-secondary hover:text-primary"><Pair ar="الإدارة" de="Verwaltung" align="center" /></Link>
+          <p onClick={openGateway} className="cursor-default select-none text-[10px] text-muted-foreground">© 2026 حملة عشاق الحسين (ع) — جميع الحقوق محفوظة<br /><span dir="ltr">Reisegruppe Ushaq al-Hussein · Alle Rechte vorbehalten</span></p>
         </footer>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto grid h-20 w-full max-w-[420px] grid-cols-5 border-t border-border bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-xl backdrop-blur-md" aria-label="التنقل الرئيسي | Hauptnavigation">
         {bottomItems.map(({ view: itemView, ar, de, icon: Icon }) => <Button key={itemView} variant="ghost" onClick={() => go(itemView)} aria-current={view === itemView ? "page" : undefined} className={`h-full min-w-0 flex-col gap-1 rounded-none px-0.5 ${view === itemView ? "bg-accent text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" aria-hidden="true" /><NavLabel ar={ar} de={de} /></Button>)}
       </nav>
+      <AccessGateway />
     </div>
   );
 }
