@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
-import { defaultContacts, defaultContent, duaCategoryOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent } from "@/lib/site-content";
+import { defaultContacts, defaultContent, duaCategoryOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
@@ -165,12 +165,23 @@ const contactFields: FieldDef[] = [
 const telHref = (phone: string) => `tel:${phone.replace(/[^+\d]/g, "")}`;
 
 
-const generalTrips = [
-  { id: "iraq", ar: "زيارة العراق", de: "Irak-Reise", icon: Landmark, statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
-  { id: "umrah", ar: "العمرة", de: "Umrah", icon: MoonStar, statusAr: "زيارة عامة", statusDe: "Allgemeine Reiseart" },
-  { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Zyarat Imam Rida (as)", icon: Sparkles, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
-  { id: "hajj", ar: "الحج", de: "Hadsch", icon: Star, statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
+const tripIcons: Record<string, IconType> = { iraq: Landmark, umrah: MoonStar, iran: Sparkles, hajj: Star };
+const tripTypeFields: FieldDef[] = [
+  { key: "ar", ar: "الاسم", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "statusAr", ar: "الحالة (مثل: زيارة عامة، سيُعلن قريباً)", de: "Status (AR)" }, { key: "statusDe", ar: "الحالة بالألمانية", de: "Status (DE)", ltr: true },
 ];
+const shrineFields: FieldDef[] = [
+  { key: "ar", ar: "اسم العتبة", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "imageUrl", ar: "رابط صورة (اختياري)", de: "Bild-Link (optional)", ltr: true },
+];
+const noteFields: FieldDef[] = [
+  { key: "ar", ar: "النص", de: "Text (AR)", multiline: true }, { key: "de", ar: "النص بالألمانية", de: "Text (DE)", ltr: true, multiline: true },
+];
+const donationFields: FieldDef[] = [
+  { key: "ar", ar: "العنوان / الوصف", de: "Titel (AR)" }, { key: "de", ar: "العنوان بالألمانية", de: "Titel (DE)", ltr: true },
+  { key: "value", ar: "الرقم / الحساب / IBAN / رابط", de: "Nummer / Konto / Link", ltr: true },
+];
+const shrineImages: Record<string, string> = { karbala: shrineImage, najaf: najafShrine, kazimiyya: kazimiyyaShrine, samarra: samarraShrine, mashhad: mashhadShrine, qom: qomShrine, "mecca-medina": meccaMedinaShrine };
 
 
 
@@ -354,11 +365,14 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" />
+      {admin && <AddButton label={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} fields={tripTypeFields} blank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} />}
       <div className="grid grid-cols-2 gap-3">
-        {generalTrips.map((trip) => {
-          const Icon = trip.icon;
+        {content.tripTypes.filter((t) => showHidden || !t.hidden).map((trip) => {
+          const Icon = tripIcons[trip.id] ?? Landmark;
+          const list = content.tripTypes;
+          const actions = admin && <ItemActions fields={tripTypeFields} item={trip} hidden={trip.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...(row as TripTypeEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, tripTypes: list.filter((x) => x.id !== trip.id) })} />;
           const content = <><span className="grid h-11 w-11 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><Pair ar={trip.ar} de={trip.de} align="center" /><span className="text-xs"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span></>;
-          return trip.id === "iraq" ? <Button key={trip.id} variant="outline" onClick={() => setIraqOpen(true)} className="h-36 flex-col gap-2 whitespace-normal bg-card p-3 shadow-sm hover:border-secondary hover:bg-card">{content}</Button> : <article key={trip.id} className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-sm">{content}</article>;
+          return <div key={trip.id} className={`min-w-0 ${trip.hidden ? "opacity-55" : ""}`}>{actions}{trip.id === "iraq" ? <Button variant="outline" onClick={() => setIraqOpen(true)} className="h-36 flex-col gap-2 whitespace-normal bg-card p-3 shadow-sm hover:border-secondary hover:bg-card">{content}</Button> : <article className="flex h-36 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-sm">{content}</article>}</div>;
         })}
       </div>
 
@@ -629,15 +643,9 @@ function DuasView({ content }: { content: SiteContent }) {
   const showHidden = useShowHidden();
   const managedEntries = useMemo(() => duas.filter((d) => (d.ar || d.de) && (showHidden || !d.hidden)).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [showHidden, duas]);
   const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
-  const shrines: Shrine[] = [
-    { id: "karbala", ar: "كربلاء المقدسة", de: "Kerbela", image: shrineImage, entries: inCat("karbala") },
-    { id: "najaf", ar: "النجف الأشرف", de: "Nadschaf", image: najafShrine, entries: inCat("najaf") },
-    { id: "kazimiyya", ar: "الكاظمية المقدسة", de: "Al-Kazimiyya", image: kazimiyyaShrine, entries: inCat("kazimiyya") },
-    { id: "samarra", ar: "سامراء", de: "Samarra", image: samarraShrine, entries: inCat("samarra") },
-    { id: "mashhad", ar: "مشهد المقدسة", de: "Maschhad", image: mashhadShrine, entries: inCat("mashhad") },
-    { id: "qom", ar: "قم المقدسة", de: "Qom", image: qomShrine, entries: inCat("qom") },
-    { id: "mecca-medina", ar: "مكة والمدينة", de: "Mekka & Medina", image: meccaMedinaShrine, entries: inCat("mecca-medina") },
-  ];
+  const saveContent = useSaveContent(adminPw ?? "");
+  const shrineList = content.shrines;
+  const shrines: Array<Shrine & { hidden?: boolean; raw: ShrineEntry }> = shrineList.filter((s) => showHidden || !s.hidden).map((s) => ({ id: s.id, ar: s.ar, de: s.de, image: s.imageUrl || shrineImages[s.id] || shrineImage, entries: inCat(s.id), hidden: s.hidden, raw: s }));
   const generalEntries = inCat("general");
   const [shrineId, setShrineId] = useState<string | null>(null);
   const shrine = shrines.find((s) => s.id === shrineId) ?? null;
@@ -647,13 +655,15 @@ function DuasView({ content }: { content: SiteContent }) {
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={BookOpen} ar="العتبات المقدسة" de="Heilige Stätten" />
+      {admin && <AddButton label={{ ar: "إضافة عتبة", de: "Heilige Stätte hinzufügen" }} fields={shrineFields} blank={{ ar: "", de: "", imageUrl: "" }} onAdd={(row) => saveContent({ ...content, shrines: [...shrineList, { ...(row as ShrineEntry), id: `s${Date.now()}` }] })} />}
       <div className="grid grid-cols-2 gap-3">
         {shrines.map((item) => (
-          <Button key={item.id} variant="outline" onClick={() => setShrineId(item.id)} className="group relative aspect-[4/5] h-auto overflow-hidden border-0 p-0 shadow-md">
+          <div key={item.id} className={`min-w-0 ${item.hidden ? "opacity-55" : ""}`}>{admin && <ItemActions fields={shrineFields} item={item.raw} hidden={item.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, shrines: shrineList.map((x) => (x.id === item.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, shrines: shrineList.map((x) => (x.id === item.id ? { ...(row as ShrineEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, shrines: shrineList.filter((x) => x.id !== item.id) })} />}
+          <Button variant="outline" onClick={() => setShrineId(item.id)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
             <img src={item.image} alt={`${item.ar} | ${item.de}`} loading="lazy" width={768} height={1024} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <span className="shrine-card-shade absolute inset-0" />
             <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
-          </Button>
+          </Button></div>
         ))}
       </div>
       {(generalEntries.length > 0 || admin) && <section className="mt-7"><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar="الأدعية العامة والتعقيبات" de="Allgemeine Bittgebete" />{admin && <DuaAddButton category="general" password={admin.password} content={admin.content} />}</div><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></section>}
@@ -745,9 +755,11 @@ function ThemeButton({ active, theme, ar, de, onClick }: { active: boolean; them
 function VisaView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const visa = content.visa;
+  const showHidden = useShowHidden();
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={IdCard} ar="الفيزا والمطارات" de="Visum & Flughäfen" />
+      {admin && <AddButton label={{ ar: "إضافة معلومة", de: "Hinweis hinzufügen" }} fields={noteFields} blank={{ ar: "", de: "" }} onAdd={(row) => saveContent({ ...content, visaNotes: [...content.visaNotes, { ...(row as NoteEntry), id: `v${Date.now()}` }] })} />}
       {admin && <div className="mb-3"><ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} /></div>}
       <section className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm">
         <Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" />
@@ -757,6 +769,7 @@ function VisaView({ content, admin }: { content: SiteContent; admin: AdminProps 
           <Pair ar={visa.airportsAr || "المطارات المتاحة للانطلاق: فرانكفورت، هامبورغ، برلين، دوسلدورف (وغيرها حسب الطلب)."} de={visa.airportsDe || "Verfügbare Abflughäfen: Frankfurt, Hamburg, Berlin, Düsseldorf (weitere auf Anfrage)."} />
         </div>
       </section>
+      <div className="mt-3 space-y-3">{content.visaNotes.filter((n) => showHidden || !n.hidden).map((n) => <div key={n.id} className={n.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={noteFields} item={n} hidden={n.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, visaNotes: content.visaNotes.map((x) => (x.id === n.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, visaNotes: content.visaNotes.map((x) => (x.id === n.id ? { ...(row as NoteEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, visaNotes: content.visaNotes.filter((x) => x.id !== n.id) })} />}<section className="whitespace-pre-line rounded-lg border border-border bg-card p-4 text-sm shadow-sm"><Pair ar={n.ar} de={n.de} /></section></div>)}</div>
     </div>
   );
 }
@@ -784,8 +797,14 @@ function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }
   );
 }
 
-function DonationsView() {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /><section className="rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" /><p className="text-sm"><Pair ar="ساهم في تيسير أمر زوار غير قادرين على تغطية تكاليف الزيارة، وفي دعم استمرار الحملة." de="Helfen Sie Pilgern, die ihre Reisekosten nicht selbst tragen können, und unterstützen Sie den Fortbestand der Reisegruppe." inverse /></p><Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href="https://wa.me/49015773055365" target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="للمساهمة تواصل مع الحاج ياسر الدر" de="Für Spenden Hajj Yasser Aldor kontaktieren" align="center" /></a></Button></section></div>;
+function DonationsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  const saveContent = useSaveContent(admin?.password ?? "");
+  const showHidden = useShowHidden();
+  const list = content.donations;
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /><section className="rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" /><p className="text-sm"><Pair ar="ساهم في تيسير أمر زوار غير قادرين على تغطية تكاليف الزيارة، وفي دعم استمرار الحملة." de="Helfen Sie Pilgern, die ihre Reisekosten nicht selbst tragen können, und unterstützen Sie den Fortbestand der Reisegruppe." inverse /></p><Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href="https://wa.me/49015773055365" target="_blank" rel="noreferrer"><MessageCircle /><Pair ar="للمساهمة تواصل مع الحاج ياسر الدر" de="Für Spenden Hajj Yasser Aldor kontaktieren" align="center" /></a></Button></section>
+    <div className="mt-5">{admin && <AddButton label={{ ar: "إضافة رقم أو حساب", de: "Nummer/Konto hinzufügen" }} fields={donationFields} blank={{ ar: "", de: "", value: "" }} onAdd={(row) => saveContent({ ...content, donations: [...list, { ...(row as DonationEntry), id: `d${Date.now()}` }] })} />}
+    <div className="space-y-3">{list.filter((d) => showHidden || !d.hidden).map((d) => <div key={d.id} className={d.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={donationFields} item={d} hidden={d.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, donations: list.map((x) => (x.id === d.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, donations: list.map((x) => (x.id === d.id ? { ...(row as DonationEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, donations: list.filter((x) => x.id !== d.id) })} />}<section className="rounded-lg border border-border bg-card p-4 text-sm shadow-sm"><div className="font-bold text-primary"><Pair ar={d.ar} de={d.de} /></div>{d.value && <div className="mt-2 flex items-center gap-2"><p dir="ltr" className="min-w-0 flex-1 break-all text-left font-bold">{d.value}</p><Button size="sm" variant="outline" onClick={() => { navigator.clipboard?.writeText(d.value).then(() => navigator.vibrate?.(30)).catch(() => {}); }}><Copy />نسخ</Button></div>}</section></div>)}</div></div>
+  </div>;
 }
 
 const bottomItems: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
@@ -812,15 +831,15 @@ function CampaignApp({ content }: { content: SiteContent }) {
     <div className="min-h-screen bg-muted">
       {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
-        <AdminBar content={content} />
         <AppHeader view={view} onHome={() => go("home")} />
+        {view === "home" && <AdminBar content={content} />}
         <AlertBanner alert={content.alert} />
         {view === "home" && <HomeView go={go} content={content} admin={admin} payment={content.payment ?? defaultContent.payment} />}
         {view === "trips" && <TripsView content={content} admin={admin} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView content={content} admin={admin} />}
         {view === "news" && <NewsView content={content} admin={admin} />}
-        {view === "donations" && <DonationsView />}
+        {view === "donations" && <DonationsView content={content} admin={admin} />}
         {view === "duas" && <DuasView content={content} />}
         {view === "itinerary" && <ItineraryView content={content} admin={admin} />}
         {view === "guide" && <GuideView content={content} admin={admin} />}
