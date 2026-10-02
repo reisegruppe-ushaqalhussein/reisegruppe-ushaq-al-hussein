@@ -125,9 +125,9 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide }: { item: Resourc
   const text = lang === "ar" ? item.textAr : lang === "en" ? item.textEn || item.textDe : lang === "de" ? item.textDe : null;
   return (
     <article className={`rounded-lg border border-border bg-card p-4 shadow-sm ${item.hidden ? "opacity-55" : ""}`}>
-      {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} />}
+      {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} />}
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-start gap-2 text-right">
-        <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
+        <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && <div className="mt-4 space-y-3 text-sm leading-relaxed">
@@ -152,7 +152,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
       {admin && <AddButton label={{ ar: "إضافة", de: "Hinzufügen" }} fields={resourceFields} blank={blank} onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])} />}
       <div className="space-y-3">
         {visible.map((item) => <ResourceCard key={item.id} item={item} admin={admin}
-          onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden } : r)))}
+          onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden ?? false } : r)))}
           onDelete={() => put(list.filter((r) => r.id !== item.id))}
           onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
         {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." en="Content coming soon." /></p>}
