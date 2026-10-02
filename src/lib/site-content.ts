@@ -42,7 +42,7 @@ export type SiteContent = {
   hadiths: ResourceEntry[];
   trash?: TrashEntry[];
 };
-export type TrashEntry = { id: string; section: string; item: unknown; deletedAt: number };
+export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
 
 export const defaultContacts: ContactEntry[] = [
   { id: "yasser", ar: "الحاج ياسر الدر", de: "Hajj Yasser Aldor", roleAr: "المسؤول العام — خادم حملة عشاق الحسين - ألمانيا", roleDe: "Allgemeiner Verantwortlicher der Reisegruppe", phone: "+49 1577 3055365", whatsapp: "https://wa.me/49015773055365" },
@@ -123,7 +123,7 @@ export function withTrash(prev: SiteContent | undefined, next: SiteContent): Sit
     const after = (next[section] ?? []) as unknown[];
     if (after.length >= before.length) continue;
     const keep = new Set(after.map(keyOf));
-    for (const item of before) if (!keep.has(keyOf(item))) trash.unshift({ id: `${section}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section, item, deletedAt: Date.now() });
+    for (const item of before) if (!keep.has(keyOf(item))) trash.unshift({ id: `${section}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section, item: item as TrashEntry["item"], deletedAt: Date.now() });
   }
   return { ...next, trash: trash.slice(0, 300) };
 }
