@@ -228,7 +228,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
             onUpdate={(next) => commit(all.map((x) => x.id === cur.id ? next : x))}
             onDelete={async () => { await commit(all.filter((x) => x.id !== cur.id)); setOpenId(null); }} /></div>}
           {n > 0 && <div className="relative overflow-hidden rounded-md">
-            <SmartImg key={pics[img % n]} src={pics[img % n]} alt={cur.destAr || title.ar} />
+            <SmartImg key={pics[img % n]} src={pics[img % n] ?? ""} alt={cur.destAr || title.ar} />
             {n > 1 && <>
               <Button type="button" variant="secondary" size="icon" className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="السابق | Zurück" onClick={() => setImg((img - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
               <Button type="button" variant="secondary" size="icon" className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="التالي | Weiter" onClick={() => setImg((img + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
