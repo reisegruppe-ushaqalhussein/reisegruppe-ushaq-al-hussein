@@ -179,7 +179,7 @@ function GuideItemMenu({ g, pics, imgIndex, onUpdate, onDelete }: { g: Guideline
       {showHidden && <IconBtn label={g.hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => onUpdate({ ...g, hidden: !g.hidden })}>{g.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
       <IconBtn label="حذف | Löschen" danger onClick={async () => { if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; await onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
     </GearMenu>
-    {dlg === "edit" && <EditDialog open onOpenChange={close} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={guideFields} initial={g} onSubmit={(row) => onUpdate({ ...g, ...(row as GuidelineEntry), id: g.id, hidden: g.hidden })} />}
+    {dlg === "edit" && <EditDialog open onOpenChange={close} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={guideFields} initial={g} onSubmit={(row) => onUpdate({ ...g, ...(row as GuidelineEntry), id: g.id, hidden: g.hidden ?? false })} />}
     {dlg === "rename" && <TitleDialog open onOpenChange={close} initial={{ ar: g.destAr ?? "", de: g.destDe ?? "" }} onSubmit={(r) => onUpdate({ ...g, destAr: String(r["ar"] ?? ""), destDe: String(r["de"] ?? "") })} />}
     {dlg === "img" && <EditDialog open onOpenChange={close} title={{ ar: "إضافة صورة", de: "Bild hinzufügen" }} fields={[{ key: "url", ar: "رابط الصورة", de: "Bild-URL", ltr: true }]} initial={{ url: "" }} onSubmit={async (r) => { const u = String(r["url"] ?? "").trim(); if (!/^https?:\/\//i.test(u)) throw new Error("رابط غير صالح | Ungültige URL"); await onUpdate({ ...g, images: [...pics, u].join("\n") }); }} />}
   </>;
