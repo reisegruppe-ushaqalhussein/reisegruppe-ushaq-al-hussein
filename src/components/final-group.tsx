@@ -119,7 +119,7 @@ export function RenameTitle({ content, labelKey, ar, de }: { content: SiteConten
   if (staff?.role !== "admin") return null;
   return <>
     <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
-    {open && <TitleDialog open={open} onOpenChange={setOpen} initial={{ ar, de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [labelKey]: { ar: String(row.ar ?? ""), de: String(row.de ?? "") } } })} />}
+    {open && <TitleDialog open={open} onOpenChange={setOpen} initial={{ ar, de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [labelKey]: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } } })} />}
   </>;
 }
 function TitleDialog({ open, onOpenChange, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; initial: { ar: string; de: string }; onSubmit: (r: Record<string, unknown>) => Promise<void> }) {
