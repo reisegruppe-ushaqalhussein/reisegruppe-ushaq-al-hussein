@@ -18,7 +18,8 @@ import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
 import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
-import { AddButton, GearMenu, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { Trash2 as TrashIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -667,8 +668,16 @@ function DuasView({ content }: { content: SiteContent }) {
   const [reader, setReader] = useState<ReaderItem | null>(null);
   const [generalOpen, setGeneralOpen] = useState(false);
   const gTitle = labelOf(content, "generalDuas", "الأدعية والتعقيبات", "Bittgebete & Taqibat");
+  const gHidden = content.labels?.["generalDuas"]?.hidden ?? false;
+  const setGLabel = (patch: { hidden?: boolean }) => saveContent({ ...content, labels: { ...(content.labels ?? {}), generalDuas: { ar: content.labels?.["generalDuas"]?.ar ?? "", de: content.labels?.["generalDuas"]?.de ?? "", hidden: gHidden, ...patch } } });
+  const duaGear = admin && <GearMenu>
+    <RenameTitle content={content} labelKey="generalDuas" ar={gTitle.ar} de={gTitle.de} />
+    <DuaAddButton category="general" password={admin.password} content={admin.content} />
+    {showHidden && <IconBtn label={gHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => setGLabel({ hidden: !gHidden })}>{gHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+    <IconBtn label="حذف | Löschen" danger onClick={() => { if (!window.confirm("حذف جميع الأدعية والتعقيبات داخل المجلد؟ (يمكن إرجاعها من سلة المحذوفات)\nAlle Bittgebete in diesem Ordner löschen?")) return; void saveContent({ ...content, duas: content.duas.filter((d) => duaCategoryOf(d) !== "general") }); }}><TrashIcon className="h-3.5 w-3.5" /></IconBtn>
+  </GearMenu>;
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
-  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button><div className="flex gap-1"><RenameTitle content={content} labelKey="generalDuas" ar={gTitle.ar} de={gTitle.de} />{admin && <DuaAddButton category="general" password={admin.password} content={admin.content} />}</div></div><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
+  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button>{duaGear}</div><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
   return (
     <div className="screen-enter px-4 py-7">
@@ -683,7 +692,7 @@ function DuasView({ content }: { content: SiteContent }) {
             <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
           </Button></div>
         ))}
-        {(generalEntries.length > 0 || admin) && <div className="relative min-w-0">{admin && <div className="absolute left-2 top-2 z-10"><GearMenu><RenameTitle content={content} labelKey="generalDuas" ar={gTitle.ar} de={gTitle.de} /><DuaAddButton category="general" password={admin.password} content={admin.content} /></GearMenu></div>}<Button variant="outline" onClick={() => setGeneralOpen(true)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
+        {(generalEntries.length > 0 || admin) && (!gHidden || showHidden) && <div className={`relative min-w-0 ${gHidden ? "opacity-55" : ""}`}>{duaGear && <div className="absolute left-2 top-2 z-10">{duaGear}</div>}<Button variant="outline" onClick={() => setGeneralOpen(true)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
           <img src={misbahaCard.url} alt={`${gTitle.ar} | ${gTitle.de}`} loading="lazy" width={736} height={1307} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
           <span className="shrine-card-shade absolute inset-0" />
           <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={gTitle.ar} de={gTitle.de} align="center" inverse /></span>
