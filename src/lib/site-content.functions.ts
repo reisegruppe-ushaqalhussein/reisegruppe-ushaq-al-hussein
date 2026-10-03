@@ -144,6 +144,9 @@ const contentSchema = z.object({
   donationIntro: z.object({ ar: long, de: long }).optional(),
   memories: z.array(z.object({ id: z.string().max(100), imageUrl: z.string().max(5000), ar: s, de: s, place: s, date: z.string().max(20), hidden: z.boolean().optional() })).max(500).optional(),
   reviewUrl: z.string().max(2000).optional(),
+  rooms: z.array(z.object({ id: z.string().max(100), name: s, city: s, hotel: s, floor: z.string().max(50), room: z.string().max(50), hidden: z.boolean().optional() })).max(2000).optional(),
+  guidelines: z.array(z.object({ id: z.string().max(100), ar: long, de: long, hidden: z.boolean().optional() })).max(200).optional(),
+  guidelinesPdf: z.string().max(5000).optional(),
   modeLabels: z.object({ admin: z.string().max(60), haj: z.string().max(60), leader: z.string().max(60) }).optional(),
 });
 

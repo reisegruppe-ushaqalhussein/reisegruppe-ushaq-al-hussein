@@ -27,6 +27,8 @@ export type ShrineEntry = { id: string; ar: string; de: string; imageUrl?: strin
 export type NoteEntry = { id: string; ar: string; de: string; hidden?: boolean };
 export type EmergencyEntry = { id: string; ar: string; de: string; phone: string; hidden?: boolean };
 export type DonationEntry = { id: string; ar: string; de: string; value: string; hidden?: boolean };
+export type RoomEntry = { id: string; name: string; city: string; hotel: string; floor: string; room: string; hidden?: boolean };
+export type GuidelineEntry = { id: string; ar: string; de: string; hidden?: boolean };
 export type MemoryEntry = { id: string; imageUrl: string; ar: string; de: string; place: string; date: string; hidden?: boolean };
 export type ModeLabels = { admin: string; haj: string; leader: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
@@ -55,6 +57,9 @@ export type SiteContent = {
   modeLabels: ModeLabels;
   donationIntro?: { ar: string; de: string } | undefined;
   memories: MemoryEntry[];
+  rooms?: RoomEntry[];
+  guidelines?: GuidelineEntry[];
+  guidelinesPdf?: string | undefined;
   reviewUrl?: string | undefined;
   trash?: TrashEntry[];
 };
@@ -142,13 +147,16 @@ export function mergeContent(data: unknown): SiteContent {
     donationIntro: d.donationIntro,
     memories: Array.isArray(d.memories) ? d.memories : [],
     reviewUrl: d.reviewUrl,
+    rooms: Array.isArray(d.rooms) ? d.rooms : [],
+    guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
+    guidelinesPdf: d.guidelinesPdf,
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
   };
 }
 
 /** Sections whose removed items go to the recycle bin. */
-export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories"] as const;
+export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories", "rooms", "guidelines"] as const;
 const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in x && typeof (x as { id: unknown }).id === "string" ? `id:${(x as { id: string }).id}` : `j:${JSON.stringify(x)}`);
 
 /** Moves any items removed between prev and next into next.trash (works for every current and future section). */

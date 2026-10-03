@@ -1,3 +1,4 @@
+import { RoomsPanel } from "@/components/final-group";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowUp, BedDouble, IdCard, MessageSquare, Pencil, Phone, Plus, Settings, Trash2 } from "lucide-react";
@@ -159,6 +160,8 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         {filled && <Button type="button" variant="outline" className="h-11" onClick={() => setEditing(false)}><T ar="إلغاء" de="Abbrechen" /></Button>}
       </div>
     </section>}
+
+    {staff && <RoomsPanel content={content} />}
 
     <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
       <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
