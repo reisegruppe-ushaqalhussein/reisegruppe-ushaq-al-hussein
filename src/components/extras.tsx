@@ -3,7 +3,7 @@ import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCc
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, toEnglish } from "@/lib/i18n";
-import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, ItemActions, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
 import type { EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
