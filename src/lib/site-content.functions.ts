@@ -165,7 +165,7 @@ export const saveSiteContent = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("site_content")
-      .upsert({ id: "main", data: parsed.data, updated_at: new Date().toISOString() });
+      .upsert({ id: "main", data: parsed.data as never, updated_at: new Date().toISOString() });
     if (error) {
       console.error("saveSiteContent db", error);
       return { ok: false as const, error: `DB: ${error.message}${error.details ? ` (${error.details})` : ""}` };
