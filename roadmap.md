@@ -33,3 +33,4 @@
 - [x] Group 4: memories gallery, trip/app rating, Facebook link.
 - [x] Polish the mobile emergency card, compact the audio player, and prevent scroll-to-top overlap.
 - [x] Give staff clear direct controls for pilgrim identity, accommodation entries, and named emergency numbers.
+- [x] Final group: staff rooms panel (search, bulk paste, end-trip reset), guidelines carousel with PDF and favorites.
