@@ -100,10 +100,17 @@ export function AdminBar({ content }: { content: SiteContent }) {
   );
 }
 
-const sectionNames: Record<string, string> = { trips: "الرحلات | Reisen", news: "الأخبار | News", duas: "الأدعية والزيارات | Ziyarat", contacts: "التواصل | Kontakte", itinerary: "جدول الرحلة | Programm", locations: "المواقع | Orte", faqs: "الأسئلة | FAQ", occasions: "المناسبات | Anlässe", hadiths: "الأحاديث | Hadithe" };
+const sectionNames: Record<string, string> = { trips: "الرحلات | Reisen", news: "الأخبار | News", duas: "الأدعية والزيارات | Ziyarat", contacts: "التواصل | Kontakte", itinerary: "جدول الرحلة | Programm", locations: "المواقع | Orte", faqs: "الأسئلة | FAQ", occasions: "المناسبات | Anlässe", hadiths: "الأحاديث | Hadithe", rooms: "تسكين الزوار | Zimmer", guidelines: "الإرشادات | Hinweise", iraqItems: "زيارة العراق | Irak", emergency: "الطوارئ | Notfall", tripTypes: "أنواع الزيارة | Reisearten", shrines: "المراقد | Schreine", visaNotes: "الفيزا | Visum", donations: "التبرعات | Spenden", memories: "الذكريات | Erinnerungen" };
+const titleKeys = ["name", "nameAr", "titleAr", "ar", "destAr", "qAr", "labelAr", "title", "label", "dateAr", "de", "nameDe", "titleDe", "destDe", "qDe", "phone", "number", "url"];
 function labelOf(item: unknown) {
   const o = (item ?? {}) as Record<string, unknown>;
-  return String(o["ar"] || o["titleAr"] || o["qAr"] || o["de"] || o["titleDe"] || "—");
+  for (const k of titleKeys) { const v = o[k]; if (typeof v === "string" && v.trim()) { const t = v.trim(); return t.length > 80 ? `${t.slice(0, 80)}…` : t; } }
+  const any = Object.entries(o).find(([k, v]) => k !== "id" && typeof v === "string" && v.trim());
+  return any ? String(any[1]).slice(0, 80) : "—";
+}
+function detailOf(item: unknown) {
+  const o = (item ?? {}) as Record<string, unknown>;
+  return ["city", "hotel", "floor", "room", "date", "destDe"].map((k) => o[k]).filter((v) => typeof v === "string" && v.trim()).join(" · ");
 }
 
 function TrashDialog({ open, onOpenChange, content, password }: { open: boolean; onOpenChange: (o: boolean) => void; content: SiteContent; password: string }) {
@@ -122,6 +129,7 @@ function TrashDialog({ open, onOpenChange, content, password }: { open: boolean;
         {trash.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">السلة فارغة | Papierkorb leer</p> : <ul className="space-y-2">
           {trash.map((t) => <li key={t.id} className="rounded-md border border-border bg-card p-3 text-sm">
             <p className="font-bold text-primary">{labelOf(t.item)}</p>
+            {detailOf(t.item) && <p className="text-xs text-foreground/80">{detailOf(t.item)}</p>}
             <p className="text-xs text-muted-foreground">{sectionNames[t.section] ?? t.section} · <span dir="ltr">{new Date(t.deletedAt).toLocaleString("de-DE")}</span></p>
             <div className="mt-2 flex gap-2"><Button size="sm" onClick={() => restore(t)}><RotateCcw />إرجاع <span className="text-xs italic">| Wiederherstellen</span></Button><Button size="sm" variant="outline" className="text-destructive" onClick={() => purge(t)}><Trash2 />نهائي</Button></div>
           </li>)}
