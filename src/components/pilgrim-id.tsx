@@ -164,7 +164,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       {staff && <div className="mb-3 rounded-md border border-border bg-accent/40 p-2">
         <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => saveContent({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
         <div className="space-y-2">{content.emergency.map((entry) => <div key={entry.id} className="rounded-md border border-border bg-card p-2 text-xs">
-          <ItemActions fields={emergencyFields} item={entry} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} />
+          <ItemActions fields={emergencyFields} item={entry} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden ?? false } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} />
           <p className="pe-9 font-bold text-primary"><T ar={entry.ar || "رقم طوارئ الحملة"} de={entry.de || "Notfallnummer der Reisegruppe"} /></p>
           <p dir="ltr" className="mt-1 break-all text-muted-foreground">{entry.phone}</p>
         </div>)}</div>
