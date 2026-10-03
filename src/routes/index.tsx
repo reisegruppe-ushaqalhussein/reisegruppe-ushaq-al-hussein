@@ -9,7 +9,7 @@ import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/du
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
 import { PilgrimIdView, ScrollToTop } from "@/components/pilgrim-id";
-import { FolderCard, GuidelinesFolders, RenameTitle } from "@/components/final-group";
+import { FolderCard, FullPage, GuidelinesFolders, RenameTitle } from "@/components/final-group";
 import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
@@ -371,6 +371,14 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
   const [iraqOpen, setIraqOpen] = useState(false);
   const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const upTitle = labelOf(content, "upcoming", "الرحلات القادمة", "Kommende Reisen");
+  const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
+  const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
+  const upMenu = admin && <GearMenu>
+    <RenameTitle content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
+    <AddButton inline label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />
+    {showHidden && <IconBtn label={upHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+  </GearMenu>;
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" />
@@ -386,11 +394,8 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
       </div>
 
       <div className="my-7 border-t border-border" />
-      <FolderCard icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" count={upcomingTrips.length} onOpen={() => setUpcomingOpen(true)}
-        menu={admin && <GearMenu><AddButton inline label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} /></GearMenu>} />
-      <Dialog open={upcomingOpen} onOpenChange={setUpcomingOpen}>
-        <DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-          <DialogHeader className="text-right"><DialogTitle className="text-primary"><Pair ar="الرحلات القادمة" de="Kommende Reisen" /></DialogTitle><DialogDescription className="sr-only">Kommende Reisen</DialogDescription></DialogHeader>
+      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={() => setUpcomingOpen(true)} menu={upMenu} /></div>}
+      {upcomingOpen && <FullPage title={upTitle} onBack={() => setUpcomingOpen(false)} menu={upMenu}>
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? (/عمر|umrah/i.test(trip.ar + trip.de) ? KaabaIcon : /حج|hadsch/i.test(trip.ar + trip.de) ? HajjIcon : /إيران|iran/i.test(trip.ar + trip.de) ? IranIcon : /عراق|حسين|irak|hussein/i.test(trip.ar + trip.de) ? IraqIcon : trip.icon);
@@ -399,8 +404,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
         })}
         {upcomingTrips.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد رحلات معلنة حالياً | Derzeit keine Reisen</p>}
       </div>
-        </DialogContent>
-      </Dialog>
+      </FullPage>}
 
 
       <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>

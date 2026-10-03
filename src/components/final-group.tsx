@@ -321,7 +321,7 @@ function GuidePost({ g, fallbackPdf, onUpdate, onDelete }: { g: GuidelineEntry; 
 }
 
 /** Full-screen page shell with back arrow, bilingual title and an icon-only gear. */
-function FullPage({ title, onBack, menu, children }: { title: { ar: string; de: string }; onBack: () => void; menu?: React.ReactNode; children: React.ReactNode }) {
+export function FullPage({ title, onBack, menu, children }: { title: { ar: string; de: string }; onBack: () => void; menu?: React.ReactNode; children: React.ReactNode }) {
   useEffect(() => { const y = window.scrollY; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; window.scrollTo(0, y); }; }, []);
   return createPortal(<div className="fixed inset-0 z-40 overflow-y-auto bg-muted" dir="rtl">
     <div className="mx-auto min-h-full w-full max-w-[420px] bg-background pb-28">
