@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCcw, Users, Vibrate } from "lucide-react";
+import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCcw, Settings, Users, Vibrate } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
@@ -106,33 +107,36 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
   const emergencyContacts = showHidden ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
   const emergency = content.emergency.filter((e) => showHidden || !e.hidden);
+  const [manage, setManage] = useState(false);
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
       {(emergencyContacts.length > 0 || emergency.length > 0 || admin) && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
-        <h3 className="mb-3 text-sm font-extrabold text-secondary"><P ar="أرقام الطوارئ للحملة" de="Notfallnummern der Reisegruppe" inverse /></h3>
-        {admin && <div className="rounded-md bg-card p-2 text-foreground"><AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} /></div>}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="min-w-0 text-sm font-extrabold text-secondary"><P ar="أرقام الطوارئ للحملة" de="Notfallnummern der Reisegruppe" inverse /></h3>
+          {admin && <button type="button" onClick={() => setManage(true)} aria-label="إدارة الأرقام | Nummern verwalten" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-secondary/60 text-secondary hover:bg-secondary/15"><Settings className="h-4 w-4" /></button>}
+        </div>
         <div className="space-y-2">
-          {emergencyContacts.map((c) => (
-            <div key={c.id} className={c.hidden ? "opacity-55" : ""}>
-              {admin && <div className="rounded-md bg-card px-2 pt-2 text-foreground"><ItemActions fields={contactFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, contacts: content.contacts.map((x) => (x.id === c.id ? { ...x, hidden, visible: !hidden } : x)) })} onSave={(row) => save({ ...content, contacts: content.contacts.map((x) => (x.id === c.id ? { ...c, ...row, id: c.id } as typeof c : x)) })} onDelete={() => save({ ...content, contacts: content.contacts.filter((x) => x.id !== c.id) })} /></div>}
-              <a href={telHref(c.phone)} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
-                <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /><span dir="ltr" className="block break-all text-xs opacity-80">{c.phone}</span></span>
-                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
-              </a>
-            </div>
-          ))}
-          {emergency.map((c) => (
-            <div key={c.id} className={c.hidden ? "opacity-55" : ""}>
-              {admin && <div className="rounded-md bg-card px-2 pt-2 text-foreground"><ItemActions fields={emergencyFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...(row as EmergencyEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, emergency: content.emergency.filter((x) => x.id !== c.id) })} /></div>}
-              <a href={telHref(c.phone)} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
-                <span className="min-w-0 text-sm font-bold"><P ar={c.ar || "رقم طوارئ الحملة"} de={c.de || "Notfallnummer der Reisegruppe"} inverse /><span dir="ltr" className="block break-all text-xs opacity-80">{c.phone}</span></span>
-                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
-              </a>
-            </div>
+          {[...emergencyContacts.map((c) => ({ id: c.id, ar: c.ar, de: c.de, phone: c.phone, hidden: c.hidden })), ...emergency.map((c) => ({ id: c.id, ar: c.ar || "رقم طوارئ الحملة", de: c.de || "Notfallnummer der Reisegruppe", phone: c.phone, hidden: c.hidden }))].map((c) => (
+            <a key={c.id} href={telHref(c.phone)} className={`flex min-w-0 items-center gap-2 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15 ${c.hidden ? "opacity-55" : ""}`}>
+              <span className="min-w-0 flex-1 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /><span dir="ltr" className="block break-all text-xs text-secondary">{c.phone}</span></span>
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
+            </a>
           ))}
         </div>
       </section>}
+      {admin && <Dialog open={manage} onOpenChange={setManage}>
+        <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+          <DialogHeader className="text-right"><DialogTitle>أرقام الطوارئ <span className="text-sm italic text-muted-foreground">| Notfallnummern</span></DialogTitle><DialogDescription>إضافة وتعديل وحذف | Hinzufügen, bearbeiten, löschen</DialogDescription></DialogHeader>
+          <div className="space-y-2">
+            {content.emergency.map((c) => <div key={c.id} className="flex items-center gap-2 rounded-md border border-border bg-card p-2 text-xs">
+              <div className="min-w-0 flex-1"><p className="font-bold text-primary">{c.ar || c.de || "رقم طوارئ"}</p><p dir="ltr" className="break-all text-muted-foreground">{c.phone}</p></div>
+              <div className="relative h-8 w-8 shrink-0"><ItemActions fields={emergencyFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...(row as EmergencyEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, emergency: content.emergency.filter((x) => x.id !== c.id) })} /></div>
+            </div>)}
+          </div>
+          <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
+        </DialogContent>
+      </Dialog>}
       {admin && <AddButton label={{ ar: "إضافة موقع", de: "Ort hinzufügen" }} fields={locationFields} blank={{ id: "", kind: "hotel", ar: "", de: "", address: "", mapsUrl: "", hidden: false }} onAdd={(row) => commit([...all, { ...(row as LocationEntry), id: `l${Date.now()}` }])} />}
       {kinds.map((k) => {
         const items = available.filter((l) => l.kind === k.id);
