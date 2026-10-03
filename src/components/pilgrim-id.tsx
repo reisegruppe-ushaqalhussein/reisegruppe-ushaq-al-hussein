@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
-import type { SiteContent } from "@/lib/site-content";
+import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
 const KEY = "ushaq-pilgrim-id";
@@ -21,7 +22,8 @@ export const cities = [
   { id: "medina", ar: "المدينة المنورة", de: "Medina" },
   { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" },
 ];
-const cityOf = (id: string) => cities.find((c) => c.id === id) ?? cities[cities.length - 1]!;
+const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" };
+const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
 export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string };
@@ -50,9 +52,9 @@ function T({ ar, de }: { ar: string; de: string }) {
 
 function buildSms(p: PilgrimId, stay: Stay | undefined, loc: string, lang: string) {
   const c = stay ? cityOf(stay.city) : null;
-  const ar = `نداء طوارئ: أنا الزائر ${p.nameAr || p.nameDe || "—"}${p.phone ? ` (${p.phone})` : ""}. أحتاج مساعدة عاجلة.${stay ? ` ${c!.ar} - فندق: ${stay.hotel}، طابق: ${stay.floor}، غرفة: ${stay.room}.` : ""}`;
-  const de = `NOTFALL: Ich bin ${p.nameDe || p.nameAr || "—"}${p.phone ? ` (${p.phone})` : ""}. Ich brauche dringend Hilfe.${stay ? ` ${c!.de} - Hotel: ${stay.hotel}, Etage: ${stay.floor}, Zimmer: ${stay.room}.` : ""}`;
-  const en = `EMERGENCY: I am ${p.nameDe || p.nameAr || "—"}${p.phone ? ` (${p.phone})` : ""}. I need urgent help.${stay ? ` ${c!.de} - Hotel: ${stay.hotel}, Floor: ${stay.floor}, Room: ${stay.room}.` : ""}`;
+  const ar = `نداء طوارئ: أنا الزائر ${p.nameAr || p.nameDe || "—"}${p.phone ? ` (${p.phone})` : ""}. أحتاج مساعدة عاجلة.${stay && c ? ` ${c.ar} - فندق: ${stay.hotel}، طابق: ${stay.floor}، غرفة: ${stay.room}.` : ""}`;
+  const de = `NOTFALL: Ich bin ${p.nameDe || p.nameAr || "—"}${p.phone ? ` (${p.phone})` : ""}. Ich brauche dringend Hilfe.${stay && c ? ` ${c.de} - Hotel: ${stay.hotel}, Etage: ${stay.floor}, Zimmer: ${stay.room}.` : ""}`;
+  const en = `EMERGENCY: I am ${p.nameDe || p.nameAr || "—"}${p.phone ? ` (${p.phone})` : ""}. I need urgent help.${stay && c ? ` ${c.de} - Hotel: ${stay.hotel}, Floor: ${stay.floor}, Room: ${stay.room}.` : ""}`;
   const where = loc ? `\n📍 ${loc}` : "\n📍 GPS ?";
   const text = lang === "ar" ? ar : lang === "de" ? de : lang === "en" ? en : `${ar}\n${de}`;
   return text + where;
@@ -91,9 +93,15 @@ export function EmergencySmsButton({ content, compact = false }: { content: Site
 }
 
 const inputCls = "h-11 w-full rounded-md border border-border bg-background px-3 text-sm";
+const emergencyFields: FieldDef[] = [
+  { key: "ar", ar: "اسم الحملة أو الجهة", de: "Name (AR)" },
+  { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true },
+];
 
 export function PilgrimIdView({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
+  const saveContent = useSaveContent(staff?.password ?? "");
   const [p, save] = useLocal();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PilgrimId>(empty);
@@ -139,7 +147,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <p className="pt-2 text-sm font-bold text-primary"><T ar="الإقامة في كل مدينة" de="Unterkunft je Stadt" /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
-          <button type="button" aria-label="delete" onClick={() => setDraft({ ...draft, stays: draft.stays.filter((x) => x.id !== s.id) })} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-border text-destructive"><Trash2 className="h-4 w-4" /></button></div>
+          <Button type="button" variant="outline" size="icon" aria-label="حذف الإقامة | Unterkunft löschen" onClick={() => setDraft({ ...draft, stays: draft.stays.filter((x) => x.id !== s.id) })} className="h-11 w-11 shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
         <input placeholder="اسم الفندق | Hotel" className={inputCls} value={s.hotel} onChange={(e) => setStay(s.id, { hotel: e.target.value })} />
         <div className="grid grid-cols-2 gap-2"><input placeholder="الطابق | Etage" className={inputCls} value={s.floor} onChange={(e) => setStay(s.id, { floor: e.target.value })} /><input placeholder="الغرفة | Zimmer" className={inputCls} value={s.room} onChange={(e) => setStay(s.id, { room: e.target.value })} /></div>
       </div>)}
@@ -153,6 +161,14 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
       <h3 className="mb-1 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
       <p className="mb-3 text-xs text-muted-foreground"><T ar="يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال." de="Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden." /></p>
+      {staff && <div className="mb-3 rounded-md border border-border bg-accent/40 p-2">
+        <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => saveContent({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
+        <div className="space-y-2">{content.emergency.map((entry) => <div key={entry.id} className="rounded-md border border-border bg-card p-2 text-xs">
+          <ItemActions fields={emergencyFields} item={entry} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} />
+          <p className="pe-9 font-bold text-primary"><T ar={entry.ar || "رقم طوارئ الحملة"} de={entry.de || "Notfallnummer der Reisegruppe"} /></p>
+          <p dir="ltr" className="mt-1 break-all text-muted-foreground">{entry.phone}</p>
+        </div>)}</div>
+      </div>}
       <EmergencySmsButton content={content} />
     </section>
   </div>;

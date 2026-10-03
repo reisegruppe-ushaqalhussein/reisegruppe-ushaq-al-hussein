@@ -31,5 +31,5 @@
 - [x] Universal favorites star across trips, duas, contacts, news, FAQs, places, occasions, hadiths with tabbed "My favorites".
 - [x] Reader font choices (Arabic + Latin pairing); no welcome-screen flash; Android install fallback guide.
 - [x] Group 4: memories gallery, trip/app rating, Facebook link.
-- [ ] Polish the mobile emergency card, compact the audio player, and prevent scroll-to-top overlap.
-- [ ] Give staff clear direct controls for pilgrim identity, accommodation entries, and named emergency numbers.
+- [x] Polish the mobile emergency card, compact the audio player, and prevent scroll-to-top overlap.
+- [x] Give staff clear direct controls for pilgrim identity, accommodation entries, and named emergency numbers.
