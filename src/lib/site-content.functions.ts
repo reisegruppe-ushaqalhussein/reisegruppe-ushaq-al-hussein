@@ -147,6 +147,7 @@ const contentSchema = z.object({
   rooms: z.array(z.object({ id: z.string().max(100), name: s, city: s, hotel: s, floor: z.string().max(50), room: z.string().max(50), hidden: z.boolean().optional() })).max(2000).optional(),
   guidelines: z.array(z.object({ id: z.string().max(100), ar: long, de: long, destAr: s.optional(), destDe: s.optional(), pdf: z.string().max(5000).optional(), images: z.string().max(50000).optional(), hidden: z.boolean().optional() })).max(200).optional(),
   guidelinesPdf: z.string().max(5000).optional(),
+  iraqItems: z.array(z.object({ id: z.string().max(100), kind: z.string().max(20), ar: s, de: s, bodyAr: long, bodyDe: long, hidden: z.boolean().optional() })).max(200).optional(),
   labels: z.record(z.string().max(100), z.object({ ar: s, de: s, hidden: z.boolean().optional() })).optional(),
   trash: z.array(z.unknown()).max(300).optional(),
   modeLabels: z.object({ admin: z.string().max(60), haj: z.string().max(60), leader: z.string().max(60) }).optional(),
