@@ -28,7 +28,10 @@ export type NoteEntry = { id: string; ar: string; de: string; hidden?: boolean }
 export type EmergencyEntry = { id: string; ar: string; de: string; phone: string; hidden?: boolean };
 export type DonationEntry = { id: string; ar: string; de: string; value: string; hidden?: boolean };
 export type RoomEntry = { id: string; name: string; city: string; hotel: string; floor: string; room: string; hidden?: boolean };
-export type GuidelineEntry = { id: string; ar: string; de: string; hidden?: boolean };
+export type GuidelineEntry = { id: string; ar: string; de: string; destAr?: string; destDe?: string; pdf?: string; images?: string; hidden?: boolean };
+export type LabelMap = Record<string, { ar: string; de: string }>;
+/** Returns an admin-renamed title or the given default. */
+export function labelOf(c: { labels?: LabelMap | undefined }, key: string, ar: string, de: string) { const l = c.labels?.[key]; return { ar: l?.ar || ar, de: l?.de || de }; }
 export type MemoryEntry = { id: string; imageUrl: string; ar: string; de: string; place: string; date: string; hidden?: boolean };
 export type ModeLabels = { admin: string; haj: string; leader: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
@@ -60,6 +63,7 @@ export type SiteContent = {
   rooms?: RoomEntry[];
   guidelines?: GuidelineEntry[];
   guidelinesPdf?: string | undefined;
+  labels?: LabelMap | undefined;
   reviewUrl?: string | undefined;
   trash?: TrashEntry[];
 };
@@ -150,6 +154,7 @@ export function mergeContent(data: unknown): SiteContent {
     rooms: Array.isArray(d.rooms) ? d.rooms : [],
     guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
     guidelinesPdf: d.guidelinesPdf,
+    labels: d.labels ?? {},
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
   };

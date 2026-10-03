@@ -1,4 +1,3 @@
-import { GuidelinesCarousel } from "@/components/final-group";
 import { useEffect, useMemo, useState } from "react";
 import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCcw, Settings, Users, Vibrate } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -112,7 +111,6 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
-      <GuidelinesCarousel content={content} />
       {(emergencyContacts.length > 0 || emergency.length > 0 || admin) && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="min-w-0 text-sm font-extrabold text-secondary"><P ar="أرقام الطوارئ للحملة" de="Notfallnummern der Reisegruppe" inverse /></h3>

@@ -3,12 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
-import { defaultContacts, defaultContent, duaCategoryOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
+import { defaultContacts, defaultContent, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
 import { PilgrimIdView, ScrollToTop } from "@/components/pilgrim-id";
+import { GuidelinesFolders, RenameTitle } from "@/components/final-group";
+import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
@@ -447,6 +449,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
           )}
         </DialogContent>
       </Dialog>
+      <GuidelinesFolders content={content} />
     </div>
   );
 }
@@ -655,7 +658,10 @@ function DuasView({ content }: { content: SiteContent }) {
   const [shrineId, setShrineId] = useState<string | null>(null);
   const shrine = shrines.find((s) => s.id === shrineId) ?? null;
   const [reader, setReader] = useState<ReaderItem | null>(null);
+  const [generalOpen, setGeneralOpen] = useState(false);
+  const gTitle = labelOf(content, "generalDuas", "الأدعية والتعقيبات", "Bittgebete & Taqibat");
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
+  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button><div className="flex gap-1"><RenameTitle content={content} labelKey="generalDuas" ar={gTitle.ar} de={gTitle.de} />{admin && <DuaAddButton category="general" password={admin.password} content={admin.content} />}</div></div><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
   return (
     <div className="screen-enter px-4 py-7">
@@ -670,8 +676,12 @@ function DuasView({ content }: { content: SiteContent }) {
             <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
           </Button></div>
         ))}
+        {(generalEntries.length > 0 || admin) && <div className="min-w-0"><Button variant="outline" onClick={() => setGeneralOpen(true)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
+          <img src={misbahaCard.url} alt={`${gTitle.ar} | ${gTitle.de}`} loading="lazy" width={736} height={1307} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <span className="shrine-card-shade absolute inset-0" />
+          <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={gTitle.ar} de={gTitle.de} align="center" inverse /></span>
+        </Button></div>}
       </div>
-      {(generalEntries.length > 0 || admin) && <section className="mt-7"><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar="الأدعية العامة والتعقيبات" de="Allgemeine Bittgebete" />{admin && <DuaAddButton category="general" password={admin.password} content={admin.content} />}</div><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></section>}
     </div>
   );
 }

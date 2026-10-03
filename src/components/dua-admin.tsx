@@ -1,7 +1,7 @@
+import { IconBtn } from "@/components/inline-admin";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAdminSession, useShowHidden } from "@/lib/admin-session";
@@ -84,7 +84,7 @@ export function DuaAddButton({ category, password, content }: { category: DuaCat
   const blank: DuaEntry = { id: `d${Date.now()}`, ar: "", de: "", textAr: "", textDe: "", link: "", category, reciters: [], hidden: false };
   return (
     <>
-      <Button size="sm" variant="outline" className="shrink-0 border-secondary text-primary" onClick={() => setOpen(true)}><Plus />إضافة <span className="text-xs italic">| Hinzufügen</span></Button>
+      <button type="button" aria-label="إضافة | Hinzufügen" title="إضافة | Hinzufügen" onClick={() => setOpen(true)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm"><Plus className="h-4 w-4" /></button>
       {open && <DuaForm content={content} open={open} onOpenChange={setOpen} initial={blank} title={{ ar: "إضافة جديد", de: "Neu hinzufügen" }} onSubmit={(d) => saveDuas([...content.duas, { ...d, id: `d${Date.now()}` }])} />}
     </>
   );
@@ -102,19 +102,14 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
   }
   return (
     <div className="flex justify-end">
-      <DropdownMenu dir="rtl">
-        <DropdownMenuTrigger asChild>
-          <button type="button" aria-label="خيارات | Optionen" className="grid h-7 w-7 place-items-center rounded-full border border-border bg-background/80 shadow-sm backdrop-blur"><MoreHorizontal className="h-4 w-4" /></button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic opacity-70">| Bearbeiten</span></DropdownMenuItem>
-          {showHidden && <DropdownMenuItem onSelect={async () => {
-            try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
-            catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
-          }}>{entry.hidden ? <Eye /> : <EyeOff />}{entry.hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic opacity-70">| {entry.hidden ? "Restore" : "Hide"}</span></DropdownMenuItem>}
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}><Trash2 />حذف <span className="text-xs italic opacity-70">| Löschen</span></DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex gap-1">
+        <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+        {showHidden && <IconBtn label={entry.hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => {
+          try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
+          catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
+        }}>{entry.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+        <IconBtn label="حذف | Löschen" danger onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+      </div>
       {open && <DuaForm content={content} open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
     </div>
   );

@@ -145,7 +145,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     {editing && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
       {staff && <p className="rounded-md bg-accent px-3 py-2 text-xs font-bold text-primary"><T ar="تحكم المشرف: إضافة وتعديل وحذف بيانات البطاقة والإقامة" de="Mitarbeiter: Ausweis- und Unterkunftsdaten verwalten" /></p>}
       <label className="block text-xs font-bold text-primary">الاسم بالعربية | Name (Arabisch)<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
-      <label className="block text-xs font-bold text-primary">الاسم بالأحرف اللاتينية | Name (Latein)<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
+      <label className="block text-xs font-bold text-primary">الأحرف الأجنبية (ألماني / إنجليزي) | Fremdschrift (Deutsch / Englisch)<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">رقم هاتفي (اختياري) | Meine Nummer<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
       <p className="pt-2 text-sm font-bold text-primary"><T ar="الإقامة في كل مدينة" de="Unterkunft je Stadt" /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
