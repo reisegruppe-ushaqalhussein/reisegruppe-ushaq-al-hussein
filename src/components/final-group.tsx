@@ -165,6 +165,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
     <Dialog open={listOpen} onOpenChange={setListOpen}>
       <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle><Pair ar={title.ar} de={title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
+        {staff && <div className="flex justify-end"><GearMenu><AddButton inline label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={{ destAr: "", destDe: "", ar: "", de: "", images: "", pdf: "" }} onAdd={(row) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }])} /><IconBtn label="إدارة | Verwalten" onClick={() => setManage(true)}><Settings className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
         <div className="grid grid-cols-2 gap-3">
           {items.map((g) => <button key={g.id} type="button" onClick={() => { setImg(0); setOpenId(g.id); }} className={`flex min-h-24 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
             <Folder className="h-6 w-6 text-secondary" />
@@ -179,6 +180,8 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         {cur && <>
           <DialogHeader className="text-right"><DialogTitle><Pair ar={cur.destAr || title.ar} de={cur.destDe || title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
+          {(cur.destAr || cur.destDe) && <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-primary"><Folder className="h-3.5 w-3.5 text-secondary" />{cur.destAr}{cur.destDe && <span dir="ltr" className="italic text-muted-foreground"> | {cur.destDe}</span>}</span>}
+          {n === 0 && <div className="grid aspect-square w-full place-items-center rounded-md border border-dashed border-secondary/60 bg-accent/40 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />لا توجد صور بعد<span dir="ltr" className="block italic">Noch keine Bilder</span></span></div>}
           {n > 0 && <div className="relative overflow-hidden rounded-md">
             <img src={pics[img % n]} alt={cur.destAr || title.ar} className="aspect-square w-full object-cover" />
             {n > 1 && <>
