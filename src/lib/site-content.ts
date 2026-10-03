@@ -29,6 +29,7 @@ export type EmergencyEntry = { id: string; ar: string; de: string; phone: string
 export type DonationEntry = { id: string; ar: string; de: string; value: string; hidden?: boolean };
 export type RoomEntry = { id: string; name: string; city: string; hotel: string; floor: string; room: string; hidden?: boolean };
 export type GuidelineEntry = { id: string; ar: string; de: string; destAr?: string; destDe?: string; pdf?: string; images?: string; hidden?: boolean };
+export type IraqItem = { id: string; kind: string; ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
 export type LabelMap = Record<string, { ar: string; de: string; hidden?: boolean }>;
 /** Returns an admin-renamed title or the given default. */
 export function labelOf(c: { labels?: LabelMap | undefined }, key: string, ar: string, de: string) { const l = c.labels?.[key]; return { ar: l?.ar || ar, de: l?.de || de }; }
@@ -63,6 +64,7 @@ export type SiteContent = {
   rooms?: RoomEntry[];
   guidelines?: GuidelineEntry[];
   guidelinesPdf?: string | undefined;
+  iraqItems?: IraqItem[];
   labels?: LabelMap | undefined;
   reviewUrl?: string | undefined;
   trash?: TrashEntry[];
@@ -154,6 +156,7 @@ export function mergeContent(data: unknown): SiteContent {
     rooms: Array.isArray(d.rooms) ? d.rooms : [],
     guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
     guidelinesPdf: d.guidelinesPdf,
+    iraqItems: Array.isArray(d.iraqItems) ? d.iraqItems : defaultIraqItems,
     labels: d.labels ?? {},
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
@@ -161,7 +164,7 @@ export function mergeContent(data: unknown): SiteContent {
 }
 
 /** Sections whose removed items go to the recycle bin. */
-export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories", "rooms", "guidelines"] as const;
+export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories", "rooms", "guidelines", "iraqItems"] as const;
 const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in x && typeof (x as { id: unknown }).id === "string" ? `id:${(x as { id: string }).id}` : `j:${JSON.stringify(x)}`);
 
 /** Moves any items removed between prev and next into next.trash (works for every current and future section). */
@@ -177,3 +180,16 @@ export function withTrash(prev: SiteContent | undefined, next: SiteContent): Sit
   }
   return { ...next, trash: trash.slice(0, 300) };
 }
+
+export const defaultIraqItems: IraqItem[] = [
+  { id: "i0", kind: "intro", ar: "زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة.", de: "Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf.", bodyAr: "", bodyDe: "" },
+  { id: "i1", kind: "type", ar: "زيارة الإمام الحسين (ع)", de: "Zyarat Imam Hussein (as)", bodyAr: "تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية).", bodyDe: "Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." },
+  { id: "i2", kind: "type", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Zyarat Imam Hussein (as) Winterferien / Neujahr", bodyAr: "", bodyDe: "" },
+  { id: "i3", kind: "type", ar: "زيارة عرفة", de: "Zyarat Arafa", bodyAr: "", bodyDe: "" },
+  { id: "i4", kind: "type", ar: "زيارة الأربعين", de: "Zyarat Arbaeen", bodyAr: "", bodyDe: "" },
+  { id: "i5", kind: "type", ar: "زيارة 15 شعبان", de: "Zyarat 15 Shaaban", bodyAr: "", bodyDe: "" },
+  { id: "flight", kind: "detail", ar: "الطيران", de: "Flug", bodyAr: "الوصول عبر مطار بغداد.", bodyDe: "Ankunft über den Flughafen Bagdad." },
+  { id: "hotel", kind: "detail", ar: "السكن", de: "Unterkunft", bodyAr: "ليلة في الكاظمية، وفندق في كربلاء، وفندق في النجف.", bodyDe: "Eine Nacht in al-Kazimiyya, ein Hotel in Kerbela und ein Hotel in Nadschaf." },
+  { id: "majlis", kind: "detail", ar: "المجالس", de: "Majlis", bodyAr: "مجالس حسينية بمرافقة خطيب ورادود حسيني.", bodyDe: "Husseinitische Majlis mit Khatib und Radud Hosseini." },
+  { id: "food", kind: "detail", ar: "الطعام", de: "Verpflegung", bodyAr: "أكل لبناني بامتياز — ثلاث وجبات يومياً.", bodyDe: "Ausgezeichnete libanesische Küche — drei Mahlzeiten täglich." },
+];

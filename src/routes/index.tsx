@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
-import { defaultContacts, defaultContent, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
+import { defaultContacts, defaultContent, defaultIraqItems, type IraqItem, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
 import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
@@ -379,6 +379,20 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
     <AddButton inline label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />
     {showHidden && <IconBtn label={upHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
+  const iraqTitle = labelOf(content, "iraq", "زيارة العراق", "Irak-Reise");
+  const iraqHidden = content.labels?.["iraq"]?.hidden ?? false;
+  const iraqAll = content.iraqItems ?? defaultIraqItems;
+  const iraqVisible = iraqAll.filter((x) => showHidden || !x.hidden);
+  const saveIraq = (iraqItems: IraqItem[]) => saveContent({ ...content, iraqItems });
+  const toggleIraq = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), iraq: { ar: content.labels?.["iraq"]?.ar ?? "", de: content.labels?.["iraq"]?.de ?? "", hidden: !iraqHidden } } });
+  const iraqIcon = (x: IraqItem): IconType => (x.id === "flight" || /طير|flug/i.test(x.ar + x.de) ? Plane : x.id === "hotel" || /سكن|unterkunft|hotel/i.test(x.ar + x.de) ? Hotel : x.id === "majlis" || /مجالس|majlis/i.test(x.ar + x.de) ? BedDouble : x.id === "food" || /طعام|verpflegung/i.test(x.ar + x.de) ? Soup : CircleCheck);
+  const iraqActions = (x: IraqItem) => admin && <ItemActions fields={iraqFields} item={x} hidden={x.hidden ?? false} onVisibilityChange={(hidden) => saveIraq(iraqAll.map((y) => (y.id === x.id ? { ...y, hidden } : y)))} onSave={(row) => saveIraq(iraqAll.map((y) => (y.id === x.id ? { ...y, ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") } : y)))} onDelete={() => saveIraq(iraqAll.filter((y) => y.id !== x.id))} />;
+  const iraqMenu = admin && <GearMenu>
+    <RenameTitle content={content} labelKey="iraq" ar={iraqTitle.ar} de={iraqTitle.de} />
+    <AddButton inline label={{ ar: "إضافة نوع زيارة", de: "Zyarat-Art hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `it${Date.now()}`, kind: "type", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />
+    <AddButton inline label={{ ar: "إضافة تفصيل للرحلة", de: "Reisedetail hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `id${Date.now()}`, kind: "detail", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />
+    {showHidden && <IconBtn label={iraqHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleIraq()}>{iraqHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+  </GearMenu>;
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" />
@@ -407,34 +421,19 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
       </FullPage>}
 
 
-      <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>
-        <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg" dir="rtl">
-          <DialogHeader className="text-right">
-            <DialogTitle className="text-xl text-primary"><Pair ar="زيارة العراق" de="Irak-Reise" /></DialogTitle>
-            <DialogDescription asChild><div className="pt-2"><Pair ar="زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة." de="Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf." /></div></DialogDescription>
-          </DialogHeader>
-          <section className="mt-2">
+      {iraqOpen && <FullPage title={iraqTitle} onBack={() => setIraqOpen(false)} menu={iraqMenu}>
+        {(!iraqHidden || showHidden) && <div className={`space-y-5 ${iraqHidden ? "opacity-60" : ""}`}>
+          {iraqVisible.filter((x) => x.kind === "intro").map((x) => <div key={x.id} className={x.hidden ? "opacity-55" : ""}>{iraqActions(x)}<div className="rounded-lg bg-accent p-4 pe-10 text-sm"><Pair ar={x.ar} de={x.de} /></div></div>)}
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <h3 className="text-lg text-primary"><Pair ar="أنواع الزيارة ضمن هذه الرحلة" de="Arten der Zyarat bei dieser Reise" /></h3>
-            <div className="mt-4 space-y-4 text-sm">
-              <div><Pair ar="زيارة الإمام الحسين (ع)" de="Zyarat Imam Hussein (as)" /><div className="mt-2"><Pair ar="تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية)." de="Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." /></div></div>
-              <Pair ar="زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة" de="Zyarat Imam Hussein (as) Winterferien / Neujahr" />
-              <Pair ar="زيارة عرفة" de="Zyarat Arafa" />
-              <Pair ar="زيارة الأربعين" de="Zyarat Arbaeen" />
-              <Pair ar="زيارة 15 شعبان" de="Zyarat 15 Shaaban" />
-            </div>
+            <div className="mt-4 space-y-3 text-sm">{iraqVisible.filter((x) => x.kind === "type").map((x) => <div key={x.id} className={x.hidden ? "opacity-55" : ""}>{iraqActions(x)}<div className="rounded-md border border-border bg-background p-3 pe-10"><Pair ar={x.ar} de={x.de} />{(x.bodyAr || x.bodyDe) && <div className="mt-2"><Pair ar={x.bodyAr} de={x.bodyDe || x.bodyAr} /></div>}</div></div>)}</div>
           </section>
-          <section className="mt-3 border-t border-border pt-5">
+          <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <h3 className="text-lg text-primary"><Pair ar="تفاصيل الرحلة" de="Reisedetails" /></h3>
-            <div className="mt-4 grid gap-3">
-              <Detail icon={Plane} ar="الطيران" de="Flug" detailAr="الوصول عبر مطار بغداد." detailDe="Ankunft über den Flughafen Bagdad." />
-               <Detail icon={Hotel} ar="السكن" de="Unterkunft" detailAr="ليلة في الكاظمية، وفندق في كربلاء، وفندق في النجف." detailDe="Eine Nacht in al-Kazimiyya, ein Hotel in Kerbela und ein Hotel in Nadschaf." />
-               {(hotels.kadhimiya || hotels.karbala || hotels.najaf) && <div className="rounded-md bg-muted p-3 text-sm">{hotels.kadhimiya && <Pair ar={`الكاظمية: ${hotels.kadhimiya}`} de={`al-Kazimiyya: ${hotels.kadhimiya}`} />}{hotels.karbala && <Pair ar={`كربلاء: ${hotels.karbala}`} de={`Kerbela: ${hotels.karbala}`} />}{hotels.najaf && <Pair ar={`النجف: ${hotels.najaf}`} de={`Nadschaf: ${hotels.najaf}`} />}</div>}
-              <Detail icon={BedDouble} ar="المجالس" de="Majlis" detailAr="مجالس حسينية بمرافقة خطيب ورادود حسيني." detailDe="Husseinitische Majlis mit Khatib und Radud Hosseini." />
-              <Detail icon={Soup} ar="الطعام" de="Verpflegung" detailAr="أكل لبناني بامتياز — ثلاث وجبات يومياً." detailDe="Ausgezeichnete libanesische Küche — drei Mahlzeiten täglich." />
-            </div>
+            <div className="mt-4 grid gap-3">{iraqVisible.filter((x) => x.kind === "detail").map((x) => <div key={x.id} className={x.hidden ? "opacity-55" : ""}>{iraqActions(x)}<div className="pe-10"><Detail icon={iraqIcon(x)} ar={x.ar} de={x.de} detailAr={x.bodyAr} detailDe={x.bodyDe || x.bodyAr} /></div>{x.id === "hotel" && (hotels.kadhimiya || hotels.karbala || hotels.najaf) && <div className="rounded-md bg-muted p-3 text-sm">{hotels.kadhimiya && <Pair ar={`الكاظمية: ${hotels.kadhimiya}`} de={`al-Kazimiyya: ${hotels.kadhimiya}`} />}{hotels.karbala && <Pair ar={`كربلاء: ${hotels.karbala}`} de={`Kerbela: ${hotels.karbala}`} />}{hotels.najaf && <Pair ar={`النجف: ${hotels.najaf}`} de={`Nadschaf: ${hotels.najaf}`} />}</div>}</div>)}</div>
           </section>
-        </DialogContent>
-      </Dialog>
+        </div>}
+      </FullPage>}
 
       <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg p-0" dir="rtl">
@@ -450,9 +449,9 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
                   <DialogTitle className="text-xl text-primary"><Pair ar={selected.ar} de={selected.de} /></DialogTitle>
                   <DialogDescription asChild><div>{selected.date && <p dir="ltr" className="mt-2 text-right text-sm font-bold text-foreground">{selected.date}</p>}</div></DialogDescription>
                 </DialogHeader>
-                <div className="mt-5 rounded-lg border border-border bg-muted p-4">
+                {admin && <div className="mt-4 h-8"><ItemActions fields={programFields} item={{ programAr: content.trips.find((t) => t.id === selected.id)?.programAr ?? "", programDe: content.trips.find((t) => t.id === selected.id)?.programDe ?? "" }} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === selected.id ? { ...t, programAr: String(row["programAr"] ?? ""), programDe: String(row["programDe"] ?? "") } : t)))} onDelete={() => saveTrips(content.trips.map((t) => (t.id === selected.id ? { ...t, programAr: "", programDe: "" } : t)))} /></div>}
+                <div className={`${admin ? "mt-1" : "mt-5"} rounded-lg border border-border bg-muted p-4`}>
                   <h3 className="text-base text-primary"><Pair ar="برنامج الرحلة لهذا الموعد" de="Reiseprogramm für diesen Termin" /></h3>
-                  {admin && <div className="mt-2"><ItemActions fields={programFields} item={{ programAr: content.trips.find((t) => t.id === selected.id)?.programAr ?? "", programDe: content.trips.find((t) => t.id === selected.id)?.programDe ?? "" }} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === selected.id ? { ...t, programAr: String(row["programAr"] ?? ""), programDe: String(row["programDe"] ?? "") } : t)))} onDelete={() => saveTrips(content.trips.map((t) => (t.id === selected.id ? { ...t, programAr: "", programDe: "" } : t)))} /></div>}
                   <div className="mt-3 text-sm"><div className="whitespace-pre-line"><Pair ar={content.trips.find((t) => t.id === selected.id)?.programAr || program.ar} de={content.trips.find((t) => t.id === selected.id)?.programDe || program.de} /></div></div>
                 </div>
                 <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>
@@ -465,6 +464,8 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
     </div>
   );
 }
+
+const iraqFields: FieldDef[] = [{ key: "ar", ar: "العنوان (عربي)", de: "Titel (AR)" }, { key: "de", ar: "العنوان (ألماني)", de: "Titel (DE)" }, { key: "bodyAr", ar: "النص (عربي)", de: "Text (AR)", multiline: true }, { key: "bodyDe", ar: "النص (ألماني)", de: "Text (DE)", multiline: true }];
 
 function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar: string; de: string; detailAr: string; detailDe: string }) {
   return <div className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div><Pair ar={ar} de={de} /><p className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></p></div></div>;
