@@ -152,7 +152,6 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const [manage, setManage] = useState(false);
   const all = content.guidelines ?? [];
   const items = all.filter((g) => showHidden || !g.hidden);
-  if (!staff && items.length === 0) return null;
   const title = labelOf(content, "guidelines", "إرشادات وآداب الزيارة", "Hinweise & Etikette");
   const commit = (guidelines: GuidelineEntry[]) => save({ ...content, guidelines });
   const cur = items.find((g) => g.id === openId) ?? null;
