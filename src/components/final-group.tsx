@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { BedDouble, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings } from "lucide-react";
+import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
 import { useAdminSession, useShowHidden } from "@/lib/admin-session";
-import { AddButton, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
-import type { GuidelineEntry, RoomEntry, SiteContent } from "@/lib/site-content";
+import { AddButton, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
 
 const gearCls = "h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary";
 const inputCls = "h-11 w-full rounded-md border border-border bg-background px-3 text-sm";
@@ -100,55 +100,94 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
   </section>;
 }
 
-/* ---------- Visit guidelines carousel + PDF ---------- */
+/* ---------- Visit guideline folders (carousel images + PDF) ---------- */
 const guideFields: FieldDef[] = [
+  { key: "destAr", ar: "اسم الزيارة / الوجهة (عربي)", de: "Reise / Ziel (AR)" },
+  { key: "destDe", ar: "اسم الزيارة / الوجهة (ألماني)", de: "Reise / Ziel (DE)", ltr: true },
   { key: "ar", ar: "النص بالعربية", de: "Text (AR)", multiline: true },
   { key: "de", ar: "النص بالألمانية", de: "Text (DE)", multiline: true, ltr: true },
+  { key: "images", ar: "روابط صور الكاروسيل (رابط بكل سطر)", de: "Karussell-Bilder (eine URL pro Zeile)", multiline: true, ltr: true },
+  { key: "pdf", ar: "رابط ملف PDF", de: "PDF-Link", ltr: true },
 ];
+const titleFields: FieldDef[] = [{ key: "ar", ar: "العنوان بالعربية", de: "Titel (AR)" }, { key: "de", ar: "العنوان بالألمانية", de: "Titel (DE)", ltr: true }];
 
-export function GuidelinesCarousel({ content }: { content: SiteContent }) {
+/** Admin-only pencil to rename a section title stored in content.labels. */
+export function RenameTitle({ content, labelKey, ar, de }: { content: SiteContent; labelKey: string; ar: string; de: string }) {
+  const staff = useAdminSession();
+  const save = useSaveContent(staff?.password ?? "");
+  const [open, setOpen] = useState(false);
+  if (staff?.role !== "admin") return null;
+  return <>
+    <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
+    {open && <TitleDialog open={open} onOpenChange={setOpen} initial={{ ar, de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [labelKey]: { ar: String(row.ar ?? ""), de: String(row.de ?? "") } } })} />}
+  </>;
+}
+function TitleDialog({ open, onOpenChange, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; initial: { ar: string; de: string }; onSubmit: (r: Record<string, unknown>) => Promise<void> }) {
+  const [d, setD] = useState(initial);
+  return <ManageDialog open={open} onOpenChange={onOpenChange} ar="إعادة تسمية" de="Umbenennen">
+    {titleFields.map((f) => <label key={f.key} className="block text-xs font-bold text-primary">{f.ar} | {f.de}<input dir={f.ltr ? "ltr" : "rtl"} value={d[f.key as "ar" | "de"]} onChange={(e) => setD({ ...d, [f.key]: e.target.value })} className={`${inputCls} mt-1`} /></label>)}
+    <Button type="button" className="h-10 w-full" onClick={async () => { await onSubmit(d); onOpenChange(false); }}>حفظ | Speichern</Button>
+  </ManageDialog>;
+}
+
+export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
   const showHidden = useShowHidden();
   const save = useSaveContent(staff?.password ?? "");
-  const [i, setI] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [img, setImg] = useState(0);
   const [manage, setManage] = useState(false);
-  const [pdf, setPdf] = useState(content.guidelinesPdf ?? "");
   const all = content.guidelines ?? [];
   const items = all.filter((g) => showHidden || !g.hidden);
-  if (!staff && items.length === 0 && !content.guidelinesPdf) return null;
-  const cur = items[Math.min(i, Math.max(items.length - 1, 0))];
+  if (!staff && items.length === 0) return null;
+  const title = labelOf(content, "guidelines", "إرشادات وآداب الزيارة", "Hinweise & Etikette");
   const commit = (guidelines: GuidelineEntry[]) => save({ ...content, guidelines });
-  const n = items.length;
+  const cur = items.find((g) => g.id === openId) ?? null;
+  const pics = (cur?.images ?? "").split(/\s+/).filter(Boolean);
+  const n = pics.length;
 
-  return <section className="mb-6 rounded-lg border border-secondary/50 bg-card p-3 shadow-sm">
-    <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-      <h3 className="min-w-0 font-bold text-primary"><Pair ar="إرشادات وآداب الزيارة" de="Hinweise & Etikette" /></h3>
-      {staff && <Button type="button" variant="ghost" size="icon" onClick={() => { setPdf(content.guidelinesPdf ?? ""); setManage(true); }} aria-label="إدارة الإرشادات | Hinweise verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button>}
+  return <section className="mt-7 min-w-0">
+    <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+      <h3 className="flex min-w-0 items-start gap-1.5 font-bold text-primary"><BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-secondary" /><Pair ar={title.ar} de={title.de} /></h3>
+      {staff && <div className="flex gap-1"><RenameTitle content={content} labelKey="guidelines" ar={title.ar} de={title.de} /><Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة الإرشادات | Hinweise verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button></div>}
     </div>
-    {cur && <div className={`relative rounded-md bg-accent p-4 pe-12 text-sm ${cur.hidden ? "opacity-60" : ""}`}>
-      <FavStar id={`guide:${cur.id}`} className="absolute left-2 top-2 h-8 w-8" />
-      <p className="whitespace-pre-line">{cur.ar}</p>
-      {cur.de && <p lang="de" dir="ltr" className="mt-2 whitespace-pre-line text-xs italic text-muted-foreground">{cur.de}</p>}
-    </div>}
-    {n > 1 && <div className="mt-2 flex items-center justify-between">
-      <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="السابق | Zurück" onClick={() => setI((i - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
-      <div className="flex gap-1">{items.map((g, k) => <span key={g.id} className={`h-1.5 rounded-full ${k === i ? "w-4 bg-secondary" : "w-1.5 bg-border"}`} />)}</div>
-      <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="التالي | Weiter" onClick={() => setI((i + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
-    </div>}
-    {content.guidelinesPdf && <Button asChild variant="outline" className="mt-3 h-10 w-full"><a href={content.guidelinesPdf} target="_blank" rel="noreferrer" download><FileText />ملف الإرشادات PDF <span className="text-xs italic opacity-70">| PDF öffnen</span></a></Button>}
+    <div className="grid grid-cols-2 gap-3">
+      {items.map((g) => <button key={g.id} type="button" onClick={() => { setImg(0); setOpenId(g.id); }} className={`flex min-h-24 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
+        <Folder className="h-6 w-6 text-secondary" />
+        <span className="min-w-0 text-sm font-bold text-primary"><Pair ar={g.destAr || g.ar.slice(0, 30)} de={g.destDe || g.de.slice(0, 30)} /></span>
+      </button>)}
+    </div>
 
-    {staff && <ManageDialog open={manage} onOpenChange={setManage} ar="إرشادات الزيارة" de="Besuchshinweise">
+    <Dialog open={!!cur} onOpenChange={(o) => !o && setOpenId(null)}>
+      <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        {cur && <>
+          <DialogHeader className="text-right"><DialogTitle><Pair ar={cur.destAr || title.ar} de={cur.destDe || title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
+          {n > 0 && <div className="relative overflow-hidden rounded-md">
+            <img src={pics[img % n]} alt={cur.destAr || title.ar} className="aspect-square w-full object-cover" />
+            {n > 1 && <>
+              <Button type="button" variant="secondary" size="icon" className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="السابق | Zurück" onClick={() => setImg((img - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
+              <Button type="button" variant="secondary" size="icon" className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="التالي | Weiter" onClick={() => setImg((img + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
+              <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1">{pics.map((p, k) => <span key={p + k} className={`h-1.5 rounded-full ${k === img % n ? "w-4 bg-secondary" : "w-1.5 bg-background/80"}`} />)}</div>
+            </>}
+          </div>}
+          <div className="relative rounded-md bg-accent p-4 pe-12 text-sm">
+            <FavStar id={`guide:${cur.id}`} className="absolute left-2 top-2 h-8 w-8" />
+            <p className="whitespace-pre-line">{cur.ar}</p>
+            {cur.de && <p lang="de" dir="ltr" className="mt-2 whitespace-pre-line text-xs italic text-muted-foreground">{cur.de}</p>}
+          </div>
+          {(cur.pdf || content.guidelinesPdf) && <Button asChild variant="outline" className="h-10 w-full"><a href={cur.pdf || content.guidelinesPdf} target="_blank" rel="noreferrer" download><FileText />PDF <span className="text-xs italic opacity-70">| öffnen</span></a></Button>}
+        </>}
+      </DialogContent>
+    </Dialog>
+
+    {staff && <ManageDialog open={manage} onOpenChange={setManage} ar={title.ar} de={title.de}>
       <div className="space-y-2">
-        {items.map((g) => <ManageRow key={g.id} title={g.ar.slice(0, 60)} subtitle={g.de.slice(0, 60)} fields={guideFields} item={g} hidden={g.hidden ?? false}
+        {items.map((g) => <ManageRow key={g.id} title={g.destAr || g.ar.slice(0, 40)} subtitle={g.destDe || g.de.slice(0, 40)} fields={guideFields} item={g} hidden={g.hidden ?? false}
           onVisibilityChange={(hidden) => commit(all.map((x) => x.id === g.id ? { ...x, hidden } : x))}
           onSave={(row) => commit(all.map((x) => x.id === g.id ? { ...(row as GuidelineEntry), id: g.id, hidden: g.hidden ?? false } : x))}
           onDelete={() => commit(all.filter((x) => x.id !== g.id))} />)}
       </div>
-      <AddButton label={{ ar: "إضافة إرشاد", de: "Hinweis hinzufügen" }} fields={guideFields} blank={{ ar: "", de: "" }} onAdd={(row) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }])} />
-      <label className="block text-xs font-bold text-primary">رابط ملف PDF | PDF-Link
-        <input dir="ltr" value={pdf} onChange={(e) => setPdf(e.target.value)} className={`${inputCls} mt-1`} />
-      </label>
-      <Button type="button" className="h-10 w-full" onClick={() => save({ ...content, guidelinesPdf: pdf.trim() })}>حفظ الرابط | Link speichern</Button>
+      <AddButton label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={{ destAr: "", destDe: "", ar: "", de: "", images: "", pdf: "" }} onAdd={(row) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }])} />
     </ManageDialog>}
   </section>;
 }
