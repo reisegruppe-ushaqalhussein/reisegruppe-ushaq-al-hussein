@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
-import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
