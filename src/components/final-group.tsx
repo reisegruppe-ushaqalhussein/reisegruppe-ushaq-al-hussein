@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn } from "lucide-react";
+import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft } from "lucide-react";
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -186,7 +186,7 @@ function Lightbox({ pics, index, onIndex, onClose }: { pics: string[]; index: nu
   return createPortal(<div className="fixed inset-0 z-[100] flex flex-col bg-foreground/95" dir="ltr" role="dialog" aria-modal="true" style={{ pointerEvents: "auto" }}>
     <div className="flex items-center justify-between p-3">
       <span className="text-sm text-background">{n > 1 ? `${index + 1} / ${n}` : ""}</span>
-      <button type="button" onClick={onClose} aria-label="إغلاق | Schließen" className="grid h-11 w-11 place-items-center rounded-full bg-background text-foreground"><X className="h-6 w-6" /></button>
+      <div className="flex items-center gap-2"><button type="button" onClick={() => void downloadImage(pics[index] ?? "")} aria-label="تحميل الصورة | Bild herunterladen" title="تحميل الصورة | Bild herunterladen" className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-secondary-foreground"><Download className="h-5 w-5" /></button><button type="button" onClick={onClose} aria-label="إغلاق | Schließen" className="grid h-11 w-11 place-items-center rounded-full bg-background text-foreground"><X className="h-6 w-6" /></button></div>
     </div>
     <div className="relative flex-1 overflow-hidden" style={{ touchAction: "none" }}
       onPointerDown={(e) => {
@@ -269,68 +269,116 @@ function GuideItemMenu({ g, pics, imgIndex, onUpdate, onDelete }: { g: Guideline
   </>;
 }
 
+/** One-tap image download; falls back to opening the image if the host blocks direct fetch. */
+async function downloadImage(src: string) {
+  const url = directUrl(src);
+  try {
+    const res = await fetch(url, { referrerPolicy: "no-referrer" });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ziyarat-${Date.now()}.${ext}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch { window.open(url, "_blank", "noopener"); }
+}
+
+/** One guideline post rendered inline: gear, carousel, download, text, PDF. */
+function GuidePost({ g, fallbackPdf, onUpdate, onDelete }: { g: GuidelineEntry; fallbackPdf?: string | undefined; onUpdate: (g: GuidelineEntry) => Promise<void>; onDelete: () => Promise<void> }) {
+  const staff = useAdminSession();
+  const [img, setImg] = useState(0);
+  const [zoom, setZoom] = useState(false);
+  const pics = splitPics(g.images);
+  const n = pics.length;
+  const cur = pics[img % Math.max(n, 1)] ?? "";
+  return <article className={`relative space-y-3 rounded-lg border border-secondary/40 bg-card p-3 shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
+    {g.hidden && <span className="text-xs text-muted-foreground">مخفي | Versteckt</span>}
+    {staff && <div className="flex justify-end"><GuideItemMenu g={g} pics={pics} imgIndex={img % Math.max(n, 1)} onUpdate={onUpdate} onDelete={onDelete} /></div>}
+    {n > 0 && <div className="relative overflow-hidden rounded-md">
+      <SmartImg key={cur} src={cur} alt={g.destAr || ""} onOpen={() => setZoom(true)} />
+      {n > 1 && <>
+        <Button type="button" variant="secondary" size="icon" className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="السابق | Zurück" onClick={() => setImg((img - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
+        <Button type="button" variant="secondary" size="icon" className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="التالي | Weiter" onClick={() => setImg((img + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
+        <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1">{pics.map((p, k) => <span key={p + k} className={`h-1.5 rounded-full ${k === img % n ? "w-4 bg-secondary" : "w-1.5 bg-background/80"}`} />)}</div>
+      </>}
+    </div>}
+    {n > 0 && <div className="flex justify-center"><button type="button" onClick={() => void downloadImage(cur)} aria-label="تحميل الصورة | Bild herunterladen" title="تحميل الصورة | Bild herunterladen" className="grid h-9 w-9 place-items-center rounded-full border border-secondary/60 bg-background text-primary shadow-sm"><Download className="h-4 w-4" /></button></div>}
+    {(g.ar || g.de) && <div className="relative rounded-md bg-accent p-4 pe-12 text-sm">
+      <FavStar id={`guide:${g.id}`} className="absolute left-2 top-2 h-8 w-8" />
+      <p className="whitespace-pre-line">{g.ar}</p>
+      {g.de && <p lang="de" dir="ltr" className="mt-2 whitespace-pre-line text-xs italic text-muted-foreground">{g.de}</p>}
+    </div>}
+    {(g.pdf || fallbackPdf) && <Button asChild variant="outline" className="h-10 w-full"><a href={g.pdf || fallbackPdf} target="_blank" rel="noreferrer" download><FileText />PDF <span className="text-xs italic opacity-70">| öffnen</span></a></Button>}
+    {zoom && n > 0 && <Lightbox pics={pics} index={img % n} onIndex={setImg} onClose={() => setZoom(false)} />}
+  </article>;
+}
+
+/** Full-screen page shell with back arrow, bilingual title and an icon-only gear. */
+function FullPage({ title, onBack, menu, children }: { title: { ar: string; de: string }; onBack: () => void; menu?: React.ReactNode; children: React.ReactNode }) {
+  useEffect(() => { const y = window.scrollY; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; window.scrollTo(0, y); }; }, []);
+  return createPortal(<div className="fixed inset-0 z-[60] overflow-y-auto bg-muted" dir="rtl">
+    <div className="mx-auto min-h-full w-full max-w-[420px] bg-background pb-28">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-secondary/40 bg-primary px-3 py-3 text-primary-foreground shadow-md">
+        <div className="min-w-0 flex-1 text-right"><p className="truncate text-base font-bold">{title.ar}</p><p dir="ltr" className="truncate text-right text-xs italic text-secondary">{title.de}</p></div>
+        {menu}
+        <button type="button" onClick={onBack} aria-label="رجوع | Zurück" title="رجوع | Zurück" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><ArrowLeft className="h-5 w-5" /></button>
+      </header>
+      <div className="space-y-4 p-4">{children}</div>
+    </div>
+  </div>, document.body);
+}
+
+const blankGuide = { destAr: "", destDe: "", ar: "", de: "", images: "", pdf: "" };
+
 export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
   const showHidden = useShowHidden();
   const save = useSaveContent(staff?.password ?? "");
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [listOpen, setListOpen] = useState(false);
-  const [img, setImg] = useState(0);
-  const [zoom, setZoom] = useState(false);
+  const [page, setPage] = useState(false);
+  const [folder, setFolder] = useState<string | null>(null);
   const [manage, setManage] = useState(false);
   const all = content.guidelines ?? [];
   const items = all.filter((g) => showHidden || !g.hidden);
   const title = labelOf(content, "guidelines", "إرشادات وآداب الزيارة", "Hinweise & Etikette");
+  const sectionHidden = content.labels?.["guidelines"]?.hidden ?? false;
   const commit = (guidelines: GuidelineEntry[]) => save({ ...content, guidelines });
-  const cur = items.find((g) => g.id === openId) ?? null;
-  const pics = splitPics(cur?.images);
-  const n = pics.length;
+  const keyOf = (g: GuidelineEntry) => (g.destAr || g.destDe || g.ar.slice(0, 30)).trim();
+  const folders: { key: string; ar: string; de: string; posts: GuidelineEntry[] }[] = [];
+  for (const g of items) { const k = keyOf(g); const f = folders.find((x) => x.key === k); if (f) f.posts.push(g); else folders.push({ key: k, ar: g.destAr || g.ar.slice(0, 30), de: g.destDe || g.de.slice(0, 30), posts: [g] }); }
+  const cur = folders.find((f) => f.key === folder) ?? null;
+  const toggleSection = () => save({ ...content, labels: { ...(content.labels ?? {}), guidelines: { ar: content.labels?.["guidelines"]?.ar ?? "", de: content.labels?.["guidelines"]?.de ?? "", hidden: !sectionHidden } } });
+  const addNew = (row: Record<string, unknown>) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }]);
+  const sectionMenu = staff && <GearMenu>
+    <RenameTitle content={content} labelKey="guidelines" ar={title.ar} de={title.de} />
+    <AddButton inline label={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} />
+    {showHidden && <IconBtn label={sectionHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleSection()}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+    <IconBtn label="إدارة | Verwalten" onClick={() => setManage(true)}><Settings className="h-3.5 w-3.5" /></IconBtn>
+  </GearMenu>;
 
-  return <section className="mt-3 min-w-0">
-    <FolderCard icon={BookMarked} ar={title.ar} de={title.de} count={items.length} onOpen={() => setListOpen(true)}
-      menu={staff && <GearMenu><RenameTitle content={content} labelKey="guidelines" ar={title.ar} de={title.de} /><IconBtn label="إدارة | Verwalten" onClick={() => setManage(true)}><Settings className="h-3.5 w-3.5" /></IconBtn></GearMenu>} />
-    <Dialog open={listOpen} onOpenChange={setListOpen}>
-      <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-        <DialogHeader className="text-right"><DialogTitle><Pair ar={title.ar} de={title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
-        {staff && <div className="flex justify-end"><GearMenu><AddButton inline label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={{ destAr: "", destDe: "", ar: "", de: "", images: "", pdf: "" }} onAdd={(row) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }])} /><IconBtn label="إدارة | Verwalten" onClick={() => setManage(true)}><Settings className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
-        <div className="grid grid-cols-2 gap-3">
-          {items.map((g) => <button key={g.id} type="button" onClick={() => { setImg(0); setOpenId(g.id); }} className={`flex min-h-24 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
-            <Folder className="h-6 w-6 text-secondary" />
-            <span className="min-w-0 text-sm font-bold text-primary"><Pair ar={g.destAr || g.ar.slice(0, 30)} de={g.destDe || g.de.slice(0, 30)} /></span>
-          </button>)}
-          {items.length === 0 && <p className="col-span-2 py-3 text-center text-xs text-muted-foreground">لا توجد إرشادات بعد | Noch keine Hinweise</p>}
-        </div>
-      </DialogContent>
-    </Dialog>
+  if (sectionHidden && !showHidden) return null;
+  return <section className={`mt-3 min-w-0 ${sectionHidden ? "opacity-60" : ""}`}>
+    <FolderCard icon={BookMarked} ar={title.ar} de={title.de} count={folders.length} onOpen={() => setPage(true)} menu={sectionMenu} />
 
-    <Dialog open={!!cur} onOpenChange={(o) => { if (!o && !zoom) setOpenId(null); }}>
-      <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl" onInteractOutside={(e) => { if (zoom) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (zoom) { e.preventDefault(); setZoom(false); } }}>
-        {cur && <>
-          <DialogHeader className="text-right"><DialogTitle><Pair ar={cur.destAr || title.ar} de={cur.destDe || title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
-          {(cur.destAr || cur.destDe) && <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-primary"><Folder className="h-3.5 w-3.5 text-secondary" />{cur.destAr}{cur.destDe && <span dir="ltr" className="italic text-muted-foreground"> | {cur.destDe}</span>}</span>}
-          {n === 0 && <div className="grid aspect-[4/5] w-full place-items-center rounded-md border border-dashed border-secondary/60 bg-accent/40 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />لا توجد صور بعد<span dir="ltr" className="block italic">Noch keine Bilder</span></span></div>}
-          {staff && <div className="flex justify-end"><GuideItemMenu g={cur} pics={pics} imgIndex={img % Math.max(n, 1)}
-            onUpdate={(next) => commit(all.map((x) => x.id === cur.id ? next : x))}
-            onDelete={async () => { await commit(all.filter((x) => x.id !== cur.id)); setOpenId(null); }} /></div>}
-          {n > 0 && <div className="relative overflow-hidden rounded-md">
-            <SmartImg key={pics[img % n]} src={pics[img % n] ?? ""} alt={cur.destAr || title.ar} onOpen={() => setZoom(true)} />
-            {n > 1 && <>
-              <Button type="button" variant="secondary" size="icon" className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="السابق | Zurück" onClick={() => setImg((img - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
-              <Button type="button" variant="secondary" size="icon" className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="التالي | Weiter" onClick={() => setImg((img + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
-              <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1">{pics.map((p, k) => <span key={p + k} className={`h-1.5 rounded-full ${k === img % n ? "w-4 bg-secondary" : "w-1.5 bg-background/80"}`} />)}</div>
-            </>}
-          </div>}
-          <div className="relative rounded-md bg-accent p-4 pe-12 text-sm">
-            <FavStar id={`guide:${cur.id}`} className="absolute left-2 top-2 h-8 w-8" />
-            <p className="whitespace-pre-line">{cur.ar}</p>
-            {cur.de && <p lang="de" dir="ltr" className="mt-2 whitespace-pre-line text-xs italic text-muted-foreground">{cur.de}</p>}
-          </div>
-          {(cur.pdf || content.guidelinesPdf) && <Button asChild variant="outline" className="h-10 w-full"><a href={cur.pdf || content.guidelinesPdf} target="_blank" rel="noreferrer" download><FileText />PDF <span className="text-xs italic opacity-70">| öffnen</span></a></Button>}
-        </>}
-      </DialogContent>
-    </Dialog>
+    {page && !cur && <FullPage title={title} onBack={() => setPage(false)} menu={sectionMenu}>
+      <div className="grid grid-cols-2 gap-3">
+        {folders.map((f) => <button key={f.key} type="button" onClick={() => setFolder(f.key)} className={`flex min-h-28 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${f.posts.every((p) => p.hidden) ? "opacity-60" : ""}`}>
+          <Folder className="h-7 w-7 text-secondary" />
+          <span className="min-w-0 text-sm font-bold text-primary"><Pair ar={f.ar} de={f.de} /></span>
+          <span className="text-xs text-muted-foreground">{f.posts.length}</span>
+        </button>)}
+        {folders.length === 0 && <p className="col-span-2 py-6 text-center text-xs text-muted-foreground">لا توجد إرشادات بعد | Noch keine Hinweise</p>}
+      </div>
+    </FullPage>}
 
-    {zoom && cur && n > 0 && <Lightbox pics={pics} index={img % n} onIndex={setImg} onClose={() => setZoom(false)} />}
+    {page && cur && <FullPage title={{ ar: cur.ar, de: cur.de }} onBack={() => setFolder(null)}
+      menu={staff && <GearMenu><AddButton inline label={{ ar: "إضافة منشور لهذه الزيارة", de: "Beitrag zu dieser Ziyarat hinzufügen" }} fields={guideFields} blank={{ ...blankGuide, destAr: cur.posts[0]?.destAr ?? "", destDe: cur.posts[0]?.destDe ?? "" }} onAdd={addNew} /><AddButton inline label={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} /></GearMenu>}>
+      {cur.posts.map((g) => <GuidePost key={g.id} g={g} fallbackPdf={content.guidelinesPdf}
+        onUpdate={(next) => commit(all.map((x) => x.id === g.id ? next : x))}
+        onDelete={async () => { await commit(all.filter((x) => x.id !== g.id)); if (cur.posts.length <= 1) setFolder(null); }} />)}
+    </FullPage>}
+
     {staff && <ManageDialog open={manage} onOpenChange={setManage} ar={title.ar} de={title.de}>
       <div className="space-y-2">
         {items.map((g) => <ManageRow key={g.id} title={g.destAr || g.ar.slice(0, 40)} subtitle={g.destDe || g.de.slice(0, 40)} fields={guideFields} item={g} hidden={g.hidden ?? false}
@@ -338,7 +386,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
           onSave={(row) => commit(all.map((x) => x.id === g.id ? { ...(row as GuidelineEntry), id: g.id, hidden: g.hidden ?? false } : x))}
           onDelete={() => commit(all.filter((x) => x.id !== g.id))} />)}
       </div>
-      <AddButton label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={{ destAr: "", destDe: "", ar: "", de: "", images: "", pdf: "" }} onAdd={(row) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }])} />
+      <AddButton label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} />
     </ManageDialog>}
   </section>;
 }
