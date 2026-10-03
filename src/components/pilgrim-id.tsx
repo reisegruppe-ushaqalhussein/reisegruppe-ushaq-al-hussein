@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUp, BedDouble, IdCard, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, BedDouble, IdCard, MessageSquare, Pencil, Phone, Plus, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
@@ -78,9 +79,9 @@ export function EmergencySmsButton({ content, compact = false }: { content: Site
   };
   return <div className="space-y-2">
     {contacts.map((contact, i) => <div key={contact.id} className="min-w-0 rounded-md border border-destructive/25 bg-background p-2.5">
-      <div className="mb-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-        <span className="min-w-0 text-xs font-bold text-foreground"><T ar={contact.ar || "رقم الطوارئ"} de={contact.de || "Notfallnummer"} /></span>
-        <a href={`tel:${clean(contact.phone)}`} dir="ltr" className="max-w-[9.5rem] truncate text-xs font-bold text-primary underline underline-offset-2">{contact.phone}</a>
+      <div className="mb-2 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="min-w-0 text-sm font-bold text-foreground"><T ar={contact.ar || "رقم الطوارئ"} de={contact.de || "Notfallnummer"} /></span>
+        <a href={`tel:${clean(contact.phone)}`} dir="ltr" className="break-all text-sm font-bold text-primary underline underline-offset-2">{contact.phone}</a>
       </div>
       <div className="grid grid-cols-1 gap-2 min-[350px]:grid-cols-[minmax(0,1fr)_auto]">
         <Button type="button" disabled={busy} onClick={() => send(contact.phone)} className={`${compact ? "min-h-10" : "min-h-11"} h-auto min-w-0 whitespace-normal bg-destructive px-3 py-2 text-destructive-foreground hover:bg-destructive/90`}>
@@ -105,6 +106,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const [p, save] = useLocal();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PilgrimId>(empty);
+  const [manage, setManage] = useState(false);
   const phones = leaderPhones(content);
   const filled = !!(p.nameAr || p.nameDe);
   useEffect(() => { if (!filled) setEditing(true); }, [filled]);
@@ -158,19 +160,22 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       </div>
     </section>}
 
-    <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
-      <h3 className="mb-1 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
+    <section className="relative min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
+      {staff && <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة أرقام الطوارئ | Notfallnummern verwalten" className="absolute left-2 top-2 h-8 w-8 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary"><Settings className="h-4 w-4" /></Button>}
+      <h3 className="mb-1 pe-1 ps-10 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
       <p className="mb-3 text-xs text-muted-foreground"><T ar="يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال." de="Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden." /></p>
-      {staff && <div className="mb-3 rounded-md border border-border bg-accent/40 p-2">
-        <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => saveContent({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
-        <div className="space-y-2">{content.emergency.map((entry) => <div key={entry.id} className="rounded-md border border-border bg-card p-2 text-xs">
-          <ItemActions fields={emergencyFields} item={entry} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden ?? false } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} />
-          <p className="pe-9 font-bold text-primary"><T ar={entry.ar || "رقم طوارئ الحملة"} de={entry.de || "Notfallnummer der Reisegruppe"} /></p>
-          <p dir="ltr" className="mt-1 break-all text-muted-foreground">{entry.phone}</p>
-        </div>)}</div>
-      </div>}
       <EmergencySmsButton content={content} />
     </section>
+    {staff && <Dialog open={manage} onOpenChange={setManage}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle>أرقام طوارئ الحملة <span className="text-sm italic text-muted-foreground">| Notfallnummern</span></DialogTitle><DialogDescription>إضافة وتعديل وحذف <span className="italic">| Hinzufügen, bearbeiten, löschen</span></DialogDescription></DialogHeader>
+        <div className="space-y-2">{content.emergency.map((entry) => <div key={entry.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border bg-card p-2 text-xs">
+          <div className="min-w-0"><p className="font-bold text-primary"><T ar={entry.ar || "رقم طوارئ الحملة"} de={entry.de || "Notfallnummer"} /></p><p dir="ltr" className="mt-1 break-all text-muted-foreground">{entry.phone}</p></div>
+          <div className="relative h-8 w-8"><ItemActions fields={emergencyFields} item={entry} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden ?? false } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} /></div>
+        </div>)}</div>
+        <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => saveContent({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
+      </DialogContent>
+    </Dialog>}
   </div>;
 }
 
@@ -187,5 +192,5 @@ export function ScrollToTop() {
     return () => { window.removeEventListener("scroll", on); observer.disconnect(); };
   }, []);
   if (!show) return null;
-  return <Button type="button" size="icon" aria-label="إلى الأعلى | Nach oben" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed left-3 z-40 h-10 w-10 rounded-full border border-secondary bg-primary text-secondary shadow-lg hover:bg-primary ${audioOpen ? "bottom-48" : "bottom-24"}`}><ArrowUp className="h-4 w-4" /></Button>;
+  return <Button type="button" size="icon" aria-label="إلى الأعلى | Nach oben" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed left-3 z-40 h-10 w-10 rounded-full border border-secondary bg-primary text-secondary shadow-lg hover:bg-primary ${audioOpen ? "bottom-[8.25rem]" : "bottom-24"}`}><ArrowUp className="h-4 w-4" /></Button>;
 }
