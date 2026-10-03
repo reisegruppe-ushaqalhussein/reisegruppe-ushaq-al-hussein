@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn } from "lucide-react";
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
@@ -182,7 +183,7 @@ function Lightbox({ pics, index, onIndex, onClose }: { pics: string[]; index: nu
     if (!a) { start.current = null; return; }
     start.current = { d: b ? Math.hypot(a.x - b.x, a.y - b.y) : 0, s: t.s, x: t.x, y: t.y, px: b ? (a.x + b.x) / 2 : a.x, py: b ? (a.y + b.y) / 2 : a.y };
   };
-  return <div className="fixed inset-0 z-[100] flex flex-col bg-foreground/95" dir="ltr" role="dialog" aria-modal="true">
+  return createPortal(<div className="fixed inset-0 z-[100] flex flex-col bg-foreground/95" dir="ltr" role="dialog" aria-modal="true" style={{ pointerEvents: "auto" }}>
     <div className="flex items-center justify-between p-3">
       <span className="text-sm text-background">{n > 1 ? `${index + 1} / ${n}` : ""}</span>
       <button type="button" onClick={onClose} aria-label="إغلاق | Schließen" className="grid h-11 w-11 place-items-center rounded-full bg-background text-foreground"><X className="h-6 w-6" /></button>
@@ -216,7 +217,7 @@ function Lightbox({ pics, index, onIndex, onClose }: { pics: string[]; index: nu
       </>}
     </div>
     <p className="p-3 text-center text-xs text-background/80">كبّر بإصبعين أو بنقرتين | Mit zwei Fingern oder Doppeltipp zoomen</p>
-  </div>;
+  </div>, document.body);
 }
 
 /** Add images: direct upload from phone (compressed) or optional direct link. */
@@ -302,8 +303,8 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       </DialogContent>
     </Dialog>
 
-    <Dialog open={!!cur} onOpenChange={(o) => !o && setOpenId(null)}>
-      <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+    <Dialog open={!!cur} onOpenChange={(o) => { if (!o && !zoom) setOpenId(null); }}>
+      <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl" onInteractOutside={(e) => { if (zoom) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (zoom) { e.preventDefault(); setZoom(false); } }}>
         {cur && <>
           <DialogHeader className="text-right"><DialogTitle><Pair ar={cur.destAr || title.ar} de={cur.destDe || title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
           {(cur.destAr || cur.destDe) && <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-primary"><Folder className="h-3.5 w-3.5 text-secondary" />{cur.destAr}{cur.destDe && <span dir="ltr" className="italic text-muted-foreground"> | {cur.destDe}</span>}</span>}
