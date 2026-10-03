@@ -93,27 +93,37 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
     setManage(false);
   };
 
-  return <section className="min-w-0 rounded-lg border border-secondary/50 bg-card p-3">
-    <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-      <h3 className="flex min-w-0 items-start gap-1.5 font-bold text-primary"><BedDouble className="mt-0.5 h-4 w-4 shrink-0 text-secondary" /><Pair ar={`تسكين الزوار (${visible.length})`} de="Zimmerverteilung" /></h3>
-      <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة التسكين | Zimmer verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button>
-    </div>
-    <label className="relative block"><Search className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو الغرفة | Name oder Zimmer" className={`${inputCls} pr-9`} /></label>
-    <div className="mt-2 max-h-80 space-y-1.5 overflow-y-auto">
-      {list.map((r) => <div key={r.id} className={`rounded-md border border-border p-2 text-xs ${r.hidden ? "opacity-60" : ""}`}>
-        <p className="font-bold text-primary">{r.name}{r.hidden && <span className="ms-1 text-[10px] text-muted-foreground">(مخفي | Versteckt)</span>}</p>
-        <p className="text-muted-foreground">{r.city} · {r.hotel} · طابق/Etage <b dir="ltr">{r.floor || "—"}</b> · غرفة/Zimmer <b dir="ltr">{r.room || "—"}</b></p>
-      </div>)}
-      {list.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد نتائج | Keine Einträge</p>}
-    </div>
+  const [page, setPage] = useState(false);
+  const canEdit = staff?.role === "admin" || staff?.role === "haj";
+  const gear = canEdit ? <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة التسكين | Zimmer verwalten" title="إدارة | Verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button> : null;
+
+  return <section className="min-w-0">
+    <button type="button" onClick={() => setPage(true)} className="flex w-full items-center gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right">
+      <BedDouble className="h-5 w-5 shrink-0 text-secondary" />
+      <span className="min-w-0 flex-1 font-bold text-primary"><Pair ar="تسكين الزوار" de="Zimmerverteilung" /></span>
+      <span className="grid h-8 min-w-8 place-items-center rounded-full bg-primary px-2 text-sm font-bold text-primary-foreground" dir="ltr">{visible.length}</span>
+    </button>
+
+    {page && <FullPage title={{ ar: `تسكين الزوار (${visible.length})`, de: "Zimmerverteilung" }} onBack={() => setPage(false)} menu={gear}>
+      <label className="relative block"><Search className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو الغرفة | Name oder Zimmer" className={`${inputCls} pr-9`} /></label>
+      <div className="space-y-1.5">
+        {list.map((r) => { const n = visible.indexOf(r) + 1; return <div key={r.id} className="flex items-start gap-2">
+          <span className="mt-2 grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-secondary px-1 text-[11px] font-bold text-secondary-foreground" dir="ltr">{n}</span>
+          <div className="min-w-0 flex-1">{canEdit
+            ? <ManageRow title={r.name} subtitle={`${r.city} · ${r.hotel} · طابق/Etage ${r.floor || "—"} · غرفة/Zimmer ${r.room || "—"}`} fields={roomFields} item={r} hidden={r.hidden ?? false}
+                onVisibilityChange={(hidden) => commit(all.map((x) => x.id === r.id ? { ...x, hidden } : x))}
+                onSave={(row) => commit(all.map((x) => x.id === r.id ? { ...(row as RoomEntry), id: r.id, hidden: r.hidden ?? false } : x))}
+                onDelete={() => commit(all.filter((x) => x.id !== r.id))} />
+            : <div className="rounded-md border border-border bg-card p-2 text-xs">
+                <p className="font-bold text-primary">{r.name}</p>
+                <p className="text-muted-foreground">{r.city} · {r.hotel} · طابق/Etage <b dir="ltr">{r.floor || "—"}</b> · غرفة/Zimmer <b dir="ltr">{r.room || "—"}</b></p>
+              </div>}</div>
+        </div>; })}
+        {list.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد نتائج | Keine Einträge</p>}
+      </div>
+    </FullPage>}
 
     <ManageDialog open={manage} onOpenChange={setManage} ar="تسكين الزوار" de="Zimmerverteilung">
-      <div className="space-y-2">
-        {visible.map((r) => <ManageRow key={r.id} title={r.name} subtitle={`${r.city} · ${r.hotel} · ${r.floor}/${r.room}`} fields={roomFields} item={r} hidden={r.hidden ?? false}
-          onVisibilityChange={(hidden) => commit(all.map((x) => x.id === r.id ? { ...x, hidden } : x))}
-          onSave={(row) => commit(all.map((x) => x.id === r.id ? { ...(row as RoomEntry), id: r.id, hidden: r.hidden ?? false } : x))}
-          onDelete={() => commit(all.filter((x) => x.id !== r.id))} />)}
-      </div>
       <AddButton label={{ ar: "إضافة زائر", de: "Gast hinzufügen" }} fields={roomFields} blank={{ name: "", city: "", hotel: "", floor: "", room: "" }} onAdd={(row) => commit([...all, { ...(row as RoomEntry), id: `rm${Date.now()}` }])} />
       <div className="space-y-2 rounded-md border border-secondary/40 p-3">
         <p className="flex items-center gap-1.5 text-xs font-bold text-primary"><ClipboardPaste className="h-4 w-4" />لصق جماعي | Massenimport</p>

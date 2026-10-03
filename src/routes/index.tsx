@@ -868,9 +868,9 @@ function Index() {
 
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
-  const [welcomed, setWelcomed] = useState(false);
+  const [welcomed, setWelcomed] = useState<boolean | null>(null);
   useEffect(() => {
-    if (sessionStorage.getItem("welcomed") === "1") setWelcomed(true);
+    setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
     const v = sessionStorage.getItem("view") as View | null;
     if (v && v in viewTitles) setView(v);
   }, []);
@@ -882,7 +882,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   return (
     <div className="min-h-screen bg-muted">
-      {!welcomed && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
+      {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} />
         {view === "home" && <AdminBar content={content} />}
