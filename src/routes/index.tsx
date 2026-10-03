@@ -9,7 +9,7 @@ import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/du
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
 import { PilgrimIdView, ScrollToTop } from "@/components/pilgrim-id";
-import { GuidelinesFolders, RenameTitle } from "@/components/final-group";
+import { FolderCard, GuidelinesFolders, RenameTitle } from "@/components/final-group";
 import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
@@ -18,7 +18,7 @@ import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
 import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
-import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -369,6 +369,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
   const [iraqOpen, setIraqOpen] = useState(false);
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" />
@@ -384,15 +385,21 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
       </div>
 
       <div className="my-7 border-t border-border" />
-      <ScreenTitle icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" />
-      {admin && <AddButton label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />}
+      <FolderCard icon={CalendarDays} ar="الرحلات القادمة" de="Kommende Reisen" count={upcomingTrips.length} onOpen={() => setUpcomingOpen(true)}
+        menu={admin && <GearMenu><AddButton inline label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} /></GearMenu>} />
+      <Dialog open={upcomingOpen} onOpenChange={setUpcomingOpen}>
+        <DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+          <DialogHeader className="text-right"><DialogTitle className="text-primary"><Pair ar="الرحلات القادمة" de="Kommende Reisen" /></DialogTitle><DialogDescription className="sr-only">Kommende Reisen</DialogDescription></DialogHeader>
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? (/عمر|umrah/i.test(trip.ar + trip.de) ? KaabaIcon : /حج|hadsch/i.test(trip.ar + trip.de) ? HajjIcon : /إيران|iran/i.test(trip.ar + trip.de) ? IranIcon : /عراق|حسين|irak|hussein/i.test(trip.ar + trip.de) ? IraqIcon : trip.icon);
           const raw = content.trips.find((t) => t.id === trip.id)!;
-          return <div key={trip.id} className={`relative ${raw.hidden ? "opacity-55" : ""}`}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}{(raw.programAr || raw.programDe) && <div className="mb-2 rounded-md border border-secondary/40 bg-accent p-3 text-sm"><div className="mb-1 text-xs font-bold text-primary"><Pair ar="برنامج الرحلة" de="Reiseprogramm" /></div><div className="whitespace-pre-line"><Pair ar={raw.programAr ?? ""} de={raw.programDe ?? ""} /></div></div>}<Button variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="h-5 w-5 shrink-0 self-center text-secondary" aria-hidden="true" /></span></Button><TripFavButton id={trip.id} /></div>;
+          return <div key={trip.id} className={`relative ${raw.hidden ? "opacity-55" : ""}`}>{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...(row as TripEntry), id: t.id, hidden: t.hidden ?? false } : t)))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}<Button variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="h-5 w-5 shrink-0 self-center text-secondary" aria-hidden="true" /></span></Button><TripFavButton id={trip.id} /></div>;
         })}
+        {upcomingTrips.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد رحلات معلنة حالياً | Derzeit keine Reisen</p>}
       </div>
+        </DialogContent>
+      </Dialog>
 
 
       <Dialog open={iraqOpen} onOpenChange={setIraqOpen}>
@@ -676,7 +683,7 @@ function DuasView({ content }: { content: SiteContent }) {
             <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
           </Button></div>
         ))}
-        {(generalEntries.length > 0 || admin) && <div className="min-w-0"><Button variant="outline" onClick={() => setGeneralOpen(true)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
+        {(generalEntries.length > 0 || admin) && <div className="relative min-w-0">{admin && <div className="absolute left-2 top-2 z-10"><GearMenu><RenameTitle content={content} labelKey="generalDuas" ar={gTitle.ar} de={gTitle.de} /><DuaAddButton category="general" password={admin.password} content={admin.content} /></GearMenu></div>}<Button variant="outline" onClick={() => setGeneralOpen(true)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
           <img src={misbahaCard.url} alt={`${gTitle.ar} | ${gTitle.de}`} loading="lazy" width={736} height={1307} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
           <span className="shrine-card-shade absolute inset-0" />
           <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={gTitle.ar} de={gTitle.de} align="center" inverse /></span>
