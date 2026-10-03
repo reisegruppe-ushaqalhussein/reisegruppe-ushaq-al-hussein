@@ -838,6 +838,13 @@ function Index() {
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
   const [welcomed, setWelcomed] = useState(false);
+  useEffect(() => {
+    if (sessionStorage.getItem("welcomed") === "1") setWelcomed(true);
+    const v = sessionStorage.getItem("view") as View | null;
+    if (v && v in viewTitles) setView(v);
+  }, []);
+  useEffect(() => { sessionStorage.setItem("view", view); }, [view]);
+  useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
