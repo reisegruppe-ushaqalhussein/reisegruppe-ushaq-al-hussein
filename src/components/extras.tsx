@@ -91,6 +91,11 @@ const emergencyFields: FieldDef[] = [
   { key: "ar", ar: "الاسم / الجهة", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
   { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true },
 ];
+const contactFields: FieldDef[] = [
+  { key: "ar", ar: "الاسم / الجهة", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true },
+  { key: "roleAr", ar: "الصفة بالعربية", de: "Rolle (AR)" }, { key: "roleDe", ar: "الصفة بالألمانية", de: "Rolle (DE)", ltr: true },
+  { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true }, { key: "whatsapp", ar: "رابط واتساب", de: "WhatsApp-Link", ltr: true },
+];
 const mapsHref = (l: LocationEntry) => l.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.address || l.ar || l.de)}`;
 
 export function GuideView({ content, admin }: { content: SiteContent; admin: Admin }) {
@@ -109,17 +114,20 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
         {admin && <div className="rounded-md bg-card p-2 text-foreground"><AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} /></div>}
         <div className="space-y-2">
           {emergencyContacts.map((c) => (
-            <a key={c.id} href={telHref(c.phone)} className="flex items-center justify-between gap-3 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
-              <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /></span>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
-            </a>
+            <div key={c.id} className={c.hidden ? "opacity-55" : ""}>
+              {admin && <div className="rounded-md bg-card px-2 pt-2 text-foreground"><ItemActions fields={contactFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, contacts: content.contacts.map((x) => (x.id === c.id ? { ...x, hidden, visible: !hidden } : x)) })} onSave={(row) => save({ ...content, contacts: content.contacts.map((x) => (x.id === c.id ? { ...c, ...row, id: c.id } as typeof c : x)) })} onDelete={() => save({ ...content, contacts: content.contacts.filter((x) => x.id !== c.id) })} /></div>}
+              <a href={telHref(c.phone)} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
+                <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /><span dir="ltr" className="block break-all text-xs opacity-80">{c.phone}</span></span>
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
+              </a>
+            </div>
           ))}
           {emergency.map((c) => (
             <div key={c.id} className={c.hidden ? "opacity-55" : ""}>
               {admin && <div className="rounded-md bg-card px-2 pt-2 text-foreground"><ItemActions fields={emergencyFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...(row as EmergencyEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, emergency: content.emergency.filter((x) => x.id !== c.id) })} /></div>}
-              <a href={telHref(c.phone)} className="flex items-center justify-between gap-3 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
-                <span className="min-w-0 text-sm font-bold"><P ar={c.ar} de={c.de} inverse /><span dir="ltr" className="block text-xs opacity-80">{c.phone}</span></span>
-                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
+              <a href={telHref(c.phone)} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md bg-primary-foreground/10 px-3 py-2.5 hover:bg-primary-foreground/15">
+                <span className="min-w-0 text-sm font-bold"><P ar={c.ar || "رقم طوارئ الحملة"} de={c.de || "Notfallnummer der Reisegruppe"} inverse /><span dir="ltr" className="block break-all text-xs opacity-80">{c.phone}</span></span>
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1.5 text-xs font-extrabold text-secondary-foreground"><Phone className="h-3.5 w-3.5" />اتصال</span>
               </a>
             </div>
           ))}

@@ -75,20 +75,20 @@ export function ReciterPlayer({ reciters, itemId }: { reciters: Reciter[]; itemI
 
   return createPortal(
     <>
-      <div className="fixed inset-x-0 bottom-20 z-30 mx-auto w-full max-w-[420px] border-t border-border bg-card/95 px-4 py-3 text-card-foreground shadow-xl backdrop-blur-md">
-        <div className="flex items-center gap-3" dir="ltr">
-          <Button size="icon" onClick={toggle} aria-label={playing ? "إيقاف | Pause" : "تشغيل | Abspielen"}>{playing ? <Pause /> : <Play />}</Button>
+      <div data-audio-player className="fixed inset-x-0 bottom-20 z-30 mx-auto w-full max-w-[420px] border-t border-border bg-card/95 px-3 py-2 text-card-foreground shadow-xl backdrop-blur-md">
+        <div className="flex items-center gap-2" dir="ltr">
+          <Button size="icon" className="h-9 w-9 shrink-0" onClick={toggle} aria-label={playing ? "إيقاف | Pause" : "تشغيل | Abspielen"}>{playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>
           <div className="min-w-0 flex-1">
-            <input type="range" aria-label="تقدم | Fortschritt" min={0} max={dur || 0} step={0.5} value={time} onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.currentTime = v; setTime(v); }} className="w-full accent-secondary" />
-            <div className="flex justify-between text-[10px] text-muted-foreground"><span>{fmt(time)}</span><span>{fmt(dur)}</span></div>
+            <input type="range" aria-label="تقدم | Fortschritt" min={0} max={dur || 0} step={0.5} value={time} onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.currentTime = v; setTime(v); }} className="block h-4 w-full accent-secondary" />
+            <div className="flex justify-between text-[9px] leading-none text-muted-foreground"><span>{fmt(time)}</span><span>{fmt(dur)}</span></div>
           </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={download} aria-label="تحميل الصوت | Audio herunterladen"><Download className="h-4 w-4" /></Button>
+          {itemId && <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => fav.toggle(itemId)} aria-pressed={favOn} aria-label="المفضلة | Favorit"><Star className={`h-4 w-4 text-secondary ${favOn ? "fill-current" : ""}`} /></Button>}
         </div>
-        <div className="mt-2 flex items-center justify-between gap-1" dir="ltr">
-          <Button variant="ghost" size="sm" onClick={() => seek(-10)} aria-label="رجوع 10 ثوانٍ | 10 Sek. zurück" className="gap-1 px-2"><RotateCcw className="h-4 w-4" />10</Button>
-          <Button variant="ghost" size="sm" onClick={() => seek(10)} aria-label="تقديم 10 ثوانٍ | 10 Sek. vor" className="gap-1 px-2">10<RotateCw className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={download} aria-label="تحميل الصوت | Audio herunterladen"><Download className="h-4 w-4" /></Button>
-          {itemId && <Button variant="ghost" size="icon" onClick={() => fav.toggle(itemId)} aria-pressed={favOn} aria-label="المفضلة | Favorit"><Star className={`h-4 w-4 text-secondary ${favOn ? "fill-current" : ""}`} /></Button>}
-          <Button variant="outline" size="sm" onClick={() => setPickOpen(true)} className="max-w-[38%] gap-1" dir="rtl"><Mic2 className="h-4 w-4" /><span className="truncate">{current.name}</span></Button>
+        <div className="mt-1 flex items-center gap-1" dir="ltr">
+          <Button variant="ghost" size="sm" onClick={() => seek(-10)} aria-label="رجوع 10 ثوانٍ | 10 Sek. zurück" className="h-8 shrink-0 gap-1 px-2 text-xs"><RotateCcw className="h-3.5 w-3.5" />10</Button>
+          <Button variant="ghost" size="sm" onClick={() => seek(10)} aria-label="تقديم 10 ثوانٍ | 10 Sek. vor" className="h-8 shrink-0 gap-1 px-2 text-xs">10<RotateCw className="h-3.5 w-3.5" /></Button>
+          <Button variant="outline" size="sm" onClick={() => setPickOpen(true)} className="h-8 min-w-0 flex-1 gap-1 px-2" dir="rtl"><Mic2 className="h-3.5 w-3.5 shrink-0" /><span className="truncate text-xs">{current.name}</span></Button>
         </div>
       </div>
       <Dialog open={pickOpen} onOpenChange={setPickOpen}>
