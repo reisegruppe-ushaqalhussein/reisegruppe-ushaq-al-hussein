@@ -3,10 +3,10 @@ import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCc
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, toEnglish } from "@/lib/i18n";
-import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, ItemActions, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
-import type { EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
+import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
 
 type Admin = { password: string; content: SiteContent } | null;
 
@@ -129,10 +129,8 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
         <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
           <DialogHeader className="text-right"><DialogTitle>أرقام الطوارئ <span className="text-sm italic text-muted-foreground">| Notfallnummern</span></DialogTitle><DialogDescription>إضافة وتعديل وحذف | Hinzufügen, bearbeiten, löschen</DialogDescription></DialogHeader>
           <div className="space-y-2">
-            {content.emergency.map((c) => <div key={c.id} className="flex items-center gap-2 rounded-md border border-border bg-card p-2 text-xs">
-              <div className="min-w-0 flex-1"><p className="font-bold text-primary">{c.ar || c.de || "رقم طوارئ"}</p><p dir="ltr" className="break-all text-muted-foreground">{c.phone}</p></div>
-              <div className="relative h-8 w-8 shrink-0"><ItemActions fields={emergencyFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...(row as EmergencyEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, emergency: content.emergency.filter((x) => x.id !== c.id) })} /></div>
-            </div>)}
+            {content.contacts.map((c) => <ManageRow key={c.id} title={c.ar || c.de} subtitle={c.phone} fields={contactFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, contacts: content.contacts.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, contacts: content.contacts.map((x) => (x.id === c.id ? { ...x, ...(row as ContactEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, contacts: content.contacts.filter((x) => x.id !== c.id) })} />)}
+            {content.emergency.map((c) => <ManageRow key={c.id} title={c.ar || c.de || "رقم طوارئ"} subtitle={c.phone} fields={emergencyFields} item={c} hidden={c.hidden ?? false} onVisibilityChange={(hidden) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...x, hidden } : x)) })} onSave={(row) => save({ ...content, emergency: content.emergency.map((x) => (x.id === c.id ? { ...(row as EmergencyEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => save({ ...content, emergency: content.emergency.filter((x) => x.id !== c.id) })} />)}
           </div>
           <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
         </DialogContent>
