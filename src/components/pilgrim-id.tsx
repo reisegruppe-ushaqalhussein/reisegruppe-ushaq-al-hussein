@@ -160,19 +160,21 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       </div>
     </section>}
 
-    <section className="relative min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
-      {staff && <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة أرقام الطوارئ | Notfallnummern verwalten" className="absolute left-2 top-2 h-8 w-8 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary"><Settings className="h-4 w-4" /></Button>}
-      <h3 className="mb-1 pe-1 ps-10 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
+    <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
+      <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+        <h3 className="min-w-0 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
+        {staff && <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة أرقام الطوارئ | Notfallnummern verwalten" className="h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary"><Settings className="h-3.5 w-3.5" /></Button>}
+      </div>
       <p className="mb-3 text-xs text-muted-foreground"><T ar="يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال." de="Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden." /></p>
       <EmergencySmsButton content={content} />
     </section>
     {staff && <Dialog open={manage} onOpenChange={setManage}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>أرقام طوارئ الحملة <span className="text-sm italic text-muted-foreground">| Notfallnummern</span></DialogTitle><DialogDescription>إضافة وتعديل وحذف <span className="italic">| Hinzufügen, bearbeiten, löschen</span></DialogDescription></DialogHeader>
-        <div className="space-y-2">{content.emergency.map((entry) => <div key={entry.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-border bg-card p-2 text-xs">
-          <div className="min-w-0"><p className="font-bold text-primary"><T ar={entry.ar || "رقم طوارئ الحملة"} de={entry.de || "Notfallnummer"} /></p><p dir="ltr" className="mt-1 break-all text-muted-foreground">{entry.phone}</p></div>
-          <div className="relative h-8 w-8"><ItemActions fields={emergencyFields} item={entry} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden ?? false } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} /></div>
-        </div>)}</div>
+        <div className="space-y-2">
+          {content.emergency.length === 0 && <ManageRow title="رقم الحاج للطوارئ" subtitle={DEFAULT_LEADER_PHONE} fields={emergencyFields} item={{ ar: "رقم الحاج للطوارئ", de: "Notfallnummer des Hajj", phone: DEFAULT_LEADER_PHONE }} onSave={(row) => saveContent({ ...content, emergency: [{ ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} onDelete={async () => { window.alert("هذا هو الرقم الافتراضي؛ أضف رقماً آخر ليحل محله | Standardnummer – fügen Sie eine andere hinzu"); }} />}
+          {content.emergency.map((entry) => <ManageRow key={entry.id} title={entry.ar || entry.de || "رقم طوارئ"} subtitle={entry.phone} fields={emergencyFields} item={entry} hidden={entry.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...x, hidden } : x) })} onSave={(row) => saveContent({ ...content, emergency: content.emergency.map((x) => x.id === entry.id ? { ...(row as EmergencyEntry), id: entry.id, hidden: entry.hidden ?? false } : x) })} onDelete={() => saveContent({ ...content, emergency: content.emergency.filter((x) => x.id !== entry.id) })} />)}
+        </div>
         <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => saveContent({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
       </DialogContent>
     </Dialog>}
