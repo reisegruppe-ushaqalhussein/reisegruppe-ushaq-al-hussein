@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn } from "lucide-react";
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -154,14 +154,68 @@ function directUrl(u: string) {
 }
 
 /** Image with loading shimmer, no-referrer (avoids hotlink blocks) and a clean fallback instead of a broken icon. */
-function SmartImg({ src, alt }: { src: string; alt: string }) {
+function SmartImg({ src, alt, onOpen }: { src: string; alt: string; onOpen?: () => void }) {
   const [state, setState] = useState<"load" | "ok" | "err">("load");
   const url = directUrl(src);
-  return <div className="relative aspect-square w-full bg-accent/40">
-    {state === "load" && <div className="absolute inset-0 animate-pulse bg-accent/60" />}
+  return <div className="relative aspect-[4/5] w-full bg-primary">
+    {state === "load" && <div className="absolute inset-0 animate-pulse bg-primary/80" />}
     {state === "err"
-      ? <div className="absolute inset-0 grid place-items-center p-4 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />تعذّر عرض الصورة<span dir="ltr" className="block italic">Bild nicht verfügbar</span><a href={src} target="_blank" rel="noreferrer" className="mt-2 inline-block underline text-primary">فتح الرابط | Link öffnen</a></span></div>
-      : <img src={url} alt={alt} referrerPolicy="no-referrer" loading="lazy" onLoad={() => setState("ok")} onError={() => setState("err")} className={`aspect-square w-full object-cover transition-opacity ${state === "ok" ? "opacity-100" : "opacity-0"}`} />}
+      ? <div className="absolute inset-0 grid place-items-center bg-accent/40 p-4 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />تعذّر عرض الصورة<span dir="ltr" className="block italic">Bild nicht verfügbar</span><a href={src} target="_blank" rel="noreferrer" className="mt-2 inline-block underline text-primary">فتح الرابط | Link öffnen</a></span></div>
+      : <button type="button" onClick={onOpen} aria-label="تكبير | Vergrößern" className="absolute inset-0 h-full w-full">
+          <img src={url} alt={alt} referrerPolicy="no-referrer" loading="lazy" onLoad={() => setState("ok")} onError={() => setState("err")} className={`h-full w-full object-contain transition-opacity ${state === "ok" ? "opacity-100" : "opacity-0"}`} />
+          {state === "ok" && <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-background/80 text-primary"><ZoomIn className="h-4 w-4" /></span>}
+        </button>}
+  </div>;
+}
+
+/** Fullscreen viewer: pinch / double-tap zoom, drag to pan, arrows, X to close. No libraries. */
+function Lightbox({ pics, index, onIndex, onClose }: { pics: string[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
+  const n = pics.length;
+  const [t, setT] = useState({ s: 1, x: 0, y: 0 });
+  const pts = useRef(new Map<number, { x: number; y: number }>());
+  const start = useRef<{ d: number; s: number; x: number; y: number; px: number; py: number } | null>(null);
+  const lastTap = useRef(0);
+  const go = (i: number) => { setT({ s: 1, x: 0, y: 0 }); onIndex((i + n) % n); };
+  const begin = () => {
+    const p = [...pts.current.values()];
+    const a = p[0], b = p[1];
+    if (!a) { start.current = null; return; }
+    start.current = { d: b ? Math.hypot(a.x - b.x, a.y - b.y) : 0, s: t.s, x: t.x, y: t.y, px: b ? (a.x + b.x) / 2 : a.x, py: b ? (a.y + b.y) / 2 : a.y };
+  };
+  return <div className="fixed inset-0 z-[100] flex flex-col bg-foreground/95" dir="ltr" role="dialog" aria-modal="true">
+    <div className="flex items-center justify-between p-3">
+      <span className="text-sm text-background">{n > 1 ? `${index + 1} / ${n}` : ""}</span>
+      <button type="button" onClick={onClose} aria-label="إغلاق | Schließen" className="grid h-11 w-11 place-items-center rounded-full bg-background text-foreground"><X className="h-6 w-6" /></button>
+    </div>
+    <div className="relative flex-1 overflow-hidden" style={{ touchAction: "none" }}
+      onPointerDown={(e) => {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); begin();
+        if (pts.current.size === 1) { const now = Date.now(); if (now - lastTap.current < 300) setT((v) => v.s > 1 ? { s: 1, x: 0, y: 0 } : { s: 2.5, x: 0, y: 0 }); lastTap.current = now; }
+      }}
+      onPointerMove={(e) => {
+        if (!pts.current.has(e.pointerId) || !start.current) return;
+        pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const p = [...pts.current.values()]; const a = p[0]!, b = p[1]; const st = start.current;
+        if (b && st.d) { const s = Math.min(5, Math.max(1, st.s * Math.hypot(a.x - b.x, a.y - b.y) / st.d)); setT({ s, x: s === 1 ? 0 : st.x + (a.x + b.x) / 2 - st.px, y: s === 1 ? 0 : st.y + (a.y + b.y) / 2 - st.py }); }
+        else if (!b && st.s > 1) setT({ s: st.s, x: st.x + a.x - st.px, y: st.y + a.y - st.py });
+      }}
+      onPointerUp={(e) => {
+        const st = start.current; const p = pts.current.get(e.pointerId);
+        pts.current.delete(e.pointerId);
+        if (st && p && pts.current.size === 0 && t.s === 1 && n > 1 && Math.abs(p.x - st.px) > 60) go(index + (p.x < st.px ? 1 : -1));
+        begin();
+      }}
+      onPointerCancel={(e) => { pts.current.delete(e.pointerId); begin(); }}>
+      <img src={directUrl(pics[index] ?? "")} alt="" referrerPolicy="no-referrer" draggable={false}
+        className="absolute inset-0 h-full w-full select-none object-contain"
+        style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})`, transition: pts.current.size ? "none" : "transform 0.2s" }} />
+      {n > 1 && t.s === 1 && <>
+        <button type="button" onClick={() => go(index - 1)} aria-label="السابق | Zurück" className="absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground"><ChevronLeft className="h-5 w-5" /></button>
+        <button type="button" onClick={() => go(index + 1)} aria-label="التالي | Weiter" className="absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground"><ChevronRight className="h-5 w-5" /></button>
+      </>}
+    </div>
+    <p className="p-3 text-center text-xs text-background/80">كبّر بإصبعين أو بنقرتين | Mit zwei Fingern oder Doppeltipp zoomen</p>
   </div>;
 }
 
