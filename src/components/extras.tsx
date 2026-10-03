@@ -6,7 +6,7 @@ import { useLang, toEnglish } from "@/lib/i18n";
 import { AddButton, ItemActions, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
-import type { EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
+import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
 
 type Admin = { password: string; content: SiteContent } | null;
 
