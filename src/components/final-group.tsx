@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
 import { useAdminSession, useShowHidden } from "@/lib/admin-session";
-import { AddButton, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
 
 const gearCls = "h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary";
@@ -12,6 +12,18 @@ const inputCls = "h-11 w-full rounded-md border border-border bg-background px-3
 
 function Pair({ ar, de }: { ar: string; de: string }) {
   return <span className="block"><span className="block">{ar}</span><span lang="de" dir="ltr" className="block text-[0.8em] italic text-muted-foreground">{de}</span></span>;
+}
+
+/** Clickable folder tile with an optional gear menu in its top-left corner. */
+export function FolderCard({ icon: Icon, ar, de, count, onOpen, menu }: { icon: React.ComponentType<{ className?: string }>; ar: string; de: string; count?: number; onOpen: () => void; menu?: React.ReactNode }) {
+  return <div className="relative min-w-0">
+    {menu && <div className="absolute left-2 top-2 z-10">{menu}</div>}
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-lg border border-secondary/50 bg-card p-4 ps-4 pe-12 text-right shadow-sm transition-colors hover:border-secondary">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-accent text-secondary"><Icon className="h-6 w-6" /></span>
+      <span className="min-w-0 flex-1 font-bold text-primary"><Pair ar={ar} de={de} />{count !== undefined && <span className="mt-1 block text-xs font-normal text-muted-foreground">{count}</span>}</span>
+      <ChevronLeft className="h-5 w-5 shrink-0 text-secondary" />
+    </button>
+  </div>;
 }
 
 function ManageDialog({ open, onOpenChange, ar, de, children }: { open: boolean; onOpenChange: (o: boolean) => void; ar: string; de: string; children: React.ReactNode }) {
@@ -135,6 +147,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const showHidden = useShowHidden();
   const save = useSaveContent(staff?.password ?? "");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [listOpen, setListOpen] = useState(false);
   const [img, setImg] = useState(0);
   const [manage, setManage] = useState(false);
   const all = content.guidelines ?? [];
@@ -146,17 +159,21 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const pics = (cur?.images ?? "").split(/\s+/).filter(Boolean);
   const n = pics.length;
 
-  return <section className="mt-7 min-w-0">
-    <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-      <h3 className="flex min-w-0 items-start gap-1.5 font-bold text-primary"><BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-secondary" /><Pair ar={title.ar} de={title.de} /></h3>
-      {staff && <div className="flex gap-1"><RenameTitle content={content} labelKey="guidelines" ar={title.ar} de={title.de} /><Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة الإرشادات | Hinweise verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button></div>}
-    </div>
-    <div className="grid grid-cols-2 gap-3">
-      {items.map((g) => <button key={g.id} type="button" onClick={() => { setImg(0); setOpenId(g.id); }} className={`flex min-h-24 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
-        <Folder className="h-6 w-6 text-secondary" />
-        <span className="min-w-0 text-sm font-bold text-primary"><Pair ar={g.destAr || g.ar.slice(0, 30)} de={g.destDe || g.de.slice(0, 30)} /></span>
-      </button>)}
-    </div>
+  return <section className="mt-3 min-w-0">
+    <FolderCard icon={BookMarked} ar={title.ar} de={title.de} count={items.length} onOpen={() => setListOpen(true)}
+      menu={staff && <GearMenu><RenameTitle content={content} labelKey="guidelines" ar={title.ar} de={title.de} /><IconBtn label="إدارة | Verwalten" onClick={() => setManage(true)}><Settings className="h-3.5 w-3.5" /></IconBtn></GearMenu>} />
+    <Dialog open={listOpen} onOpenChange={setListOpen}>
+      <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle><Pair ar={title.ar} de={title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          {items.map((g) => <button key={g.id} type="button" onClick={() => { setImg(0); setOpenId(g.id); }} className={`flex min-h-24 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
+            <Folder className="h-6 w-6 text-secondary" />
+            <span className="min-w-0 text-sm font-bold text-primary"><Pair ar={g.destAr || g.ar.slice(0, 30)} de={g.destDe || g.de.slice(0, 30)} /></span>
+          </button>)}
+          {items.length === 0 && <p className="col-span-2 py-3 text-center text-xs text-muted-foreground">لا توجد إرشادات بعد | Noch keine Hinweise</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={!!cur} onOpenChange={(o) => !o && setOpenId(null)}>
       <DialogContent className="max-h-[88vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">

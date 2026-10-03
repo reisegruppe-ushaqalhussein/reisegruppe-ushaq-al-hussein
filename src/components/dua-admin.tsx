@@ -1,4 +1,4 @@
-import { IconBtn } from "@/components/inline-admin";
+import { GearMenu, IconBtn } from "@/components/inline-admin";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
@@ -102,14 +102,14 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
   }
   return (
     <div className="flex justify-end">
-      <div className="flex gap-1">
+      <GearMenu>
         <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         {showHidden && <IconBtn label={entry.hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => {
           try { await saveDuas(content.duas.map((item) => item.id === id ? { ...item, hidden: !entry.hidden } : item)); }
           catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
         }}>{entry.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
         <IconBtn label="حذف | Löschen" danger onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
-      </div>
+      </GearMenu>
       {open && <DuaForm content={content} open={open} onOpenChange={setOpen} initial={{ ...entry, category: duaCategoryOf(entry) }} title={{ ar: "تعديل", de: "Bearbeiten" }} onSubmit={(d) => saveDuas(content.duas.map((x) => (x.id === id ? d : x)))} />}
     </div>
   );
