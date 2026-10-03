@@ -223,6 +223,17 @@ export const createUploadUrl = createServerFn({ method: "POST" })
     return { path, token: signed.token };
   });
 
+/** Long-lived (10 years) read link for an uploaded file in the private bucket. */
+export const signMediaUrl = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), path: z.string().regex(/^[\w.-]{1,120}$/) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await verifyRole(data.password))) throw new Error("Falsches Passwort / كلمة المرور غير صحيحة");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: s, error } = await supabaseAdmin.storage.from("resources").createSignedUrl(data.path, 60 * 60 * 24 * 365 * 10);
+    if (error || !s) throw new Error(error?.message ?? "Sign failed");
+    return { url: s.signedUrl };
+  });
+
 export const submitFeedback = createServerFn({ method: "POST" })
   .validator((d) => z.object({ ratingCampaign: z.number().int().min(1).max(5), ratingApp: z.number().int().min(1).max(5), recommend: z.boolean().nullable(), liked: z.string().max(3000), improve: z.string().max(3000), name: z.string().max(200) }).parse(d))
   .handler(async ({ data }) => {

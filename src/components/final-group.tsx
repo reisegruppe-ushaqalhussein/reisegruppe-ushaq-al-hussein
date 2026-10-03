@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2 } from "lucide-react";
+import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2 } from "lucide-react";
+import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
@@ -164,6 +165,34 @@ function SmartImg({ src, alt }: { src: string; alt: string }) {
   </div>;
 }
 
+/** Add images: direct upload from phone (compressed) or optional direct link. */
+function ImageAddDialog({ onClose, password, onAdd }: { onClose: () => void; password: string; onAdd: (urls: string[]) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [link, setLink] = useState("");
+  const run = async (fn: () => Promise<string[]>) => {
+    setBusy(true); setErr("");
+    try { const urls = await fn(); if (urls.length) { await onAdd(urls); onClose(); } }
+    catch (e) { setErr(e instanceof Error ? e.message : "خطأ | Fehler"); }
+    finally { setBusy(false); }
+  };
+  return <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
+    <DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl">
+      <DialogHeader className="text-right"><DialogTitle><Pair ar="إضافة صورة" de="Bild hinzufügen" /></DialogTitle><DialogDescription className="sr-only">Upload</DialogDescription></DialogHeader>
+      <label className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-secondary/60 bg-accent/40 text-sm font-bold text-primary ${busy ? "pointer-events-none opacity-60" : ""}`}>
+        {busy ? <Loader2 className="h-6 w-6 animate-spin text-secondary" /> : <Upload className="h-6 w-6 text-secondary" />}
+        <span>{busy ? "جارٍ الرفع…" : "اختر من الهاتف"}</span><span dir="ltr" className="text-xs italic text-muted-foreground">{busy ? "Wird hochgeladen…" : "Vom Handy wählen"}</span>
+        <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; if (fs.length) void run(() => Promise.all(fs.map((f) => uploadImage(f, password)))); }} />
+      </label>
+      <div className="flex gap-2">
+        <input dir="ltr" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://…/bild.jpg" className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" />
+        <Button type="button" size="icon" variant="outline" className="h-10 w-10" disabled={busy || !link.trim()} aria-label="إضافة رابط | Link hinzufügen" onClick={() => run(async () => [normalizeUrl(link)])}><Link2 className="h-4 w-4" /></Button>
+      </div>
+      {err && <p className="text-xs text-destructive">{err}</p>}
+    </DialogContent>
+  </Dialog>;
+}
+
 /** Gear menu inside an opened guideline post: edit, rename, add/remove image, hide (admin), delete. */
 function GuideItemMenu({ g, pics, imgIndex, onUpdate, onDelete }: { g: GuidelineEntry; pics: string[]; imgIndex: number; onUpdate: (g: GuidelineEntry) => Promise<void>; onDelete: () => Promise<void> }) {
   const staff = useAdminSession();
@@ -181,7 +210,7 @@ function GuideItemMenu({ g, pics, imgIndex, onUpdate, onDelete }: { g: Guideline
     </GearMenu>
     {dlg === "edit" && <EditDialog open onOpenChange={close} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={guideFields} initial={g} onSubmit={(row) => onUpdate({ ...g, ...(row as GuidelineEntry), id: g.id, hidden: g.hidden ?? false })} />}
     {dlg === "rename" && <TitleDialog open onOpenChange={close} initial={{ ar: g.destAr ?? "", de: g.destDe ?? "" }} onSubmit={(r) => onUpdate({ ...g, destAr: String(r["ar"] ?? ""), destDe: String(r["de"] ?? "") })} />}
-    {dlg === "img" && <EditDialog open onOpenChange={close} title={{ ar: "إضافة صورة", de: "Bild hinzufügen" }} fields={[{ key: "url", ar: "رابط الصورة", de: "Bild-URL", ltr: true }]} initial={{ url: "" }} onSubmit={async (r) => { const u = String(r["url"] ?? "").trim(); if (!/^https?:\/\//i.test(u)) throw new Error("رابط غير صالح | Ungültige URL"); await onUpdate({ ...g, images: [...pics, u].join("\n") }); }} />}
+    {dlg === "img" && <ImageAddDialog onClose={() => setDlg(null)} password={staff?.password ?? ""} onAdd={(urls) => onUpdate({ ...g, images: [...pics, ...urls].join("\n") })} />}
   </>;
 }
 
