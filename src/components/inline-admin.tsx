@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { saveOrQueue } from "@/lib/offline";
@@ -52,26 +51,19 @@ function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { 
   );
 }
 
+/** Compact icon-only control button used by every admin action. */
+export function IconBtn({ label, onClick, danger = false, children }: { label: string; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+  return <button type="button" aria-label={label} title={label} onClick={onClick} className={`pointer-events-auto grid h-7 w-7 place-items-center rounded-full border border-border bg-background/90 shadow-sm backdrop-blur ${danger ? "text-destructive" : "text-primary"}`}>{children}</button>;
+}
+
 export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const showHidden = useShowHidden();
   return (
-    <div className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end">
-      <DropdownMenu dir="rtl">
-        <DropdownMenuTrigger asChild>
-          <button type="button" aria-label="خيارات | Optionen" className={`pointer-events-auto m-1 grid h-7 w-7 place-items-center rounded-full border border-border bg-background/80 text-foreground shadow-sm backdrop-blur ${hidden ? "opacity-60" : ""}`}><MoreHorizontal className="h-4 w-4" /></button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[10rem]">
-          <DropdownMenuItem onSelect={() => setOpen(true)}><Pencil />تعديل <span className="text-xs italic opacity-70">| Bearbeiten</span></DropdownMenuItem>
-          {onVisibilityChange && showHidden && <DropdownMenuItem onSelect={async () => {
-            try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); }
-          }}>{hidden ? <Eye /> : <EyeOff />}{hidden ? "إرجاع" : "إخفاء"} <span className="text-xs italic opacity-70">| {hidden ? "Restore" : "Hide"}</span></DropdownMenuItem>}
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={async () => {
-            if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return;
-            try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
-          }}><Trash2 />حذف <span className="text-xs italic opacity-70">| Löschen</span></DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end gap-1 p-1">
+      <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+      {onVisibilityChange && showHidden && <IconBtn label={hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+      <IconBtn label="حذف | Löschen" danger onClick={async () => { if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={fields} initial={item} onSubmit={onSave} />}
     </div>
   );
@@ -97,7 +89,7 @@ export function AddButton({ label, fields, blank, onAdd }: { label: { ar: string
   const [open, setOpen] = useState(false);
   return (
     <div className="mb-2 flex justify-end">
-      <button type="button" onClick={() => setOpen(true)} aria-label={`${label.ar} | ${label.de}`} className="inline-flex h-7 items-center gap-1 rounded-full border border-secondary/60 bg-background/80 px-2.5 text-[11px] font-bold text-primary shadow-sm"><Plus className="h-3.5 w-3.5" />إضافة <span className="italic opacity-70">| Neu</span></button>
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${label.ar} | ${label.de}`} title={`${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm"><Plus className="h-4 w-4" /></button>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} />}
     </div>
   );
