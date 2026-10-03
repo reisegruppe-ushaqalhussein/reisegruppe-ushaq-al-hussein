@@ -282,7 +282,12 @@ async function downloadImage(src: string) {
     a.download = `ziyarat-${Date.now()}.${ext}`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  } catch { window.open(url, "_blank", "noopener"); }
+  } catch {
+    const a = document.createElement("a");
+    a.href = url.includes("/storage/v1/object/sign/") ? `${url}${url.includes("?") ? "&" : "?"}download=` : url;
+    a.download = `ziyarat-${Date.now()}.jpg`; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
 }
 
 /** One guideline post rendered inline: gear, carousel, download, text, PDF. */
@@ -318,7 +323,7 @@ function GuidePost({ g, fallbackPdf, onUpdate, onDelete }: { g: GuidelineEntry; 
 /** Full-screen page shell with back arrow, bilingual title and an icon-only gear. */
 function FullPage({ title, onBack, menu, children }: { title: { ar: string; de: string }; onBack: () => void; menu?: React.ReactNode; children: React.ReactNode }) {
   useEffect(() => { const y = window.scrollY; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; window.scrollTo(0, y); }; }, []);
-  return createPortal(<div className="fixed inset-0 z-[60] overflow-y-auto bg-muted" dir="rtl">
+  return createPortal(<div className="fixed inset-0 z-40 overflow-y-auto bg-muted" dir="rtl">
     <div className="mx-auto min-h-full w-full max-w-[420px] bg-background pb-28">
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-secondary/40 bg-primary px-3 py-3 text-primary-foreground shadow-md">
         <div className="min-w-0 flex-1 text-right"><p className="truncate text-base font-bold">{title.ar}</p><p dir="ltr" className="truncate text-right text-xs italic text-secondary">{title.de}</p></div>
@@ -373,7 +378,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
     </FullPage>}
 
     {page && cur && <FullPage title={{ ar: cur.ar, de: cur.de }} onBack={() => setFolder(null)}
-      menu={staff && <GearMenu><AddButton inline label={{ ar: "إضافة منشور لهذه الزيارة", de: "Beitrag zu dieser Ziyarat hinzufügen" }} fields={guideFields} blank={{ ...blankGuide, destAr: cur.posts[0]?.destAr ?? "", destDe: cur.posts[0]?.destDe ?? "" }} onAdd={addNew} /><AddButton inline label={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} /></GearMenu>}>
+      menu={staff && <FolderMenu cur={cur} all={all} commit={commit} addNew={addNew} onDeleted={() => setFolder(null)} />}>
       {cur.posts.map((g) => <GuidePost key={g.id} g={g} fallbackPdf={content.guidelinesPdf}
         onUpdate={(next) => commit(all.map((x) => x.id === g.id ? next : x))}
         onDelete={async () => { await commit(all.filter((x) => x.id !== g.id)); if (cur.posts.length <= 1) setFolder(null); }} />)}
@@ -389,4 +394,21 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       <AddButton label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} />
     </ManageDialog>}
   </section>;
+}
+
+/** Header gear inside one visit folder: add post, rename folder, hide (admin), delete folder. Icons only. */
+function FolderMenu({ cur, all, commit, addNew, onDeleted }: { cur: { ar: string; de: string; posts: GuidelineEntry[] }; all: GuidelineEntry[]; commit: (g: GuidelineEntry[]) => Promise<void>; addNew: (r: Record<string, unknown>) => Promise<void>; onDeleted: () => void }) {
+  const showHidden = useShowHidden();
+  const [rename, setRename] = useState(false);
+  const ids = new Set(cur.posts.map((p) => p.id));
+  const allHidden = cur.posts.every((p) => p.hidden);
+  return <>
+    <GearMenu>
+      <AddButton inline label={{ ar: "إضافة منشور", de: "Beitrag hinzufügen" }} fields={guideFields} blank={{ ...blankGuide, destAr: cur.posts[0]?.destAr ?? "", destDe: cur.posts[0]?.destDe ?? "" }} onAdd={addNew} />
+      <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setRename(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
+      {showHidden && <IconBtn label={allHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void commit(all.map((x) => ids.has(x.id) ? { ...x, hidden: !allHidden } : x))}>{allHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+      <IconBtn label="حذف المجلد | Ordner löschen" danger onClick={async () => { if (!window.confirm("حذف المجلد وكل منشوراته؟\nOrdner mit allen Beiträgen löschen?")) return; await commit(all.filter((x) => !ids.has(x.id))); onDeleted(); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+    </GearMenu>
+    {rename && <TitleDialog open onOpenChange={(o) => !o && setRename(false)} initial={{ ar: cur.ar, de: cur.de }} onSubmit={async (r) => { await commit(all.map((x) => ids.has(x.id) ? { ...x, destAr: String(r["ar"] ?? ""), destDe: String(r["de"] ?? "") } : x)); onDeleted(); }} />}
+  </>;
 }
