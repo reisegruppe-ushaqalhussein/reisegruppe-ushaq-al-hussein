@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings } from "lucide-react";
+import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
 import { useAdminSession, useShowHidden } from "@/lib/admin-session";
-import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
 
 const gearCls = "h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary";
@@ -142,6 +142,49 @@ function TitleDialog({ open, onOpenChange, initial, onSubmit }: { open: boolean;
   </ManageDialog>;
 }
 
+function splitPics(s?: string) { return (s ?? "").split(/[\s,]+/).map((x) => x.trim()).filter((x) => /^https?:\/\//i.test(x)); }
+
+/** Converts common share links (Google Drive, Dropbox) into direct image URLs. */
+function directUrl(u: string) {
+  const drive = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/);
+  if (drive) return `https://lh3.googleusercontent.com/d/${drive[1]}`;
+  if (/dropbox\.com/.test(u)) return u.replace(/[?&]dl=0/, "").replace("www.dropbox.com", "dl.dropboxusercontent.com");
+  return u;
+}
+
+/** Image with loading shimmer, no-referrer (avoids hotlink blocks) and a clean fallback instead of a broken icon. */
+function SmartImg({ src, alt }: { src: string; alt: string }) {
+  const [state, setState] = useState<"load" | "ok" | "err">("load");
+  const url = directUrl(src);
+  return <div className="relative aspect-square w-full bg-accent/40">
+    {state === "load" && <div className="absolute inset-0 animate-pulse bg-accent/60" />}
+    {state === "err"
+      ? <div className="absolute inset-0 grid place-items-center p-4 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />تعذّر عرض الصورة<span dir="ltr" className="block italic">Bild nicht verfügbar</span><a href={src} target="_blank" rel="noreferrer" className="mt-2 inline-block underline text-primary">فتح الرابط | Link öffnen</a></span></div>
+      : <img src={url} alt={alt} referrerPolicy="no-referrer" loading="lazy" onLoad={() => setState("ok")} onError={() => setState("err")} className={`aspect-square w-full object-cover transition-opacity ${state === "ok" ? "opacity-100" : "opacity-0"}`} />}
+  </div>;
+}
+
+/** Gear menu inside an opened guideline post: edit, rename, add/remove image, hide (admin), delete. */
+function GuideItemMenu({ g, pics, imgIndex, onUpdate, onDelete }: { g: GuidelineEntry; pics: string[]; imgIndex: number; onUpdate: (g: GuidelineEntry) => Promise<void>; onDelete: () => Promise<void> }) {
+  const staff = useAdminSession();
+  const showHidden = useShowHidden();
+  const [dlg, setDlg] = useState<null | "edit" | "rename" | "img">(null);
+  const close = (o: boolean) => { if (!o) setDlg(null); };
+  return <>
+    <GearMenu>
+      <IconBtn label="تعديل | Bearbeiten" onClick={() => setDlg("edit")}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+      {staff?.role === "admin" && <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setDlg("rename")}><Type className="h-3.5 w-3.5" /></IconBtn>}
+      <IconBtn label="إضافة صورة | Bild hinzufügen" onClick={() => setDlg("img")}><ImagePlus className="h-3.5 w-3.5" /></IconBtn>
+      {pics.length > 0 && <IconBtn label="حذف الصورة الحالية | Aktuelles Bild löschen" danger onClick={async () => { if (!window.confirm("حذف هذه الصورة؟ | Dieses Bild löschen?")) return; await onUpdate({ ...g, images: pics.filter((_, k) => k !== imgIndex).join("\n") }); }}><ImageMinus className="h-3.5 w-3.5" /></IconBtn>}
+      {showHidden && <IconBtn label={g.hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => onUpdate({ ...g, hidden: !g.hidden })}>{g.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+      <IconBtn label="حذف | Löschen" danger onClick={async () => { if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; await onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+    </GearMenu>
+    {dlg === "edit" && <EditDialog open onOpenChange={close} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={guideFields} initial={g} onSubmit={(row) => onUpdate({ ...g, ...(row as GuidelineEntry), id: g.id, hidden: g.hidden })} />}
+    {dlg === "rename" && <TitleDialog open onOpenChange={close} initial={{ ar: g.destAr ?? "", de: g.destDe ?? "" }} onSubmit={(r) => onUpdate({ ...g, destAr: String(r["ar"] ?? ""), destDe: String(r["de"] ?? "") })} />}
+    {dlg === "img" && <EditDialog open onOpenChange={close} title={{ ar: "إضافة صورة", de: "Bild hinzufügen" }} fields={[{ key: "url", ar: "رابط الصورة", de: "Bild-URL", ltr: true }]} initial={{ url: "" }} onSubmit={async (r) => { const u = String(r["url"] ?? "").trim(); if (!/^https?:\/\//i.test(u)) throw new Error("رابط غير صالح | Ungültige URL"); await onUpdate({ ...g, images: [...pics, u].join("\n") }); }} />}
+  </>;
+}
+
 export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
   const showHidden = useShowHidden();
@@ -155,7 +198,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const title = labelOf(content, "guidelines", "إرشادات وآداب الزيارة", "Hinweise & Etikette");
   const commit = (guidelines: GuidelineEntry[]) => save({ ...content, guidelines });
   const cur = items.find((g) => g.id === openId) ?? null;
-  const pics = (cur?.images ?? "").split(/\s+/).filter(Boolean);
+  const pics = splitPics(cur?.images);
   const n = pics.length;
 
   return <section className="mt-3 min-w-0">
