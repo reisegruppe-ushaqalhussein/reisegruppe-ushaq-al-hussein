@@ -46,10 +46,22 @@ const roomFields: FieldDef[] = [
   { key: "room", ar: "الغرفة", de: "Zimmer", ltr: true },
 ];
 
-/** Parses pasted lines "name, city, hotel, floor, room" (comma, tab, ; or | separated). */
+/** Parses pasted lines "name, city, hotel, floor, room" (Arabic/Latin comma, semicolon, tab or | separated). */
 function parseRooms(text: string): RoomEntry[] {
-  return text.split(/\r?\n/).map((l) => l.split(/\t|;|\||,/).map((x) => x.trim())).filter((c) => c[0])
+  return text.split(/\r?\n/).map((l) => l.split(/[\t;|,،؛\uFF0C]/).map((x) => x.trim())).filter((c) => c[0])
     .map((c, i) => ({ id: `rm${Date.now()}${i}`, name: c[0] ?? "", city: c[1] ?? "", hotel: c[2] ?? "", floor: c[3] ?? "", room: c[4] ?? "" }));
+}
+
+/** Normalizes text for search: digits (Arabic/Persian→Latin), diacritics, Arabic letter variants, German umlauts. */
+function norm(s: string) {
+  return (s ?? "").toLowerCase()
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/ؤ/g, "و").replace(/ئ/g, "ي")
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ").trim();
 }
 
 export function RoomsPanel({ content }: { content: SiteContent }) {
@@ -61,8 +73,8 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
   const [paste, setPaste] = useState("");
   const all = content.rooms ?? [];
   const visible = all.filter((r) => showHidden || !r.hidden);
-  const term = q.trim().toLowerCase();
-  const list = term ? visible.filter((r) => [r.name, r.room, r.hotel, r.city].some((x) => x.toLowerCase().includes(term))) : visible;
+  const words = norm(q).split(" ").filter(Boolean);
+  const list = words.length ? visible.filter((r) => { const hay = norm([r.name, r.city, r.hotel, r.floor, r.room].join(" ")); return words.every((w) => hay.includes(w)); }) : visible;
   const commit = (rooms: RoomEntry[]) => save({ ...content, rooms });
 
   const importRooms = async () => {
