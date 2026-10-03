@@ -211,8 +211,8 @@ function Lightbox({ pics, index, onIndex, onClose }: { pics: string[]; index: nu
         className="absolute inset-0 h-full w-full select-none object-contain"
         style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})`, transition: pts.current.size ? "none" : "transform 0.2s" }} />
       {n > 1 && t.s === 1 && <>
-        <button type="button" onClick={() => go(index - 1)} aria-label="السابق | Zurück" className="absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground"><ChevronLeft className="h-5 w-5" /></button>
-        <button type="button" onClick={() => go(index + 1)} aria-label="التالي | Weiter" className="absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground"><ChevronRight className="h-5 w-5" /></button>
+        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => go(index - 1)} aria-label="السابق | Zurück" className="absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground"><ChevronLeft className="h-5 w-5" /></button>
+        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => go(index + 1)} aria-label="التالي | Weiter" className="absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground"><ChevronRight className="h-5 w-5" /></button>
       </>}
     </div>
     <p className="p-3 text-center text-xs text-background/80">كبّر بإصبعين أو بنقرتين | Mit zwei Fingern oder Doppeltipp zoomen</p>
@@ -275,6 +275,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [img, setImg] = useState(0);
+  const [zoom, setZoom] = useState(false);
   const [manage, setManage] = useState(false);
   const all = content.guidelines ?? [];
   const items = all.filter((g) => showHidden || !g.hidden);
@@ -306,12 +307,12 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
         {cur && <>
           <DialogHeader className="text-right"><DialogTitle><Pair ar={cur.destAr || title.ar} de={cur.destDe || title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
           {(cur.destAr || cur.destDe) && <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-primary"><Folder className="h-3.5 w-3.5 text-secondary" />{cur.destAr}{cur.destDe && <span dir="ltr" className="italic text-muted-foreground"> | {cur.destDe}</span>}</span>}
-          {n === 0 && <div className="grid aspect-square w-full place-items-center rounded-md border border-dashed border-secondary/60 bg-accent/40 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />لا توجد صور بعد<span dir="ltr" className="block italic">Noch keine Bilder</span></span></div>}
+          {n === 0 && <div className="grid aspect-[4/5] w-full place-items-center rounded-md border border-dashed border-secondary/60 bg-accent/40 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />لا توجد صور بعد<span dir="ltr" className="block italic">Noch keine Bilder</span></span></div>}
           {staff && <div className="flex justify-end"><GuideItemMenu g={cur} pics={pics} imgIndex={img % Math.max(n, 1)}
             onUpdate={(next) => commit(all.map((x) => x.id === cur.id ? next : x))}
             onDelete={async () => { await commit(all.filter((x) => x.id !== cur.id)); setOpenId(null); }} /></div>}
           {n > 0 && <div className="relative overflow-hidden rounded-md">
-            <SmartImg key={pics[img % n]} src={pics[img % n] ?? ""} alt={cur.destAr || title.ar} />
+            <SmartImg key={pics[img % n]} src={pics[img % n] ?? ""} alt={cur.destAr || title.ar} onOpen={() => setZoom(true)} />
             {n > 1 && <>
               <Button type="button" variant="secondary" size="icon" className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="السابق | Zurück" onClick={() => setImg((img - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
               <Button type="button" variant="secondary" size="icon" className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="التالي | Weiter" onClick={() => setImg((img + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
@@ -328,6 +329,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       </DialogContent>
     </Dialog>
 
+    {zoom && cur && n > 0 && <Lightbox pics={pics} index={img % n} onIndex={setImg} onClose={() => setZoom(false)} />}
     {staff && <ManageDialog open={manage} onOpenChange={setManage} ar={title.ar} de={title.de}>
       <div className="space-y-2">
         {items.map((g) => <ManageRow key={g.id} title={g.destAr || g.ar.slice(0, 40)} subtitle={g.destDe || g.de.slice(0, 40)} fields={guideFields} item={g} hidden={g.hidden ?? false}
