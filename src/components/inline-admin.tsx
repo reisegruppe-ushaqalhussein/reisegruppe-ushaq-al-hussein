@@ -21,7 +21,7 @@ export function useSaveContent(password: string) {
   };
 }
 
-function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void> }) {
+export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void> }) {
   const [draft, setDraft] = useState<Row>(initial);
   const [busy, setBusy] = useState(false);
   const set = (k: string, v: unknown) => setDraft((d) => ({ ...d, [k]: v }));

@@ -181,8 +181,11 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
           <DialogHeader className="text-right"><DialogTitle><Pair ar={cur.destAr || title.ar} de={cur.destDe || title.de} /></DialogTitle><DialogDescription className="sr-only">{title.de}</DialogDescription></DialogHeader>
           {(cur.destAr || cur.destDe) && <span className="inline-flex w-fit items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-primary"><Folder className="h-3.5 w-3.5 text-secondary" />{cur.destAr}{cur.destDe && <span dir="ltr" className="italic text-muted-foreground"> | {cur.destDe}</span>}</span>}
           {n === 0 && <div className="grid aspect-square w-full place-items-center rounded-md border border-dashed border-secondary/60 bg-accent/40 text-center text-xs text-muted-foreground"><span><BookMarked className="mx-auto mb-2 h-8 w-8 text-secondary" />لا توجد صور بعد<span dir="ltr" className="block italic">Noch keine Bilder</span></span></div>}
+          {staff && <div className="flex justify-end"><GuideItemMenu g={cur} pics={pics} imgIndex={img % Math.max(n, 1)}
+            onUpdate={(next) => commit(all.map((x) => x.id === cur.id ? next : x))}
+            onDelete={async () => { await commit(all.filter((x) => x.id !== cur.id)); setOpenId(null); }} /></div>}
           {n > 0 && <div className="relative overflow-hidden rounded-md">
-            <img src={pics[img % n]} alt={cur.destAr || title.ar} className="aspect-square w-full object-cover" />
+            <SmartImg key={pics[img % n]} src={pics[img % n]} alt={cur.destAr || title.ar} />
             {n > 1 && <>
               <Button type="button" variant="secondary" size="icon" className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="السابق | Zurück" onClick={() => setImg((img - 1 + n) % n)}><ChevronRight className="h-4 w-4" /></Button>
               <Button type="button" variant="secondary" size="icon" className="absolute left-2 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="التالي | Weiter" onClick={() => setImg((img + 1) % n)}><ChevronLeft className="h-4 w-4" /></Button>
