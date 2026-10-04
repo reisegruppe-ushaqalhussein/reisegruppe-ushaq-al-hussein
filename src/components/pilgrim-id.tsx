@@ -9,7 +9,7 @@ import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
-import { decideIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
+import { decideIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, translateLabels, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
 const KEY = "ushaq-pilgrim-id";
@@ -155,8 +155,9 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const [textOpen, setTextOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [addNew, setAddNew] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
   const lb = st.labels ?? {};
-  const L = (k: string, ar: string, de: string) => `${lb[`${k}Ar`] || ar} | ${lb[`${k}De`] || de}`;
+  const L = (k: string, ar: string, de: string) => { const a = lb[`${k}Ar`] || ""; const d = lb[`${k}De`] || ""; return <T ar={a || ar} de={d || (a ? a : de)} />; };
   const locked = !st.open && !p.reqId && !staff;
   const canSeeEmergency = !!staff || approved || st.emergencyPublic;
   const notice = (p.status === "approved" || p.status === "rejected") && p.seen !== p.status;
@@ -167,7 +168,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const qr = [`${p.nameAr} ${p.nameDe}`.trim(), "حملة عشاق الحسين - Reisegruppe Ushaq al-Hussein", ...phones.map((x) => `Tel: ${x}`), current ? `${cityOf(current.city).de}: ${current.hotel} / ${current.floor} / ${current.room}` : ""].filter(Boolean).join("\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
-    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
+    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
       {staff && <div className="relative">
         <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
         {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-background bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
@@ -177,7 +178,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
         <IconBtn label="تعديل | Bearbeiten" onClick={() => setLabelsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         <IconBtn label="إضافة خانة | Feld hinzufügen" onClick={() => { setAddNew(true); setFieldsOpen(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="حذف خانة | Feld löschen" danger onClick={() => { setAddNew(false); setFieldsOpen(true); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="حذف خانة | Feld löschen" danger onClick={() => setDelOpen(true)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>}</div>
     {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
@@ -212,7 +213,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <p className="text-center text-xl font-bold">{p.nameAr}</p>
       {p.nameDe && <p dir="ltr" className="text-center text-sm opacity-80">{p.nameDe}</p>}
       {p.phone && <p dir="ltr" className="mt-1 text-center text-xs opacity-75">{p.phone}</p>}
-      {fields.filter((f) => p.extra?.[f.id]).map((f) => <p key={f.id} className="mt-1 text-center text-xs opacity-80">{f.ar} | {f.de}: <b dir="auto">{p.extra?.[f.id]}</b></p>)}
+      {fields.filter((f) => p.extra?.[f.id]).map((f) => <div key={f.id} className="mt-1 text-center text-xs opacity-80"><T ar={f.ar || f.de} de={f.de || f.ar} /><b dir="auto">{p.extra?.[f.id]}</b></div>)}
       {current && <div className="mt-4 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 p-3 text-sm">
         <p className="flex items-center justify-center gap-1.5 font-bold text-secondary"><BedDouble className="h-4 w-4" />{cityOf(current.city).ar} | {cityOf(current.city).de}</p>
         <p className="mt-1 text-center">{current.hotel || "—"}</p>
@@ -233,8 +234,8 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <label className="block text-xs font-bold text-primary">{L("name", "الاسم بالعربية", "Name (Arabisch)")}<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
-      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary">{f.ar} | {f.de} *<input dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
-      <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || "Unterkunft je Stadt"} /></p>
+      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
+      <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || lb['staysAr'] || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
           <Button type="button" variant="outline" size="icon" aria-label="حذف الإقامة | Unterkunft löschen" onClick={() => setDraft({ ...draft, stays: draft.stays.filter((x) => x.id !== s.id) })} className="h-11 w-11 shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
@@ -296,7 +297,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
               <button type="button" aria-label="حذف | Löschen" onClick={() => decide(r.id, "delete")} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
             {r.phone && <p dir="ltr">📞 {r.phone}</p>}
-            {Object.entries(r.extra ?? {}).map(([k, v]) => { const f = fields.find((x) => x.id === k); return <p key={k}>{f ? `${f.ar} | ${f.de}` : k}: <b dir="auto">{v}</b></p>; })}
+            {Object.entries(r.extra ?? {}).map(([k, v]) => { const f = fields.find((x) => x.id === k); return <div key={k}>{f ? <T ar={f.ar || f.de} de={f.de || f.ar} /> : k}<b dir="auto">{v}</b></div>; })}
             {r.stays.map((st, i) => <p key={i}>🏨 {st.city} · {st.hotel || "—"} · طابق/Etage {st.floor || "—"} · غرفة/Zimmer {st.room || "—"}</p>)}
             <p dir="ltr" className="text-[10px] text-muted-foreground">{new Date(r.at).toLocaleString()}</p>
             <div className="grid grid-cols-2 gap-2 pt-1">
@@ -315,14 +316,20 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     </Dialog>}
     {staff?.role === "admin" && <Dialog open={fieldsOpen} onOpenChange={(o) => { setFieldsOpen(o); if (!o) setAddNew(false); }}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-        <DialogHeader className="text-right"><DialogTitle>حقول التحقق <span className="text-sm italic text-muted-foreground">| Prüffelder</span></DialogTitle><DialogDescription className="sr-only">Pflichtfelder</DialogDescription></DialogHeader>
-        <FieldsEditor key={String(addNew)} addNew={addNew} initial={fields} onSave={async (next) => { const r = await saveIdFields({ data: { password: staff.password, fields: next } }); if (r.ok) { setFields(next); setFieldsOpen(false); setAddNew(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
+        <DialogHeader className="text-right"><DialogTitle>{addNew ? <Plus className="inline h-4 w-4" /> : <>حقول التحقق <span className="text-sm italic text-muted-foreground">| Prüffelder</span></>}</DialogTitle><DialogDescription className="sr-only">Pflichtfelder</DialogDescription></DialogHeader>
+        <FieldsEditor key={String(addNew)} addNew={addNew} initial={fields} onSave={async (next) => { const de = await autoGerman(staff.password, next.map((f) => [f.ar, f.de])); const out = next.map((f, i) => ({ ...f, de: de[i] ?? f.de })); const r = await saveIdFields({ data: { password: staff.password, fields: out } }); if (r.ok) { setFields(out); setFieldsOpen(false); setAddNew(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
+      </DialogContent>
+    </Dialog>}
+    {staff?.role === "admin" && <Dialog open={delOpen} onOpenChange={setDelOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle><Trash2 className="inline h-4 w-4 text-destructive" /></DialogTitle><DialogDescription className="sr-only">Felder löschen</DialogDescription></DialogHeader>
+        <DeleteFields fields={fields} onDelete={async (id) => { const out = fields.filter((f) => f.id !== id); const r = await saveIdFields({ data: { password: staff.password, fields: out } }); if (r.ok) setFields(out); else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
       </DialogContent>
     </Dialog>}
     {staff?.role === "admin" && <Dialog open={labelsOpen} onOpenChange={setLabelsOpen}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-        <DialogHeader className="text-right"><DialogTitle><Pencil className="inline h-4 w-4" /> T</DialogTitle><DialogDescription className="sr-only">Bezeichnungen</DialogDescription></DialogHeader>
-        <LabelsEditor st={st} fields={fields} onSave={async (s, f) => { await saveSt(s); const r = await saveIdFields({ data: { password: staff.password, fields: f } }); if (r.ok) setFields(f); setLabelsOpen(false); }} />
+        <DialogHeader className="text-right"><DialogTitle><Pencil className="inline h-4 w-4" /></DialogTitle><DialogDescription className="sr-only">Bezeichnungen</DialogDescription></DialogHeader>
+        <LabelsEditor st={st} fields={fields} password={staff.password} onSave={async (s, f) => { await saveSt(s); const r = await saveIdFields({ data: { password: staff.password, fields: f } }); if (r.ok) setFields(f); setLabelsOpen(false); }} />
       </DialogContent>
     </Dialog>}
   </div>;
@@ -342,23 +349,58 @@ function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: Id
 }
 
 const LABELS: [string, string, string][] = [["title", "هويتي والطوارئ", "Mein Ausweis & Notfall"], ["name", "الاسم بالعربية", "Name (Arabisch)"], ["foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)"], ["phone", "رقم هاتفي (اختياري)", "Meine Nummer"], ["stays", "الإقامة في كل مدينة", "Unterkunft je Stadt"]];
-function LabelsEditor({ st, fields, onSave }: { st: IdSettings; fields: IdField[]; onSave: (s: IdSettings, f: IdField[]) => Promise<void> }) {
-  const [lb, setLb] = useState<Record<string, string>>(() => {
+
+/** Fills empty German texts from Arabic automatically. pairs: [ar, de][] → returns de[] */
+async function autoGerman(password: string, pairs: [string, string][]) {
+  const idx = pairs.map((p, i) => (p[0].trim() && !p[1].trim() ? i : -1)).filter((i) => i >= 0);
+  const out = pairs.map((p) => p[1]);
+  if (!idx.length) return out;
+  try {
+    const r = await translateLabels({ data: { password, texts: idx.map((i) => pairs[i]![0]) } });
+    if (r.ok) idx.forEach((i, n) => { out[i] = r.out[n] ?? ""; });
+  } catch { /* keep empty → Arabic shown as fallback */ }
+  return out;
+}
+
+function LabelsEditor({ st, fields, password, onSave }: { st: IdSettings; fields: IdField[]; password: string; onSave: (s: IdSettings, f: IdField[]) => Promise<void> }) {
+  const [orig] = useState<Record<string, string>>(() => {
     const src: Record<string, string> = { ...(st.labels ?? {}), titleAr: st.titleAr ?? "", titleDe: st.titleDe ?? "" };
     const out: Record<string, string> = {};
-    for (const [k, ar, de] of LABELS) { out[`${k}Ar`] = src[`${k}Ar`] || ar; out[`${k}De`] = src[`${k}De`] || de; }
+    for (const [k] of LABELS) { out[`${k}Ar`] = src[`${k}Ar`] ?? ""; out[`${k}De`] = src[`${k}De`] ?? ""; }
     return out;
   });
+  const [lb, setLb] = useState<Record<string, string>>(orig);
   const [list, setList] = useState<IdField[]>(fields);
+  const [busy, setBusy] = useState(false);
   const set = (id: string, patch: Partial<IdField>) => setList(list.map((f) => f.id === id ? { ...f, ...patch } : f));
+  const save = async () => {
+    setBusy(true);
+    const next = { ...lb };
+    // Arabic changed but German untouched → old German is dropped and re-translated
+    for (const [k] of LABELS) if (next[`${k}Ar`] !== orig[`${k}Ar`] && next[`${k}De`] === orig[`${k}De`]) next[`${k}De`] = "";
+    const fl = list.filter((f) => f.ar.trim() || f.de.trim()).map((f) => { const o = fields.find((x) => x.id === f.id); return o && f.ar !== o.ar && f.de === o.de ? { ...f, de: "" } : f; });
+    const de = await autoGerman(password, [...LABELS.map(([k]) => [next[`${k}Ar`] ?? "", next[`${k}De`] ?? ""] as [string, string]), ...fl.map((f) => [f.ar, f.de] as [string, string])]);
+    LABELS.forEach(([k], i) => { next[`${k}De`] = de[i] ?? ""; });
+    const flOut = fl.map((f, i) => ({ ...f, de: de[LABELS.length + i] ?? f.de }));
+    const { titleAr, titleDe, ...labels } = next;
+    await onSave({ ...st, titleAr: titleAr ?? "", titleDe: titleDe ?? "", labels }, flOut);
+    setBusy(false);
+  };
   return <div className="space-y-3">
     {LABELS.map(([k, ar, de]) => <div key={k} className="space-y-1 rounded-md border border-border p-2"><input placeholder={ar} className={inputCls} value={lb[`${k}Ar`] ?? ""} onChange={(e) => setLb({ ...lb, [`${k}Ar`]: e.target.value })} /><input dir="ltr" placeholder={de} className={inputCls} value={lb[`${k}De`] ?? ""} onChange={(e) => setLb({ ...lb, [`${k}De`]: e.target.value })} /></div>)}
-    {list.map((f) => <div key={f.id} className="flex gap-2 rounded-md border border-secondary/40 p-2">
-      <div className="min-w-0 flex-1 space-y-1"><input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Name (DE)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} /></div>
-      <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-11 w-11 shrink-0 text-destructive" onClick={() => setList(list.filter((x) => x.id !== f.id))}><Trash2 className="h-4 w-4" /></Button>
+    {list.map((f) => <div key={f.id} className="space-y-1 rounded-md border border-secondary/40 p-2">
+      <input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Deutsch (automatisch)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} />
     </div>)}
-    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => { const { titleAr, titleDe, ...labels } = lb; onSave({ ...st, titleAr: titleAr ?? "", titleDe: titleDe ?? "", labels }, list.filter((f) => f.ar.trim() || f.de.trim())); }}><Check className="h-4 w-4" /></Button>
+    <Button type="button" className="h-11 w-full" disabled={busy} aria-label="حفظ | Speichern" onClick={save}><Check className="h-4 w-4" /></Button>
   </div>;
+}
+
+function DeleteFields({ fields, onDelete }: { fields: IdField[]; onDelete: (id: string) => Promise<void> }) {
+  if (!fields.length) return <p className="py-3 text-center text-xs text-muted-foreground">—</p>;
+  return <div className="space-y-2">{fields.map((f) => <div key={f.id} className="flex items-center gap-2 rounded-md border border-border p-2">
+    <span className="min-w-0 flex-1 text-sm font-bold text-primary"><T ar={f.ar || f.de} de={f.de || f.ar} /></span>
+    <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-10 w-10 shrink-0 text-destructive" onClick={() => { if (window.confirm(`حذف «${f.ar || f.de}»؟ | Löschen?`)) onDelete(f.id); }}><Trash2 className="h-4 w-4" /></Button>
+  </div>)}</div>;
 }
 
 function FieldsEditor({ initial, onSave, addNew }: { initial: IdField[]; onSave: (f: IdField[]) => Promise<void>; addNew?: boolean }) {
