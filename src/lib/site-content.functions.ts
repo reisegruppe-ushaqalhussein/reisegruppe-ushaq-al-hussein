@@ -212,6 +212,33 @@ export const sendAlertPush = createServerFn({ method: "POST" })
     return { ok: true as const, sent };
   });
 
+/** Translates short Arabic UI labels to German for the admin (fills missing German automatically). */
+export const translateLabels = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), texts: z.array(z.string().max(500)).max(50) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await passwordMatches(data.password)) || !data.texts.length) return { ok: false as const, out: [] as string[] };
+    const key = process.env["LOVABLE_API_KEY"];
+    if (!key) return { ok: false as const, out: [] as string[] };
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "Translate each Arabic UI label to short natural German. Reply ONLY with a JSON array of strings, same order and length." },
+            { role: "user", content: JSON.stringify(data.texts) },
+          ],
+        }),
+      });
+      if (!res.ok) return { ok: false as const, out: [] as string[] };
+      const j = await res.json();
+      const txt: string = j.choices?.[0]?.message?.content ?? "";
+      const arr = JSON.parse(txt.slice(txt.indexOf("["), txt.lastIndexOf("]") + 1));
+      return Array.isArray(arr) && arr.length === data.texts.length ? { ok: true as const, out: arr.map(String) } : { ok: false as const, out: [] as string[] };
+    } catch { return { ok: false as const, out: [] as string[] }; }
+  });
+
 export const createUploadUrl = createServerFn({ method: "POST" })
   .validator((d) => z.object({ password: z.string().max(200), name: z.string().max(300) }).parse(d))
   .handler(async ({ data }) => {
