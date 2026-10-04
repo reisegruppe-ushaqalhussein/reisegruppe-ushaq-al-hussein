@@ -869,17 +869,18 @@ function Index() {
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
     const v = sessionStorage.getItem("view") as View | null;
     if (v && v in viewTitles) setView(v);
   }, []);
-  useEffect(() => { sessionStorage.setItem("view", view); }, [view]);
+  useEffect(() => { if (welcomed !== null) sessionStorage.setItem("view", view); }, [view, welcomed]);
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
+  if (welcomed === null) return <div className="min-h-screen bg-muted" />;
   return (
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
