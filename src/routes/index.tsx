@@ -260,7 +260,7 @@ function LanguageSwitcher() {
 function NavLabel({ ar, de }: { ar: string; de: string }) {
   const { lang } = useLang();
   if (lang === "ar") return <span className="text-[10px] font-bold leading-none">{ar}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="max-w-full truncate text-[10px] font-bold leading-none">{lang === "en" ? toEnglish(de) : de}</span>;
+  if (lang === "de" || lang === "en") return <span dir="ltr" className="max-w-full truncate text-[10px] font-bold leading-none">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
   return <><span className="text-[10px] font-bold leading-none">{ar}</span><span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{de}</span></>;
 }
 

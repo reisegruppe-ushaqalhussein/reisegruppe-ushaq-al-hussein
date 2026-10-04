@@ -107,7 +107,7 @@ async function flush() {
   try {
     const r = await translateToEnglish({ data: { texts: batch } });
     if (r.ok) {
-      batch.forEach((t, i) => { cache[t] = r.out[i]; });
+      batch.forEach((t, i) => { cache[t] = r.out[i] ?? t; });
       try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* storage full */ }
       listeners.forEach((l) => l());
     } else batch.forEach((t) => failed.add(t));
