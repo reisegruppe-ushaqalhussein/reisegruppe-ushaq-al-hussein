@@ -4,7 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useLang } from "@/lib/i18n";
+import { toEnglish, useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
@@ -51,7 +51,7 @@ const clean = (p: string) => p.replace(/[^\d+]/g, "").replace(/^00/, "+");
 function T({ ar, de }: { ar: string; de: string }) {
   const { lang } = useLang();
   if (lang === "ar") return <span className="block">{ar}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="block">{de}</span>;
+  if (lang === "de" || lang === "en") return <span dir="ltr" className="block">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
   return <span className="block">{ar}<span lang="de" dir="ltr" className="block text-[0.8em] italic opacity-75">{de}</span></span>;
 }
 

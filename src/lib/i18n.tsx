@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { translateToEnglish } from "./site-content.functions";
 
 export type AppLang = "both" | "ar" | "de" | "en";
 
@@ -84,18 +85,68 @@ const en: Record<string, string> = {
   "Arabisch": "Arabic",
 };
 
-export const toEnglish = (de: string) => en[de] ?? de;
+// ---- English: built-in dictionary + automatic translation cache for everything else ----
+const CACHE_KEY = "en-cache-v1";
+let cache: Record<string, string> = {};
+let loaded = false;
+const pending = new Set<string>();
+const failed = new Set<string>();
+let timer: ReturnType<typeof setTimeout> | null = null;
+const listeners = new Set<() => void>();
 
-const LangContext = createContext<{ lang: AppLang; setLang: (l: AppLang) => void }>({ lang: "both", setLang: () => {} });
+function loadCache() {
+  if (loaded || typeof window === "undefined") return;
+  loaded = true;
+  try { cache = JSON.parse(window.localStorage.getItem(CACHE_KEY) || "{}"); } catch { cache = {}; }
+}
+async function flush() {
+  timer = null;
+  const batch = [...pending].slice(0, 40);
+  batch.forEach((t) => pending.delete(t));
+  if (!batch.length) return;
+  try {
+    const r = await translateToEnglish({ data: { texts: batch } });
+    if (r.ok) {
+      batch.forEach((t, i) => { cache[t] = r.out[i] ?? t; });
+      try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* storage full */ }
+      listeners.forEach((l) => l());
+    } else batch.forEach((t) => failed.add(t));
+  } catch { batch.forEach((t) => failed.add(t)); }
+  if (pending.size) timer = setTimeout(flush, 50);
+}
+
+/** Returns English for a German (or Arabic) source text; unknown texts are translated automatically and appear moments later. */
+export const toEnglish = (de: string) => {
+  if (!de || !de.trim()) return de;
+  if (en[de]) return en[de];
+  loadCache();
+  if (cache[de]) return cache[de];
+  if (typeof window !== "undefined" && !failed.has(de) && !/^[\d\s+()\-.:/,]+$/.test(de)) {
+    pending.add(de);
+    if (!timer) timer = setTimeout(flush, 120);
+  }
+  return de;
+};
+
+const LangContext = createContext<{ lang: AppLang; setLang: (l: AppLang) => void; v: number }>({ lang: "both", setLang: () => {}, v: 0 });
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<AppLang>("both");
-  useEffect(() => {
+  const [v, setV] = useState(0);
+  useLayoutEffect(() => {
     const saved = window.localStorage.getItem("app-lang");
     if (saved === "ar" || saved === "de" || saved === "en" || saved === "both") setLangState(saved);
   }, []);
+  useEffect(() => {
+    const l = () => setV((x) => x + 1);
+    listeners.add(l);
+    return () => { listeners.delete(l); };
+  }, []);
+  useEffect(() => {
+    document.documentElement.lang = lang === "both" ? "ar" : lang;
+  }, [lang]);
   const setLang = (l: AppLang) => { setLangState(l); window.localStorage.setItem("app-lang", l); };
-  return <LangContext.Provider value={{ lang, setLang }}>{children}</LangContext.Provider>;
+  return <LangContext.Provider value={{ lang, setLang, v }}>{children}</LangContext.Provider>;
 }
 
 export const useLang = () => useContext(LangContext);
