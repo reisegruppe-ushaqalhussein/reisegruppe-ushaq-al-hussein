@@ -252,3 +252,52 @@ export const listFeedback = createServerFn({ method: "POST" })
     const { data: rows } = await supabaseAdmin.from("feedback").select("*").order("created_at", { ascending: false }).limit(300);
     return { ok: true as const, rows: rows ?? [] };
   });
+
+/* ---------- Pilgrim ID approval ---------- */
+export type IdField = { id: string; ar: string; de: string };
+export type IdStatus = "pending" | "approved" | "rejected";
+export type IdRequest = { id: string; at: number; status: IdStatus; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
+const t = z.string().max(500);
+
+export const getIdFields = createServerFn({ method: "GET" }).handler(async () => readJson<IdField[]>("id_fields", []));
+
+export const saveIdFields = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), fields: z.array(z.object({ id: z.string().max(100), ar: t, de: t })).max(30) }).parse(d))
+  .handler(async ({ data }) => {
+    if ((await verifyRole(data.password)) !== "admin") return { ok: false };
+    await writeJson("id_fields", data.fields);
+    return { ok: true };
+  });
+
+export const submitIdRequest = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ id: z.string().min(8).max(100), nameAr: t, nameDe: t, phone: t, extra: z.record(z.string().max(100), t), stays: z.array(z.object({ city: t, hotel: t, floor: t, room: t })).max(20) }).parse(d))
+  .handler(async ({ data }) => {
+    const list = await readJson<IdRequest[]>("id_requests", []);
+    const row: IdRequest = { ...data, at: Date.now(), status: "pending" };
+    const next = [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000);
+    await writeJson("id_requests", next);
+    return { ok: true, status: "pending" as IdStatus };
+  });
+
+export const getIdStatus = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ id: z.string().max(100) }).parse(d))
+  .handler(async ({ data }) => {
+    const list = await readJson<IdRequest[]>("id_requests", []);
+    return { status: (list.find((r) => r.id === data.id)?.status ?? null) as IdStatus | null };
+  });
+
+export const listIdRequests = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await verifyRole(data.password))) return { ok: false, rows: [] as IdRequest[] };
+    return { ok: true, rows: await readJson<IdRequest[]>("id_requests", []) };
+  });
+
+export const decideIdRequest = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), id: z.string().max(100), status: z.enum(["approved", "rejected", "delete"]) }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await verifyRole(data.password))) return { ok: false };
+    const list = await readJson<IdRequest[]>("id_requests", []);
+    await writeJson("id_requests", data.status === "delete" ? list.filter((r) => r.id !== data.id) : list.map((r) => r.id === data.id ? { ...r, status: data.status as IdStatus } : r));
+    return { ok: true };
+  });
