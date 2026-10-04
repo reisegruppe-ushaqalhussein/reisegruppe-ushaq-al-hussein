@@ -165,13 +165,27 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   return <div className="screen-enter space-y-5 px-4 py-7">
     <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar="هويتي والطوارئ" de="Mein Ausweis & Notfall" /></h2><FavStar id="section:pilgrim-id" />
       {staff && <div className="relative">
-        <GearMenu>
-          <IconBtn label="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }}><ListChecks className="h-3.5 w-3.5" /></IconBtn>
-          {staff.role === "admin" && <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>}
-        </GearMenu>
-        {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
-      </div>}</div>
+        <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
+        {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-background bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
+      </div>}
+      {staff?.role === "admin" && <GearMenu>
+        <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
+        <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
+      </GearMenu>}</div>
+    {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
+
+    {notice && <div className={`flex items-start gap-2 rounded-lg border-2 p-3 text-sm font-bold ${p.status === "approved" ? "border-secondary bg-accent text-primary" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
+      {p.status === "approved" ? <Check className="h-5 w-5 shrink-0" /> : <X className="h-5 w-5 shrink-0" />}
+      <span className="min-w-0 flex-1">{p.status === "approved" ? <T ar="تم اعتماد هويتك ✓" de="Ihr Ausweis wurde bestätigt ✓" /> : <T ar="طلبك يحتاج تعديل البيانات" de="Ihre Anfrage muss korrigiert werden" />}</span>
+      <button type="button" aria-label="إغلاق | Schließen" onClick={() => save({ ...p, seen: p.status })} className="grid h-6 w-6 shrink-0 place-items-center rounded-full"><X className="h-3.5 w-3.5" /></button>
+    </div>}
+
+    {locked && <section className="space-y-2 rounded-xl border-2 border-secondary bg-card p-5 text-center">
+      <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-accent text-secondary"><Lock className="h-6 w-6" /></span>
+      <p className="text-base font-bold text-primary"><T ar="التسجيل مغلق حالياً" de="Die Registrierung ist derzeit geschlossen" /></p>
+      <p className="text-xs text-muted-foreground"><T ar="يُفتح التسجيل من إدارة الحملة خلال فترة الرحلة." de="Die Reiseleitung öffnet die Registrierung während der Reise." /></p>
+    </section>}
 
     {!editing && filled && !approved && <section className="relative space-y-3 rounded-xl border-2 border-secondary bg-card p-5 text-center">
       <Button type="button" variant="ghost" size="icon" onClick={start} aria-label="تعديل البطاقة | Karte bearbeiten" className="absolute left-3 top-3 h-9 w-9 rounded-full"><Pencil className="h-4 w-4" /></Button>
