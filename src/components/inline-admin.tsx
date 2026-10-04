@@ -90,13 +90,13 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
 }
 
 /** A list row for management dialogs with explicit edit / hide (admin-mode only) / delete buttons. */
-export function ManageRow({ title, subtitle, fields, item, onSave, onDelete, hidden = false, onVisibilityChange }: { title: string; subtitle: string; fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
+export function ManageRow({ title, subtitle, fields, item, onSave, onDelete, hidden = false, onVisibilityChange, onOpen }: { title: React.ReactNode; subtitle: React.ReactNode; onOpen?: () => void; fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const showHidden = useShowHidden();
   const btn = "grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border bg-background text-primary";
   return (
     <div className={`flex items-center gap-2 rounded-md border border-border bg-card p-2 text-xs ${hidden ? "opacity-60" : ""}`}>
-      <div className="min-w-0 flex-1"><p className="font-bold text-primary">{title}{hidden && <span className="ms-1 text-[10px] text-muted-foreground">(مخفي | Versteckt)</span>}</p><p dir="ltr" className="break-all text-muted-foreground">{subtitle}</p></div>
+      {(() => { const body = <><p className="font-bold text-primary">{title}{hidden && <span className="ms-1 text-[10px] text-muted-foreground">(مخفي | Versteckt)</span>}</p><p dir="ltr" className="break-all text-muted-foreground">{subtitle}</p></>; return onOpen ? <button type="button" onClick={onOpen} className="min-w-0 flex-1 rounded text-start active:bg-accent">{body}</button> : <div className="min-w-0 flex-1">{body}</div>; })()}
       <button type="button" aria-label="تعديل | Bearbeiten" className={btn} onClick={() => setOpen(true)}><Pencil className="h-4 w-4" /></button>
       {onVisibilityChange && showHidden && <button type="button" aria-label={hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} className={btn} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>}
       <button type="button" aria-label="حذف | Löschen" className={`${btn} text-destructive`} onClick={async () => { if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-4 w-4" /></button>
