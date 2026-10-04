@@ -121,7 +121,7 @@ function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
   const { lang } = useLang();
   const alignCls = align === "center" ? "text-center" : "text-right";
   if (lang === "ar") return <span lang="ar" dir="rtl" className={`block font-bold leading-relaxed ${alignCls}`}>{ar}</span>;
-  if (lang === "de" || lang === "en") return <span lang={lang} dir="ltr" className={`block font-bold leading-snug ${align === "center" ? "text-center" : "text-left"}`}>{lang === "en" ? toEnglish(de) : de}</span>;
+  if (lang === "de" || lang === "en") return <span lang={lang} dir="ltr" className={`block font-bold leading-snug ${align === "center" ? "text-center" : "text-left"}`}>{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
   return (
     <span className={`block ${align === "center" ? "text-center" : "text-right"}`}>
       <span lang="ar" dir="rtl" className="block font-bold leading-relaxed">{ar}</span>
@@ -878,7 +878,28 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
-  const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const go = (next: View) => {
+    setView((cur) => { if (cur !== next) window.history.pushState({ view: next }, ""); return next; });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  // Phone back button / back gesture: close an open window first, otherwise return to the previous section.
+  useEffect(() => {
+    if (!window.history.state?.view) window.history.replaceState({ ...(window.history.state ?? {}), view: "home" }, "");
+    const onPop = (e: PopStateEvent) => {
+      const dlg = document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+      if (dlg) {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        dlg.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        window.history.pushState({ view: e.state?.view ?? "home" }, "");
+        return;
+      }
+      const next = (e.state?.view as View | undefined) ?? "home";
+      setView(next in viewTitles ? next : "home");
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   if (welcomed === null) return <div className="min-h-screen bg-muted" />;
   return (
