@@ -163,7 +163,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const qr = [`${p.nameAr} ${p.nameDe}`.trim(), "حملة عشاق الحسين - Reisegruppe Ushaq al-Hussein", ...phones.map((x) => `Tel: ${x}`), current ? `${cityOf(current.city).de}: ${current.hotel} / ${current.floor} / ${current.room}` : ""].filter(Boolean).join("\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
-    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar="هويتي والطوارئ" de="Mein Ausweis & Notfall" /></h2><FavStar id="section:pilgrim-id" />
+    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
       {staff && <div className="relative">
         <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
         {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-background bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
@@ -171,6 +171,10 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       {staff?.role === "admin" && <GearMenu>
         <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
         <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="تعديل | Bearbeiten" onClick={start}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="إضافة | Hinzufügen" onClick={() => { setDraft({ ...empty, stays: [{ id: crypto.randomUUID(), city: "karbala", hotel: "", floor: "", room: "" }] }); setEditing(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => { const ar = window.prompt("الاسم بالعربية", st.titleAr || "هويتي والطوارئ"); if (ar === null) return; const de = window.prompt("Name (DE)", st.titleDe || "Mein Ausweis & Notfall"); if (de === null) return; saveSt({ ...st, titleAr: ar, titleDe: de }); }}><span className="text-sm font-bold">T</span></IconBtn>
+        <IconBtn label="حذف | Löschen" danger onClick={() => { if (window.confirm("حذف البطاقة من هذا الجهاز؟ | Karte auf diesem Gerät löschen?")) { save(empty); setDraft(empty); setEditing(true); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>}</div>
     {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
@@ -263,7 +267,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         <EmergencySmsButton content={content} />
       </> : <div className="flex items-start gap-2 rounded-md border border-destructive/25 bg-background p-3 text-xs text-muted-foreground">
         <ShieldCheck className="h-5 w-5 shrink-0 text-destructive" />
-        <T ar="أرقام الطوارئ وخدمة SMS مخصصة للحجاج المسجلين والمعتمدين في الرحلة الحالية." de="Notfallnummern und SMS-Dienst sind nur für registrierte und bestätigte Pilger der aktuellen Reise." />
+        <T ar={st.lockAr || "أرقام الطوارئ وخدمة SMS مخصصة للزوار المسجلين والمعتمدين في الرحلة الحالية."} de={st.lockDe || "Notfallnummern und SMS-Dienst sind nur für registrierte und bestätigte Besucher der aktuellen Reise."} />
       </div>}
     </section>
     {staff && <Dialog open={manage} onOpenChange={setManage}>
@@ -322,6 +326,8 @@ function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: Id
     <input dir="ltr" placeholder="🚨 Notfall — ohne Internet" className={inputCls} value={d.emTitleDe} onChange={(e) => setD({ ...d, emTitleDe: e.target.value })} />
     <textarea rows={3} placeholder="يفتح رسالة SMS جاهزة…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.emNoteAr} onChange={(e) => setD({ ...d, emNoteAr: e.target.value })} />
     <textarea dir="ltr" rows={3} placeholder="Öffnet eine fertige SMS…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.emNoteDe} onChange={(e) => setD({ ...d, emNoteDe: e.target.value })} />
+    <textarea rows={3} placeholder="أرقام الطوارئ وخدمة SMS مخصصة للزوار المسجلين…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.lockAr ?? ""} onChange={(e) => setD({ ...d, lockAr: e.target.value })} />
+    <textarea dir="ltr" rows={3} placeholder="Notfallnummern … nur für registrierte Besucher…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.lockDe ?? ""} onChange={(e) => setD({ ...d, lockDe: e.target.value })} />
     <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => onSave(d)}><Check className="h-4 w-4" /></Button>
   </div>;
 }
