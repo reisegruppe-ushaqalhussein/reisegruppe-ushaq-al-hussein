@@ -235,7 +235,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
       {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary">{f.ar} | {f.de} *<input dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
-      <p className="pt-2 text-sm font-bold text-primary"><T ar={lb.staysAr || "الإقامة في كل مدينة"} de={lb.staysDe || "Unterkunft je Stadt"} /></p>
+      <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
           <Button type="button" variant="outline" size="icon" aria-label="حذف الإقامة | Unterkunft löschen" onClick={() => setDraft({ ...draft, stays: draft.stays.filter((x) => x.id !== s.id) })} className="h-11 w-11 shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
@@ -353,7 +353,7 @@ function LabelsEditor({ st, fields, onSave }: { st: IdSettings; fields: IdField[
       <div className="min-w-0 flex-1 space-y-1"><input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Name (DE)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} /></div>
       <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-11 w-11 shrink-0 text-destructive" onClick={() => setList(list.filter((x) => x.id !== f.id))}><Trash2 className="h-4 w-4" /></Button>
     </div>)}
-    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => { const { titleAr, titleDe, ...labels } = lb; onSave({ ...st, titleAr, titleDe, labels }, list.filter((f) => f.ar.trim() || f.de.trim())); }}><Check className="h-4 w-4" /></Button>
+    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => { const { titleAr, titleDe, ...labels } = lb; onSave({ ...st, titleAr: titleAr ?? "", titleDe: titleDe ?? "", labels }, list.filter((f) => f.ar.trim() || f.de.trim())); }}><Check className="h-4 w-4" /></Button>
   </div>;
 }
 
