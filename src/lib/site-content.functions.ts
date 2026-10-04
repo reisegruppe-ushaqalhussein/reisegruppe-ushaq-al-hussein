@@ -352,10 +352,11 @@ export const decideIdRequest = createServerFn({ method: "POST" })
 
 /** Public: translates any German/Arabic app text to English (results are cached on each device). */
 export const translateToEnglish = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ texts: z.array(z.string().max(1500)).min(1).max(40) }).parse(d))
+  .validator((d) => z.object({ texts: z.array(z.string().max(1500)).min(1).max(40), target: z.enum(["en", "de"]).optional() }).parse(d))
   .handler(async ({ data }) => {
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { ok: false as const, out: [] as string[] };
+    const target = data.target === "de" ? "German" : "English";
     try {
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -363,7 +364,7 @@ export const translateToEnglish = createServerFn({ method: "POST" })
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-lite",
           messages: [
-            { role: "system", content: "You translate texts of a Shia pilgrimage travel group app into natural English. Inputs are German or Arabic. Keep names, numbers, emojis, line breaks and religious terms (Ziyarat, Imam, Hajj, (as)) intact. Reply ONLY with a JSON array of strings, same order and length." },
+            { role: "system", content: `You translate texts of a Shia pilgrimage travel group app into natural ${target}. Inputs are German or Arabic. Keep names, numbers, emojis, line breaks and religious terms (Ziyarat, Imam, Hajj, (as)) intact. Reply ONLY with a JSON array of strings, same order and length.` },
             { role: "user", content: JSON.stringify(data.texts) },
           ],
         }),
