@@ -153,6 +153,10 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen");
   };
   const [textOpen, setTextOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [addNew, setAddNew] = useState(false);
+  const lb = st.labels ?? {};
+  const L = (k: string, ar: string, de: string) => `${lb[`${k}Ar`] || ar} | ${lb[`${k}De`] || de}`;
   const locked = !st.open && !p.reqId && !staff;
   const canSeeEmergency = !!staff || approved || st.emergencyPublic;
   const notice = (p.status === "approved" || p.status === "rejected") && p.seen !== p.status;
@@ -171,9 +175,9 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       {staff?.role === "admin" && <GearMenu>
         <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
         <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="تعديل | Bearbeiten" onClick={start}><Pencil className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="إضافة | Hinzufügen" onClick={() => { setDraft({ ...empty, stays: [{ id: crypto.randomUUID(), city: "karbala", hotel: "", floor: "", room: "" }] }); setEditing(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => { const ar = window.prompt("الاسم بالعربية", st.titleAr || "هويتي والطوارئ"); if (ar === null) return; const de = window.prompt("Name (DE)", st.titleDe || "Mein Ausweis & Notfall"); if (de === null) return; saveSt({ ...st, titleAr: ar, titleDe: de }); }}><span className="text-sm font-bold">T</span></IconBtn>
+        <IconBtn label="تعديل | Bearbeiten" onClick={() => setLabelsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="إضافة خانة | Feld hinzufügen" onClick={() => { setAddNew(true); setFieldsOpen(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setLabelsOpen(true)}><span className="text-sm font-bold">T</span></IconBtn>
         <IconBtn label="حذف | Löschen" danger onClick={() => { if (window.confirm("حذف البطاقة من هذا الجهاز؟ | Karte auf diesem Gerät löschen?")) { save(empty); setDraft(empty); setEditing(true); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>}</div>
     {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
@@ -227,11 +231,11 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
 
     {editing && !locked && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
       {staff && <p className="rounded-md bg-accent px-3 py-2 text-xs font-bold text-primary"><T ar="تحكم المشرف: إضافة وتعديل وحذف بيانات البطاقة والإقامة" de="Mitarbeiter: Ausweis- und Unterkunftsdaten verwalten" /></p>}
-      <label className="block text-xs font-bold text-primary">الاسم بالعربية | Name (Arabisch)<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
-      <label className="block text-xs font-bold text-primary">الأحرف الأجنبية (ألماني / إنجليزي) | Fremdschrift (Deutsch / Englisch)<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
-      <label className="block text-xs font-bold text-primary">رقم هاتفي (اختياري) | Meine Nummer<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
+      <label className="block text-xs font-bold text-primary">{L("name", "الاسم بالعربية", "Name (Arabisch)")}<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
+      <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
+      <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
       {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary">{f.ar} | {f.de} *<input dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
-      <p className="pt-2 text-sm font-bold text-primary"><T ar="الإقامة في كل مدينة" de="Unterkunft je Stadt" /></p>
+      <p className="pt-2 text-sm font-bold text-primary"><T ar={lb.staysAr || "الإقامة في كل مدينة"} de={lb.staysDe || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
           <Button type="button" variant="outline" size="icon" aria-label="حذف الإقامة | Unterkunft löschen" onClick={() => setDraft({ ...draft, stays: draft.stays.filter((x) => x.id !== s.id) })} className="h-11 w-11 shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
@@ -310,10 +314,16 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         <EmTextEditor initial={st} onSave={async (next) => { await saveSt(next); setTextOpen(false); }} />
       </DialogContent>
     </Dialog>}
-    {staff?.role === "admin" && <Dialog open={fieldsOpen} onOpenChange={setFieldsOpen}>
+    {staff?.role === "admin" && <Dialog open={fieldsOpen} onOpenChange={(o) => { setFieldsOpen(o); if (!o) setAddNew(false); }}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>حقول التحقق <span className="text-sm italic text-muted-foreground">| Prüffelder</span></DialogTitle><DialogDescription className="sr-only">Pflichtfelder</DialogDescription></DialogHeader>
-        <FieldsEditor initial={fields} onSave={async (next) => { const r = await saveIdFields({ data: { password: staff.password, fields: next } }); if (r.ok) { setFields(next); setFieldsOpen(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
+        <FieldsEditor key={String(addNew)} addNew={addNew} initial={fields} onSave={async (next) => { const r = await saveIdFields({ data: { password: staff.password, fields: next } }); if (r.ok) { setFields(next); setFieldsOpen(false); setAddNew(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
+      </DialogContent>
+    </Dialog>}
+    {staff?.role === "admin" && <Dialog open={labelsOpen} onOpenChange={setLabelsOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle><Pencil className="inline h-4 w-4" /> T</DialogTitle><DialogDescription className="sr-only">Bezeichnungen</DialogDescription></DialogHeader>
+        <LabelsEditor st={st} fields={fields} onSave={async (s, f) => { await saveSt(s); const r = await saveIdFields({ data: { password: staff.password, fields: f } }); if (r.ok) setFields(f); setLabelsOpen(false); }} />
       </DialogContent>
     </Dialog>}
   </div>;
@@ -332,8 +342,23 @@ function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: Id
   </div>;
 }
 
-function FieldsEditor({ initial, onSave }: { initial: IdField[]; onSave: (f: IdField[]) => Promise<void> }) {
-  const [list, setList] = useState<IdField[]>(initial);
+const LABELS: [string, string, string][] = [["title", "هويتي والطوارئ", "Mein Ausweis & Notfall"], ["name", "الاسم بالعربية", "Name (Arabisch)"], ["foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)"], ["phone", "رقم هاتفي (اختياري)", "Meine Nummer"], ["stays", "الإقامة في كل مدينة", "Unterkunft je Stadt"]];
+function LabelsEditor({ st, fields, onSave }: { st: IdSettings; fields: IdField[]; onSave: (s: IdSettings, f: IdField[]) => Promise<void> }) {
+  const [lb, setLb] = useState<Record<string, string>>({ ...(st.labels ?? {}), titleAr: st.titleAr ?? "", titleDe: st.titleDe ?? "" });
+  const [list, setList] = useState<IdField[]>(fields);
+  const set = (id: string, patch: Partial<IdField>) => setList(list.map((f) => f.id === id ? { ...f, ...patch } : f));
+  return <div className="space-y-3">
+    {LABELS.map(([k, ar, de]) => <div key={k} className="space-y-1 rounded-md border border-border p-2"><input placeholder={ar} className={inputCls} value={lb[`${k}Ar`] ?? ""} onChange={(e) => setLb({ ...lb, [`${k}Ar`]: e.target.value })} /><input dir="ltr" placeholder={de} className={inputCls} value={lb[`${k}De`] ?? ""} onChange={(e) => setLb({ ...lb, [`${k}De`]: e.target.value })} /></div>)}
+    {list.map((f) => <div key={f.id} className="flex gap-2 rounded-md border border-secondary/40 p-2">
+      <div className="min-w-0 flex-1 space-y-1"><input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Name (DE)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} /></div>
+      <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-11 w-11 shrink-0 text-destructive" onClick={() => setList(list.filter((x) => x.id !== f.id))}><Trash2 className="h-4 w-4" /></Button>
+    </div>)}
+    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => { const { titleAr, titleDe, ...labels } = lb; onSave({ ...st, titleAr, titleDe, labels }, list.filter((f) => f.ar.trim() || f.de.trim())); }}><Check className="h-4 w-4" /></Button>
+  </div>;
+}
+
+function FieldsEditor({ initial, onSave, addNew }: { initial: IdField[]; onSave: (f: IdField[]) => Promise<void>; addNew?: boolean }) {
+  const [list, setList] = useState<IdField[]>(addNew ? [...initial, { id: `f${Date.now()}`, ar: "", de: "" }] : initial);
   const set = (id: string, patch: Partial<IdField>) => setList(list.map((f) => f.id === id ? { ...f, ...patch } : f));
   return <div className="space-y-2">
     {list.map((f) => <div key={f.id} className="flex gap-2">
