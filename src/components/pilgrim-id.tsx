@@ -284,6 +284,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
           {requests.map((r) => <div key={r.id} className={`space-y-1 rounded-md border p-3 text-xs ${r.status === "pending" ? "border-secondary bg-accent/40" : "border-border bg-card"}`}>
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1"><p className="text-sm font-bold text-primary">{r.nameAr || "—"}</p>{r.nameDe && <p dir="ltr" className="text-muted-foreground">{r.nameDe}</p>}</div>
+              {r.auto && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-primary">⚡ تلقائي | Auto</span>}
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${r.status === "approved" ? "bg-primary text-primary-foreground" : r.status === "rejected" ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>{r.status === "approved" ? "معتمد | Bestätigt" : r.status === "rejected" ? "مرفوض | Abgelehnt" : "معلق | Ausstehend"}</span>
               <button type="button" aria-label="حذف | Löschen" onClick={() => decide(r.id, "delete")} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
@@ -299,12 +300,29 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         </div>
       </DialogContent>
     </Dialog>}
+    {staff?.role === "admin" && <Dialog open={textOpen} onOpenChange={setTextOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle><Pencil className="inline h-4 w-4" /></DialogTitle><DialogDescription className="sr-only">Texte</DialogDescription></DialogHeader>
+        <EmTextEditor initial={st} onSave={async (next) => { await saveSt(next); setTextOpen(false); }} />
+      </DialogContent>
+    </Dialog>}
     {staff?.role === "admin" && <Dialog open={fieldsOpen} onOpenChange={setFieldsOpen}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>حقول التحقق <span className="text-sm italic text-muted-foreground">| Prüffelder</span></DialogTitle><DialogDescription className="sr-only">Pflichtfelder</DialogDescription></DialogHeader>
         <FieldsEditor initial={fields} onSave={async (next) => { const r = await saveIdFields({ data: { password: staff.password, fields: next } }); if (r.ok) { setFields(next); setFieldsOpen(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
       </DialogContent>
     </Dialog>}
+  </div>;
+}
+
+function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: IdSettings) => Promise<void> }) {
+  const [d, setD] = useState(initial);
+  return <div className="space-y-2">
+    <input placeholder="🚨 طوارئ — بدون إنترنت" className={inputCls} value={d.emTitleAr} onChange={(e) => setD({ ...d, emTitleAr: e.target.value })} />
+    <input dir="ltr" placeholder="🚨 Notfall — ohne Internet" className={inputCls} value={d.emTitleDe} onChange={(e) => setD({ ...d, emTitleDe: e.target.value })} />
+    <textarea rows={3} placeholder="يفتح رسالة SMS جاهزة…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.emNoteAr} onChange={(e) => setD({ ...d, emNoteAr: e.target.value })} />
+    <textarea dir="ltr" rows={3} placeholder="Öffnet eine fertige SMS…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.emNoteDe} onChange={(e) => setD({ ...d, emNoteDe: e.target.value })} />
+    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => onSave(d)}><Check className="h-4 w-4" /></Button>
   </div>;
 }
 
