@@ -64,6 +64,25 @@ function norm(s: string) {
     .replace(/\s+/g, " ").trim();
 }
 
+/** Normalizes a single character the same way as norm() (keeps spaces) for highlight index mapping. */
+function normChar(c: string) { return /\s/.test(c) ? " " : norm(c); }
+
+/** Highlights every search word inside text, matching on normalized form (digits, diacritics, letter variants). */
+export function Hl({ text, words }: { text: string; words: string[] }) {
+  const t = text ?? "";
+  if (!words.length || !t) return <>{t}</>;
+  const chars = Array.from(t);
+  let n = ""; const owner: number[] = [];
+  chars.forEach((c, i) => { const m = normChar(c); for (let k = 0; k < m.length; k++) owner.push(i); n += m; });
+  const mark = new Array(chars.length).fill(false);
+  for (const w of words) { let at = n.indexOf(w); while (at !== -1 && w) { for (let k = at; k < at + w.length; k++) { const o = owner[k]; if (o !== undefined) mark[o] = true; } at = n.indexOf(w, at + 1); } }
+  const out: React.ReactNode[] = []; let buf = ""; let on = false;
+  const flush = (key: number) => { if (!buf) return; out.push(on ? <mark key={key} className="rounded-sm bg-secondary/60 px-0.5 text-foreground">{buf}</mark> : <span key={key}>{buf}</span>); buf = ""; };
+  chars.forEach((c, i) => { if (mark[i] !== on) { flush(i); on = mark[i]; } buf += c; });
+  flush(chars.length);
+  return <>{out}</>;
+}
+
 export function RoomsPanel({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
   const showHidden = useShowHidden();
@@ -94,6 +113,7 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
   };
 
   const [page, setPage] = useState(false);
+  const [detail, setDetail] = useState<RoomEntry | null>(null);
   const canEdit = staff?.role === "admin" || staff?.role === "haj";
   const gear = canEdit ? <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة التسكين | Zimmer verwalten" title="إدارة | Verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button> : null;
 
@@ -110,18 +130,31 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
         {list.map((r) => { const n = visible.indexOf(r) + 1; return <div key={r.id} className="flex items-start gap-2">
           <span className="mt-2 grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-secondary px-1 text-[11px] font-bold text-secondary-foreground" dir="ltr">{n}</span>
           <div className="min-w-0 flex-1">{canEdit
-            ? <ManageRow title={r.name} subtitle={`${r.city} · ${r.hotel} · طابق/Etage ${r.floor || "—"} · غرفة/Zimmer ${r.room || "—"}`} fields={roomFields} item={r} hidden={r.hidden ?? false}
+            ? <ManageRow onOpen={() => setDetail(r)} title={<Hl text={r.name} words={words} />} subtitle={<><Hl text={r.city} words={words} /> · <Hl text={r.hotel} words={words} /> · طابق/Etage <Hl text={r.floor || "—"} words={words} /> · غرفة/Zimmer <Hl text={r.room || "—"} words={words} /></>} fields={roomFields} item={r} hidden={r.hidden ?? false}
                 onVisibilityChange={(hidden) => commit(all.map((x) => x.id === r.id ? { ...x, hidden } : x))}
                 onSave={(row) => commit(all.map((x) => x.id === r.id ? { ...(row as RoomEntry), id: r.id, hidden: r.hidden ?? false } : x))}
                 onDelete={() => commit(all.filter((x) => x.id !== r.id))} />
-            : <div className="rounded-md border border-border bg-card p-2 text-xs">
-                <p className="font-bold text-primary">{r.name}</p>
-                <p className="text-muted-foreground">{r.city} · {r.hotel} · طابق/Etage <b dir="ltr">{r.floor || "—"}</b> · غرفة/Zimmer <b dir="ltr">{r.room || "—"}</b></p>
-              </div>}</div>
+            : <button type="button" onClick={() => setDetail(r)} className="block w-full rounded-md border border-border bg-card p-2 text-start text-xs active:bg-accent">
+                <p className="font-bold text-primary"><Hl text={r.name} words={words} /></p>
+                <p className="text-muted-foreground"><Hl text={r.city} words={words} /> · <Hl text={r.hotel} words={words} /> · طابق/Etage <b dir="ltr"><Hl text={r.floor || "—"} words={words} /></b> · غرفة/Zimmer <b dir="ltr"><Hl text={r.room || "—"} words={words} /></b></p>
+              </button>}</div>
         </div>; })}
         {list.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد نتائج | Keine Einträge</p>}
       </div>
     </FullPage>}
+
+    <Dialog open={!!detail} onOpenChange={(o) => { if (!o) setDetail(null); }}>
+      <DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle className="text-xl text-primary">{detail?.name}</DialogTitle><DialogDescription className="sr-only">Gastdetails</DialogDescription></DialogHeader>
+        {detail && <div className="space-y-2">
+          {([["المدينة", "Stadt", detail.city], ["الفندق", "Hotel", detail.hotel], ["الطابق", "Etage", detail.floor], ["الغرفة", "Zimmer", detail.room]] as const).map(([ar, de, v]) => <div key={de} className="flex items-center justify-between gap-3 rounded-md border border-secondary/40 bg-card p-3">
+            <span className="text-xs font-bold text-muted-foreground">{ar}<span dir="ltr" className="block italic">{de}</span></span>
+            <span dir="auto" className="text-lg font-bold text-primary">{v || "—"}</span>
+          </div>)}
+          <Button type="button" variant="outline" className="h-10 w-full" aria-label="نسخ | Kopieren" onClick={() => { void navigator.clipboard?.writeText(`${detail.name}\n${detail.city} - ${detail.hotel}\nطابق/Etage: ${detail.floor} · غرفة/Zimmer: ${detail.room}`); }}><ClipboardPaste className="h-4 w-4" /></Button>
+        </div>}
+      </DialogContent>
+    </Dialog>
 
     <ManageDialog open={manage} onOpenChange={setManage} ar="تسكين الزوار" de="Zimmerverteilung">
       <AddButton label={{ ar: "إضافة زائر", de: "Gast hinzufügen" }} fields={roomFields} blank={{ name: "", city: "", hotel: "", floor: "", room: "" }} onAdd={(row) => commit([...all, { ...(row as RoomEntry), id: `rm${Date.now()}` }])} />

@@ -1,14 +1,15 @@
 import { RoomsPanel } from "@/components/final-group";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUp, BedDouble, IdCard, MessageSquare, Pencil, Phone, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowUp, BedDouble, Check, ClipboardList, Clock, IdCard, ListChecks, Send, X, MessageSquare, Pencil, Phone, Plus, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
-import { AddButton, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
+import { decideIdRequest, getIdFields, getIdStatus, listIdRequests, saveIdFields, submitIdRequest, type IdField, type IdRequest } from "@/lib/site-content.functions";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
 const KEY = "ushaq-pilgrim-id";
@@ -28,7 +29,7 @@ const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" }
 const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
-export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string };
+export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent" };
 const empty: PilgrimId = { nameAr: "", nameDe: "", phone: "", stays: [] };
 
 function useLocal() {
@@ -110,6 +111,34 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const [manage, setManage] = useState(false);
   const phones = leaderPhones(content);
   const filled = !!(p.nameAr || p.nameDe);
+  const [fields, setFields] = useState<IdField[]>([]);
+  const [requests, setRequests] = useState<IdRequest[]>([]);
+  const [reqOpen, setReqOpen] = useState(false);
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  useEffect(() => { getIdFields().then(setFields).catch(() => {}); }, []);
+  const loadRequests = () => { if (staff) listIdRequests({ data: { password: staff.password } }).then((r) => setRequests(r.rows)).catch(() => {}); };
+  useEffect(loadRequests, [staff?.password]);
+  useEffect(() => {
+    if (!p.reqId || p.status === "unsent") return;
+    let alive = true;
+    const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => { if (alive && r.status && r.status !== p.status) save({ ...p, status: r.status }); }).catch(() => {});
+    check();
+    const t = p.status === "pending" ? window.setInterval(check, 30000) : 0;
+    return () => { alive = false; if (t) window.clearInterval(t); };
+  }, [p.reqId, p.status]);
+  const submit = async (d: PilgrimId) => {
+    const reqId = d.reqId ?? crypto.randomUUID();
+    setSending(true);
+    try {
+      await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
+      save({ ...d, reqId, status: "pending" });
+    } catch { save({ ...d, reqId, status: "unsent" }); }
+    setSending(false);
+  };
+  const approved = p.status === "approved";
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const decide = async (id: string, status: "approved" | "rejected" | "delete") => { if (!staff) return; if (status === "delete" && !window.confirm("حذف الطلب؟ | Anfrage löschen?")) return; await decideIdRequest({ data: { password: staff.password, id, status } }); loadRequests(); };
   useEffect(() => { if (!filled) setEditing(true); }, [filled]);
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
@@ -117,16 +146,35 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const qr = [`${p.nameAr} ${p.nameDe}`.trim(), "حملة عشاق الحسين - Reisegruppe Ushaq al-Hussein", ...phones.map((x) => `Tel: ${x}`), current ? `${cityOf(current.city).de}: ${current.hotel} / ${current.floor} / ${current.room}` : ""].filter(Boolean).join("\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
-    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar="هويتي والطوارئ" de="Mein Ausweis & Notfall" /></h2><FavStar id="section:pilgrim-id" /></div>
+    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar="هويتي والطوارئ" de="Mein Ausweis & Notfall" /></h2><FavStar id="section:pilgrim-id" />
+      {staff && <div className="relative">
+        <GearMenu>
+          <IconBtn label="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }}><ListChecks className="h-3.5 w-3.5" /></IconBtn>
+          {staff.role === "admin" && <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>}
+        </GearMenu>
+        {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
+      </div>}</div>
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
 
-    {!editing && filled && <section className="relative overflow-hidden rounded-xl border-2 border-secondary bg-primary p-5 text-primary-foreground shadow-lg">
+    {!editing && filled && !approved && <section className="relative space-y-3 rounded-xl border-2 border-secondary bg-card p-5 text-center">
+      <Button type="button" variant="ghost" size="icon" onClick={start} aria-label="تعديل البطاقة | Karte bearbeiten" className="absolute left-3 top-3 h-9 w-9 rounded-full"><Pencil className="h-4 w-4" /></Button>
+      <span className={`mx-auto grid h-12 w-12 place-items-center rounded-full ${p.status === "rejected" ? "bg-destructive/15 text-destructive" : "bg-accent text-secondary"}`}>{p.status === "rejected" ? <X className="h-6 w-6" /> : <Clock className="h-6 w-6" />}</span>
+      <p className="text-lg font-bold text-primary">{p.nameAr || p.nameDe}</p>
+      {p.status === "pending" && <p className="text-sm font-bold text-primary"><T ar="قيد المراجعة والاعتماد" de="In Bearbeitung" /></p>}
+      {p.status === "pending" && <p className="text-xs text-muted-foreground"><T ar="ستظهر بطاقتك ورمز الطوارئ بعد موافقة إدارة الحملة." de="Ihr Ausweis und Notfall-QR erscheinen nach Freigabe durch die Reiseleitung." /></p>}
+      {p.status === "rejected" && <p className="text-sm font-bold text-destructive"><T ar="رُفض الطلب: البيانات غير مطابقة لسجل الحملة. عدّلها وأعد الإرسال." de="Abgelehnt: Daten stimmen nicht mit der Gruppenliste überein. Bitte korrigieren und erneut senden." /></p>}
+      {(!p.status || p.status === "unsent") && <p className="text-xs text-muted-foreground"><T ar="أرسل بياناتك لاعتماد بطاقتك من إدارة الحملة." de="Senden Sie Ihre Daten zur Freigabe an die Reiseleitung." /></p>}
+      {p.status !== "pending" && p.status !== "rejected" && <Button type="button" className="h-11 w-full" disabled={sending} onClick={() => submit(p)}><Send className="h-4 w-4" /><T ar="إرسال للاعتماد" de="Zur Freigabe senden" /></Button>}
+    </section>}
+
+    {!editing && filled && approved && <section className="relative overflow-hidden rounded-xl border-2 border-secondary bg-primary p-5 text-primary-foreground shadow-lg">
       <Button type="button" variant="ghost" size="icon" onClick={start} aria-label="تعديل البطاقة | Karte bearbeiten" className="absolute left-3 top-3 h-9 w-9 rounded-full bg-background/15 text-primary-foreground hover:bg-background/25 hover:text-primary-foreground"><Pencil className="h-4 w-4" /></Button>
       <p className="text-center text-xs text-secondary">حملة عشاق الحسين - ألمانيا<span dir="ltr" className="block">Reisegruppe Ushaq al-Hussein</span></p>
       <div className="gold-line mx-auto my-3 h-px w-24" />
       <p className="text-center text-xl font-bold">{p.nameAr}</p>
       {p.nameDe && <p dir="ltr" className="text-center text-sm opacity-80">{p.nameDe}</p>}
       {p.phone && <p dir="ltr" className="mt-1 text-center text-xs opacity-75">{p.phone}</p>}
+      {fields.filter((f) => p.extra?.[f.id]).map((f) => <p key={f.id} className="mt-1 text-center text-xs opacity-80">{f.ar} | {f.de}: <b dir="auto">{p.extra?.[f.id]}</b></p>)}
       {current && <div className="mt-4 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 p-3 text-sm">
         <p className="flex items-center justify-center gap-1.5 font-bold text-secondary"><BedDouble className="h-4 w-4" />{cityOf(current.city).ar} | {cityOf(current.city).de}</p>
         <p className="mt-1 text-center">{current.hotel || "—"}</p>
@@ -147,6 +195,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <label className="block text-xs font-bold text-primary">الاسم بالعربية | Name (Arabisch)<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">الأحرف الأجنبية (ألماني / إنجليزي) | Fremdschrift (Deutsch / Englisch)<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">رقم هاتفي (اختياري) | Meine Nummer<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
+      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary">{f.ar} | {f.de} *<input dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
       <p className="pt-2 text-sm font-bold text-primary"><T ar="الإقامة في كل مدينة" de="Unterkunft je Stadt" /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
@@ -156,7 +205,12 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       </div>)}
       <Button type="button" variant="outline" className="h-10 w-full" onClick={() => setDraft({ ...draft, stays: [...draft.stays, { id: crypto.randomUUID(), city: "karbala", hotel: "", floor: "", room: "" }] })}><Plus /><T ar="إضافة مدينة/فندق" de="Stadt/Hotel hinzufügen" /></Button>
       <div className="grid grid-cols-2 gap-2 pt-2">
-        <Button type="button" className="h-11" onClick={() => { save(draft); setEditing(false); }}><T ar="حفظ البطاقة" de="Speichern" /></Button>
+        <Button type="button" className="h-11" disabled={sending} onClick={async () => {
+          if (!(draft.nameAr.trim() || draft.nameDe.trim()) || fields.some((f) => !(draft.extra?.[f.id] ?? "").trim())) { window.alert("يرجى تعبئة الاسم وجميع الحقول المطلوبة (*) | Bitte Name und alle Pflichtfelder (*) ausfüllen"); return; }
+          const same = p.status === "approved" && JSON.stringify({ ...draft, current: undefined }) === JSON.stringify({ ...p, current: undefined });
+          setEditing(false);
+          if (same) save(draft); else await submit(draft);
+        }}><T ar="حفظ وإرسال" de="Speichern & senden" /></Button>
         {filled && <Button type="button" variant="outline" className="h-11" onClick={() => setEditing(false)}><T ar="إلغاء" de="Abbrechen" /></Button>}
       </div>
     </section>}
@@ -181,6 +235,48 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => saveContent({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
       </DialogContent>
     </Dialog>}
+    {staff && <Dialog open={reqOpen} onOpenChange={setReqOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle>طلبات الهوية <span className="text-sm italic text-muted-foreground">| Ausweis-Anfragen</span></DialogTitle><DialogDescription className="sr-only">Anfragen</DialogDescription></DialogHeader>
+        <div className="space-y-2">
+          {requests.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد طلبات | Keine Anfragen</p>}
+          {requests.map((r) => <div key={r.id} className={`space-y-1 rounded-md border p-3 text-xs ${r.status === "pending" ? "border-secondary bg-accent/40" : "border-border bg-card"}`}>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1"><p className="text-sm font-bold text-primary">{r.nameAr || "—"}</p>{r.nameDe && <p dir="ltr" className="text-muted-foreground">{r.nameDe}</p>}</div>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${r.status === "approved" ? "bg-primary text-primary-foreground" : r.status === "rejected" ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>{r.status === "approved" ? "معتمد | Bestätigt" : r.status === "rejected" ? "مرفوض | Abgelehnt" : "معلق | Ausstehend"}</span>
+              <button type="button" aria-label="حذف | Löschen" onClick={() => decide(r.id, "delete")} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            </div>
+            {r.phone && <p dir="ltr">📞 {r.phone}</p>}
+            {Object.entries(r.extra ?? {}).map(([k, v]) => { const f = fields.find((x) => x.id === k); return <p key={k}>{f ? `${f.ar} | ${f.de}` : k}: <b dir="auto">{v}</b></p>; })}
+            {r.stays.map((st, i) => <p key={i}>🏨 {st.city} · {st.hotel || "—"} · طابق/Etage {st.floor || "—"} · غرفة/Zimmer {st.room || "—"}</p>)}
+            <p dir="ltr" className="text-[10px] text-muted-foreground">{new Date(r.at).toLocaleString()}</p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button type="button" className="h-9" disabled={r.status === "approved"} onClick={() => decide(r.id, "approved")}><Check className="h-4 w-4" />موافقة <span className="text-[10px] italic opacity-80">| Genehmigen</span></Button>
+              <Button type="button" variant="destructive" className="h-9" disabled={r.status === "rejected"} onClick={() => decide(r.id, "rejected")}><X className="h-4 w-4" />رفض <span className="text-[10px] italic opacity-80">| Ablehnen</span></Button>
+            </div>
+          </div>)}
+        </div>
+      </DialogContent>
+    </Dialog>}
+    {staff?.role === "admin" && <Dialog open={fieldsOpen} onOpenChange={setFieldsOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle>حقول التحقق <span className="text-sm italic text-muted-foreground">| Prüffelder</span></DialogTitle><DialogDescription className="sr-only">Pflichtfelder</DialogDescription></DialogHeader>
+        <FieldsEditor initial={fields} onSave={async (next) => { const r = await saveIdFields({ data: { password: staff.password, fields: next } }); if (r.ok) { setFields(next); setFieldsOpen(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
+      </DialogContent>
+    </Dialog>}
+  </div>;
+}
+
+function FieldsEditor({ initial, onSave }: { initial: IdField[]; onSave: (f: IdField[]) => Promise<void> }) {
+  const [list, setList] = useState<IdField[]>(initial);
+  const set = (id: string, patch: Partial<IdField>) => setList(list.map((f) => f.id === id ? { ...f, ...patch } : f));
+  return <div className="space-y-2">
+    {list.map((f) => <div key={f.id} className="flex gap-2">
+      <div className="min-w-0 flex-1 space-y-1"><input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Name (DE)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} /></div>
+      <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-11 w-11 shrink-0 text-destructive" onClick={() => setList(list.filter((x) => x.id !== f.id))}><Trash2 className="h-4 w-4" /></Button>
+    </div>)}
+    <div className="flex justify-end"><Button type="button" variant="outline" size="icon" aria-label="إضافة حقل | Feld hinzufügen" className="h-9 w-9" onClick={() => setList([...list, { id: `f${Date.now()}`, ar: "", de: "" }])}><Plus className="h-4 w-4" /></Button></div>
+    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => onSave(list.filter((f) => f.ar.trim() || f.de.trim()))}><Check className="h-4 w-4" /></Button>
   </div>;
 }
 
