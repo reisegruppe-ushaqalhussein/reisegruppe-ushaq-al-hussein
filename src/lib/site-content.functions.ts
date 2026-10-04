@@ -269,11 +269,11 @@ export const saveIdFields = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string; titleAr?: string; titleDe?: string; lockAr?: string; lockDe?: string };
+export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string; titleAr?: string; titleDe?: string; lockAr?: string; lockDe?: string; labels?: Record<string, string> };
 const idSettingsDefault: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
 export const getIdSettings = createServerFn({ method: "GET" }).handler(async () => ({ ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) }));
 export const saveIdSettings = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000), titleAr: t.optional(), titleDe: t.optional(), lockAr: z.string().max(1000).optional(), lockDe: z.string().max(1000).optional() }) }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000), titleAr: t.optional(), titleDe: t.optional(), lockAr: z.string().max(1000).optional(), lockDe: z.string().max(1000).optional(), labels: z.record(z.string().max(50), t).optional() }) }).parse(d))
   .handler(async ({ data }) => {
     if ((await verifyRole(data.password)) !== "admin") return { ok: false };
     await writeJson("id_settings", data.settings);
