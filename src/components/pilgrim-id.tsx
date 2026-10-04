@@ -1,7 +1,7 @@
 import { RoomsPanel } from "@/components/final-group";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUp, BedDouble, Check, ClipboardList, Clock, IdCard, ListChecks, Send, X, MessageSquare, Pencil, Phone, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang } from "@/lib/i18n";
@@ -9,7 +9,7 @@ import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
-import { decideIdRequest, getIdFields, getIdStatus, listIdRequests, saveIdFields, submitIdRequest, type IdField, type IdRequest } from "@/lib/site-content.functions";
+import { decideIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
 const KEY = "ushaq-pilgrim-id";
@@ -29,8 +29,10 @@ const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" }
 const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
-export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent" };
+export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent"; seen?: string };
 const empty: PilgrimId = { nameAr: "", nameDe: "", phone: "", stays: [] };
+const SKEY = "ushaq-id-settings";
+const defaultSettings: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
 
 function useLocal() {
   const [data, setData] = useState<PilgrimId>(empty);
@@ -131,14 +133,29 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     const reqId = d.reqId ?? crypto.randomUUID();
     setSending(true);
     try {
-      await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
-      save({ ...d, reqId, status: "pending" });
+      const r = await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
+      if (r.closed) { window.alert("التسجيل مغلق حالياً | Die Registrierung ist derzeit geschlossen"); save({ ...d, status: "unsent" }); }
+      else save({ ...d, reqId, status: r.status ?? "pending", seen: r.status === "approved" ? undefined : d.seen });
     } catch { save({ ...d, reqId, status: "unsent" }); }
     setSending(false);
   };
   const approved = p.status === "approved";
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const decide = async (id: string, status: "approved" | "rejected" | "delete") => { if (!staff) return; if (status === "delete" && !window.confirm("حذف الطلب؟ | Anfrage löschen?")) return; await decideIdRequest({ data: { password: staff.password, id, status } }); loadRequests(); };
+  const [st, setSt] = useState<IdSettings>(defaultSettings);
+  useEffect(() => {
+    try { const c = localStorage.getItem(SKEY); if (c) setSt({ ...defaultSettings, ...JSON.parse(c) }); } catch { /* ignore */ }
+    getIdSettings().then((s) => { setSt(s); localStorage.setItem(SKEY, JSON.stringify(s)); }).catch(() => {});
+  }, []);
+  const saveSt = async (next: IdSettings) => {
+    if (staff?.role !== "admin") return;
+    const r = await saveIdSettings({ data: { password: staff.password, settings: next } });
+    if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen");
+  };
+  const [textOpen, setTextOpen] = useState(false);
+  const locked = !st.open && !p.reqId && !staff;
+  const canSeeEmergency = !!staff || approved || st.emergencyPublic;
+  const notice = (p.status === "approved" || p.status === "rejected") && p.seen !== p.status;
   useEffect(() => { if (!filled) setEditing(true); }, [filled]);
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
