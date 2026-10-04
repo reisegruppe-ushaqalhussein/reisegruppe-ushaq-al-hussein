@@ -29,7 +29,7 @@ const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" }
 const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
-export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent"; seen?: string };
+export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent"; seen?: string | undefined };
 const empty: PilgrimId = { nameAr: "", nameDe: "", phone: "", stays: [] };
 const SKEY = "ushaq-id-settings";
 const defaultSettings: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
