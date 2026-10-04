@@ -1,7 +1,7 @@
 import { RoomsPanel } from "@/components/final-group";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUp, BedDouble, Check, ClipboardList, Clock, IdCard, ListChecks, Send, X, MessageSquare, Pencil, Phone, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang } from "@/lib/i18n";
@@ -9,7 +9,7 @@ import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
-import { decideIdRequest, getIdFields, getIdStatus, listIdRequests, saveIdFields, submitIdRequest, type IdField, type IdRequest } from "@/lib/site-content.functions";
+import { decideIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
 const KEY = "ushaq-pilgrim-id";
@@ -29,8 +29,10 @@ const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" }
 const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
-export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent" };
+export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent"; seen?: string | undefined };
 const empty: PilgrimId = { nameAr: "", nameDe: "", phone: "", stays: [] };
+const SKEY = "ushaq-id-settings";
+const defaultSettings: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
 
 function useLocal() {
   const [data, setData] = useState<PilgrimId>(empty);
@@ -131,14 +133,29 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     const reqId = d.reqId ?? crypto.randomUUID();
     setSending(true);
     try {
-      await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
-      save({ ...d, reqId, status: "pending" });
+      const r = await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
+      if (r.closed) { window.alert("التسجيل مغلق حالياً | Die Registrierung ist derzeit geschlossen"); save({ ...d, status: "unsent" }); }
+      else save({ ...d, reqId, status: r.status ?? "pending", seen: r.status === "approved" ? undefined : d.seen });
     } catch { save({ ...d, reqId, status: "unsent" }); }
     setSending(false);
   };
   const approved = p.status === "approved";
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const decide = async (id: string, status: "approved" | "rejected" | "delete") => { if (!staff) return; if (status === "delete" && !window.confirm("حذف الطلب؟ | Anfrage löschen?")) return; await decideIdRequest({ data: { password: staff.password, id, status } }); loadRequests(); };
+  const [st, setSt] = useState<IdSettings>(defaultSettings);
+  useEffect(() => {
+    try { const c = localStorage.getItem(SKEY); if (c) setSt({ ...defaultSettings, ...JSON.parse(c) }); } catch { /* ignore */ }
+    getIdSettings().then((s) => { setSt(s); localStorage.setItem(SKEY, JSON.stringify(s)); }).catch(() => {});
+  }, []);
+  const saveSt = async (next: IdSettings) => {
+    if (staff?.role !== "admin") return;
+    const r = await saveIdSettings({ data: { password: staff.password, settings: next } });
+    if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen");
+  };
+  const [textOpen, setTextOpen] = useState(false);
+  const locked = !st.open && !p.reqId && !staff;
+  const canSeeEmergency = !!staff || approved || st.emergencyPublic;
+  const notice = (p.status === "approved" || p.status === "rejected") && p.seen !== p.status;
   useEffect(() => { if (!filled) setEditing(true); }, [filled]);
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
@@ -148,13 +165,27 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   return <div className="screen-enter space-y-5 px-4 py-7">
     <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar="هويتي والطوارئ" de="Mein Ausweis & Notfall" /></h2><FavStar id="section:pilgrim-id" />
       {staff && <div className="relative">
-        <GearMenu>
-          <IconBtn label="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }}><ListChecks className="h-3.5 w-3.5" /></IconBtn>
-          {staff.role === "admin" && <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>}
-        </GearMenu>
-        {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
-      </div>}</div>
+        <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
+        {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-background bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
+      </div>}
+      {staff?.role === "admin" && <GearMenu>
+        <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
+        <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
+      </GearMenu>}</div>
+    {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
+
+    {notice && <div className={`flex items-start gap-2 rounded-lg border-2 p-3 text-sm font-bold ${p.status === "approved" ? "border-secondary bg-accent text-primary" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
+      {p.status === "approved" ? <Check className="h-5 w-5 shrink-0" /> : <X className="h-5 w-5 shrink-0" />}
+      <span className="min-w-0 flex-1">{p.status === "approved" ? <T ar="تم اعتماد هويتك ✓" de="Ihr Ausweis wurde bestätigt ✓" /> : <T ar="طلبك يحتاج تعديل البيانات" de="Ihre Anfrage muss korrigiert werden" />}</span>
+      <button type="button" aria-label="إغلاق | Schließen" onClick={() => save({ ...p, seen: p.status })} className="grid h-6 w-6 shrink-0 place-items-center rounded-full"><X className="h-3.5 w-3.5" /></button>
+    </div>}
+
+    {locked && <section className="space-y-2 rounded-xl border-2 border-secondary bg-card p-5 text-center">
+      <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-accent text-secondary"><Lock className="h-6 w-6" /></span>
+      <p className="text-base font-bold text-primary"><T ar="التسجيل مغلق حالياً" de="Die Registrierung ist derzeit geschlossen" /></p>
+      <p className="text-xs text-muted-foreground"><T ar="يُفتح التسجيل من إدارة الحملة خلال فترة الرحلة." de="Die Reiseleitung öffnet die Registrierung während der Reise." /></p>
+    </section>}
 
     {!editing && filled && !approved && <section className="relative space-y-3 rounded-xl border-2 border-secondary bg-card p-5 text-center">
       <Button type="button" variant="ghost" size="icon" onClick={start} aria-label="تعديل البطاقة | Karte bearbeiten" className="absolute left-3 top-3 h-9 w-9 rounded-full"><Pencil className="h-4 w-4" /></Button>
@@ -190,7 +221,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <div className="mt-3 text-center text-xs"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block font-bold text-secondary">{x}</a>)}</div>
     </section>}
 
-    {editing && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+    {editing && !locked && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
       {staff && <p className="rounded-md bg-accent px-3 py-2 text-xs font-bold text-primary"><T ar="تحكم المشرف: إضافة وتعديل وحذف بيانات البطاقة والإقامة" de="Mitarbeiter: Ausweis- und Unterkunftsdaten verwalten" /></p>}
       <label className="block text-xs font-bold text-primary">الاسم بالعربية | Name (Arabisch)<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">الأحرف الأجنبية (ألماني / إنجليزي) | Fremdschrift (Deutsch / Englisch)<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
@@ -219,11 +250,21 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
 
     <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
       <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-        <h3 className="min-w-0 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
-        {staff && <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة أرقام الطوارئ | Notfallnummern verwalten" className="h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary"><Settings className="h-3.5 w-3.5" /></Button>}
+        <h3 className="min-w-0 font-bold text-destructive"><T ar={st.emTitleAr || "🚨 طوارئ — بدون إنترنت"} de={st.emTitleDe || "🚨 Notfall — ohne Internet"} /></h3>
+        {staff && <GearMenu>
+          {staff.role === "admin" && <IconBtn label="تعديل النصوص | Texte bearbeiten" onClick={() => setTextOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+          <IconBtn label="الأرقام: إضافة/تعديل/إخفاء/حذف | Nummern" onClick={() => setManage(true)}><Phone className="h-3.5 w-3.5" /></IconBtn>
+          {staff.role === "admin" && <IconBtn label={st.emergencyPublic ? "ظاهر للجميع ← حصر بالمعتمدين | Für alle → nur Bestätigte" : "للمعتمدين فقط ← إظهار للجميع | Nur Bestätigte → für alle"} onClick={() => saveSt({ ...st, emergencyPublic: !st.emergencyPublic })}>{st.emergencyPublic ? <Globe className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}</IconBtn>}
+        </GearMenu>}
       </div>
-      <p className="mb-3 text-xs text-muted-foreground"><T ar="يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال." de="Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden." /></p>
-      <EmergencySmsButton content={content} />
+      {staff && <p className="mb-2 w-fit rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{st.emergencyPublic ? "🌐 للجميع | Für alle" : "🛡️ للمعتمدين | Nur Bestätigte"}</p>}
+      {canSeeEmergency ? <>
+        <p className="mb-3 whitespace-pre-line text-xs text-muted-foreground"><T ar={st.emNoteAr || "يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال."} de={st.emNoteDe || "Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden."} /></p>
+        <EmergencySmsButton content={content} />
+      </> : <div className="flex items-start gap-2 rounded-md border border-destructive/25 bg-background p-3 text-xs text-muted-foreground">
+        <ShieldCheck className="h-5 w-5 shrink-0 text-destructive" />
+        <T ar="أرقام الطوارئ وخدمة SMS مخصصة للحجاج المسجلين والمعتمدين في الرحلة الحالية." de="Notfallnummern und SMS-Dienst sind nur für registrierte und bestätigte Pilger der aktuellen Reise." />
+      </div>}
     </section>
     {staff && <Dialog open={manage} onOpenChange={setManage}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
@@ -243,6 +284,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
           {requests.map((r) => <div key={r.id} className={`space-y-1 rounded-md border p-3 text-xs ${r.status === "pending" ? "border-secondary bg-accent/40" : "border-border bg-card"}`}>
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1"><p className="text-sm font-bold text-primary">{r.nameAr || "—"}</p>{r.nameDe && <p dir="ltr" className="text-muted-foreground">{r.nameDe}</p>}</div>
+              {r.auto && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-primary">⚡ تلقائي | Auto</span>}
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${r.status === "approved" ? "bg-primary text-primary-foreground" : r.status === "rejected" ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>{r.status === "approved" ? "معتمد | Bestätigt" : r.status === "rejected" ? "مرفوض | Abgelehnt" : "معلق | Ausstehend"}</span>
               <button type="button" aria-label="حذف | Löschen" onClick={() => decide(r.id, "delete")} className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
@@ -258,12 +300,29 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         </div>
       </DialogContent>
     </Dialog>}
+    {staff?.role === "admin" && <Dialog open={textOpen} onOpenChange={setTextOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle><Pencil className="inline h-4 w-4" /></DialogTitle><DialogDescription className="sr-only">Texte</DialogDescription></DialogHeader>
+        <EmTextEditor initial={st} onSave={async (next) => { await saveSt(next); setTextOpen(false); }} />
+      </DialogContent>
+    </Dialog>}
     {staff?.role === "admin" && <Dialog open={fieldsOpen} onOpenChange={setFieldsOpen}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>حقول التحقق <span className="text-sm italic text-muted-foreground">| Prüffelder</span></DialogTitle><DialogDescription className="sr-only">Pflichtfelder</DialogDescription></DialogHeader>
         <FieldsEditor initial={fields} onSave={async (next) => { const r = await saveIdFields({ data: { password: staff.password, fields: next } }); if (r.ok) { setFields(next); setFieldsOpen(false); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen"); }} />
       </DialogContent>
     </Dialog>}
+  </div>;
+}
+
+function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: IdSettings) => Promise<void> }) {
+  const [d, setD] = useState(initial);
+  return <div className="space-y-2">
+    <input placeholder="🚨 طوارئ — بدون إنترنت" className={inputCls} value={d.emTitleAr} onChange={(e) => setD({ ...d, emTitleAr: e.target.value })} />
+    <input dir="ltr" placeholder="🚨 Notfall — ohne Internet" className={inputCls} value={d.emTitleDe} onChange={(e) => setD({ ...d, emTitleDe: e.target.value })} />
+    <textarea rows={3} placeholder="يفتح رسالة SMS جاهزة…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.emNoteAr} onChange={(e) => setD({ ...d, emNoteAr: e.target.value })} />
+    <textarea dir="ltr" rows={3} placeholder="Öffnet eine fertige SMS…" className="w-full rounded-md border border-border bg-background p-3 text-sm" value={d.emNoteDe} onChange={(e) => setD({ ...d, emNoteDe: e.target.value })} />
+    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => onSave(d)}><Check className="h-4 w-4" /></Button>
   </div>;
 }
 
