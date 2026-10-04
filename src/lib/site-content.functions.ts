@@ -349,3 +349,29 @@ export const decideIdRequest = createServerFn({ method: "POST" })
     await writeJson("id_requests", data.status === "delete" ? list.filter((r) => r.id !== data.id) : list.map((r) => r.id === data.id ? { ...r, status: data.status as IdStatus } : r));
     return { ok: true };
   });
+
+/** Public: translates any German/Arabic app text to English (results are cached on each device). */
+export const translateToEnglish = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ texts: z.array(z.string().max(1500)).min(1).max(40) }).parse(d))
+  .handler(async ({ data }) => {
+    const key = process.env["LOVABLE_API_KEY"];
+    if (!key) return { ok: false as const, out: [] as string[] };
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [
+            { role: "system", content: "You translate texts of a Shia pilgrimage travel group app into natural English. Inputs are German or Arabic. Keep names, numbers, emojis, line breaks and religious terms (Ziyarat, Imam, Hajj, (as)) intact. Reply ONLY with a JSON array of strings, same order and length." },
+            { role: "user", content: JSON.stringify(data.texts) },
+          ],
+        }),
+      });
+      if (!res.ok) return { ok: false as const, out: [] as string[] };
+      const j = await res.json();
+      const txt: string = j.choices?.[0]?.message?.content ?? "";
+      const arr = JSON.parse(txt.slice(txt.indexOf("["), txt.lastIndexOf("]") + 1));
+      return Array.isArray(arr) && arr.length === data.texts.length ? { ok: true as const, out: arr.map(String) } : { ok: false as const, out: [] as string[] };
+    } catch { return { ok: false as const, out: [] as string[] }; }
+  });
