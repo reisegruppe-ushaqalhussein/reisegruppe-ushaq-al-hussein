@@ -879,7 +879,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => {
-    setView((cur) => { if (cur !== next) window.history.pushState({ view: next }, ""); return next; });
+    if (window.history.state?.view !== next) window.history.pushState({ view: next }, "");
+    setView(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   // Phone back button / back gesture: close an open window first, otherwise return to the previous section.
