@@ -342,23 +342,58 @@ function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: Id
 }
 
 const LABELS: [string, string, string][] = [["title", "هويتي والطوارئ", "Mein Ausweis & Notfall"], ["name", "الاسم بالعربية", "Name (Arabisch)"], ["foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)"], ["phone", "رقم هاتفي (اختياري)", "Meine Nummer"], ["stays", "الإقامة في كل مدينة", "Unterkunft je Stadt"]];
-function LabelsEditor({ st, fields, onSave }: { st: IdSettings; fields: IdField[]; onSave: (s: IdSettings, f: IdField[]) => Promise<void> }) {
-  const [lb, setLb] = useState<Record<string, string>>(() => {
+
+/** Fills empty German texts from Arabic automatically. pairs: [ar, de][] → returns de[] */
+async function autoGerman(password: string, pairs: [string, string][]) {
+  const idx = pairs.map((p, i) => (p[0].trim() && !p[1].trim() ? i : -1)).filter((i) => i >= 0);
+  const out = pairs.map((p) => p[1]);
+  if (!idx.length) return out;
+  try {
+    const r = await translateLabels({ data: { password, texts: idx.map((i) => pairs[i]![0]) } });
+    if (r.ok) idx.forEach((i, n) => { out[i] = r.out[n] ?? ""; });
+  } catch { /* keep empty → Arabic shown as fallback */ }
+  return out;
+}
+
+function LabelsEditor({ st, fields, password, onSave }: { st: IdSettings; fields: IdField[]; password: string; onSave: (s: IdSettings, f: IdField[]) => Promise<void> }) {
+  const [orig] = useState<Record<string, string>>(() => {
     const src: Record<string, string> = { ...(st.labels ?? {}), titleAr: st.titleAr ?? "", titleDe: st.titleDe ?? "" };
     const out: Record<string, string> = {};
-    for (const [k, ar, de] of LABELS) { out[`${k}Ar`] = src[`${k}Ar`] || ar; out[`${k}De`] = src[`${k}De`] || de; }
+    for (const [k] of LABELS) { out[`${k}Ar`] = src[`${k}Ar`] ?? ""; out[`${k}De`] = src[`${k}De`] ?? ""; }
     return out;
   });
+  const [lb, setLb] = useState<Record<string, string>>(orig);
   const [list, setList] = useState<IdField[]>(fields);
+  const [busy, setBusy] = useState(false);
   const set = (id: string, patch: Partial<IdField>) => setList(list.map((f) => f.id === id ? { ...f, ...patch } : f));
+  const save = async () => {
+    setBusy(true);
+    const next = { ...lb };
+    // Arabic changed but German untouched → old German is dropped and re-translated
+    for (const [k] of LABELS) if (next[`${k}Ar`] !== orig[`${k}Ar`] && next[`${k}De`] === orig[`${k}De`]) next[`${k}De`] = "";
+    const fl = list.filter((f) => f.ar.trim() || f.de.trim()).map((f) => { const o = fields.find((x) => x.id === f.id); return o && f.ar !== o.ar && f.de === o.de ? { ...f, de: "" } : f; });
+    const de = await autoGerman(password, [...LABELS.map(([k]) => [next[`${k}Ar`] ?? "", next[`${k}De`] ?? ""] as [string, string]), ...fl.map((f) => [f.ar, f.de] as [string, string])]);
+    LABELS.forEach(([k], i) => { next[`${k}De`] = de[i] ?? ""; });
+    const flOut = fl.map((f, i) => ({ ...f, de: de[LABELS.length + i] ?? f.de }));
+    const { titleAr, titleDe, ...labels } = next;
+    await onSave({ ...st, titleAr: titleAr ?? "", titleDe: titleDe ?? "", labels }, flOut);
+    setBusy(false);
+  };
   return <div className="space-y-3">
     {LABELS.map(([k, ar, de]) => <div key={k} className="space-y-1 rounded-md border border-border p-2"><input placeholder={ar} className={inputCls} value={lb[`${k}Ar`] ?? ""} onChange={(e) => setLb({ ...lb, [`${k}Ar`]: e.target.value })} /><input dir="ltr" placeholder={de} className={inputCls} value={lb[`${k}De`] ?? ""} onChange={(e) => setLb({ ...lb, [`${k}De`]: e.target.value })} /></div>)}
-    {list.map((f) => <div key={f.id} className="flex gap-2 rounded-md border border-secondary/40 p-2">
-      <div className="min-w-0 flex-1 space-y-1"><input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Name (DE)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} /></div>
-      <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-11 w-11 shrink-0 text-destructive" onClick={() => setList(list.filter((x) => x.id !== f.id))}><Trash2 className="h-4 w-4" /></Button>
+    {list.map((f) => <div key={f.id} className="space-y-1 rounded-md border border-secondary/40 p-2">
+      <input placeholder="الاسم بالعربية" className={inputCls} value={f.ar} onChange={(e) => set(f.id, { ar: e.target.value })} /><input dir="ltr" placeholder="Deutsch (automatisch)" className={inputCls} value={f.de} onChange={(e) => set(f.id, { de: e.target.value })} />
     </div>)}
-    <Button type="button" className="h-11 w-full" aria-label="حفظ | Speichern" onClick={() => { const { titleAr, titleDe, ...labels } = lb; onSave({ ...st, titleAr: titleAr ?? "", titleDe: titleDe ?? "", labels }, list.filter((f) => f.ar.trim() || f.de.trim())); }}><Check className="h-4 w-4" /></Button>
+    <Button type="button" className="h-11 w-full" disabled={busy} aria-label="حفظ | Speichern" onClick={save}><Check className="h-4 w-4" /></Button>
   </div>;
+}
+
+function DeleteFields({ fields, onDelete }: { fields: IdField[]; onDelete: (id: string) => Promise<void> }) {
+  if (!fields.length) return <p className="py-3 text-center text-xs text-muted-foreground">—</p>;
+  return <div className="space-y-2">{fields.map((f) => <div key={f.id} className="flex items-center gap-2 rounded-md border border-border p-2">
+    <span className="min-w-0 flex-1 text-sm font-bold text-primary"><T ar={f.ar || f.de} de={f.de || f.ar} /></span>
+    <Button type="button" variant="outline" size="icon" aria-label="حذف | Löschen" className="h-10 w-10 shrink-0 text-destructive" onClick={() => { if (window.confirm(`حذف «${f.ar || f.de}»؟ | Löschen?`)) onDelete(f.id); }}><Trash2 className="h-4 w-4" /></Button>
+  </div>)}</div>;
 }
 
 function FieldsEditor({ initial, onSave, addNew }: { initial: IdField[]; onSave: (f: IdField[]) => Promise<void>; addNew?: boolean }) {
