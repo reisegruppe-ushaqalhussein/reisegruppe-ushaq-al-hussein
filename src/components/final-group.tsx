@@ -75,7 +75,7 @@ export function Hl({ text, words }: { text: string; words: string[] }) {
   let n = ""; const owner: number[] = [];
   chars.forEach((c, i) => { const m = normChar(c); for (let k = 0; k < m.length; k++) owner.push(i); n += m; });
   const mark = new Array(chars.length).fill(false);
-  for (const w of words) { let at = n.indexOf(w); while (at !== -1 && w) { for (let k = at; k < at + w.length; k++) mark[owner[k]] = true; at = n.indexOf(w, at + 1); } }
+  for (const w of words) { let at = n.indexOf(w); while (at !== -1 && w) { for (let k = at; k < at + w.length; k++) { const o = owner[k]; if (o !== undefined) mark[o] = true; } at = n.indexOf(w, at + 1); } }
   const out: React.ReactNode[] = []; let buf = ""; let on = false;
   const flush = (key: number) => { if (!buf) return; out.push(on ? <mark key={key} className="rounded-sm bg-secondary/60 px-0.5 text-foreground">{buf}</mark> : <span key={key}>{buf}</span>); buf = ""; };
   chars.forEach((c, i) => { if (mark[i] !== on) { flush(i); on = mark[i]; } buf += c; });

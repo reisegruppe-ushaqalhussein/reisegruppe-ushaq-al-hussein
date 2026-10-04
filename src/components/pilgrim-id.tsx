@@ -209,7 +209,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
           if (!(draft.nameAr.trim() || draft.nameDe.trim()) || fields.some((f) => !(draft.extra?.[f.id] ?? "").trim())) { window.alert("يرجى تعبئة الاسم وجميع الحقول المطلوبة (*) | Bitte Name und alle Pflichtfelder (*) ausfüllen"); return; }
           const same = p.status === "approved" && JSON.stringify({ ...draft, current: undefined }) === JSON.stringify({ ...p, current: undefined });
           setEditing(false);
-          if (same) save(draft); else await submit({ ...draft, status: undefined });
+          if (same) save(draft); else await submit(draft);
         }}><T ar="حفظ وإرسال" de="Speichern & senden" /></Button>
         {filled && <Button type="button" variant="outline" className="h-11" onClick={() => setEditing(false)}><T ar="إلغاء" de="Abbrechen" /></Button>}
       </div>
