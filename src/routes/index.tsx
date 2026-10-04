@@ -20,7 +20,7 @@ import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, GearMenu, IconBtn, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { Trash2 as TrashIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
   AlignCenter,
