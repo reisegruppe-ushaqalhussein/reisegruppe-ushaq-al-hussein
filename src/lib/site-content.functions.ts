@@ -256,7 +256,7 @@ export const listFeedback = createServerFn({ method: "POST" })
 /* ---------- Pilgrim ID approval ---------- */
 export type IdField = { id: string; ar: string; de: string };
 export type IdStatus = "pending" | "approved" | "rejected";
-export type IdRequest = { id: string; at: number; status: IdStatus; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
+export type IdRequest = { id: string; at: number; status: IdStatus; auto?: boolean; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
 const t = z.string().max(500);
 
 export const getIdFields = createServerFn({ method: "GET" }).handler(async () => readJson<IdField[]>("id_fields", []));
@@ -269,14 +269,35 @@ export const saveIdFields = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string };
+const idSettingsDefault: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
+export const getIdSettings = createServerFn({ method: "GET" }).handler(async () => ({ ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) }));
+export const saveIdSettings = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000) }) }).parse(d))
+  .handler(async ({ data }) => {
+    if ((await verifyRole(data.password)) !== "admin") return { ok: false };
+    await writeJson("id_settings", data.settings);
+    return { ok: true };
+  });
+
+const normName = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g, "").replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
 export const submitIdRequest = createServerFn({ method: "POST" })
   .validator((d) => z.object({ id: z.string().min(8).max(100), nameAr: t, nameDe: t, phone: t, extra: z.record(z.string().max(100), t), stays: z.array(z.object({ city: t, hotel: t, floor: t, room: t })).max(20) }).parse(d))
   .handler(async ({ data }) => {
     const list = await readJson<IdRequest[]>("id_requests", []);
-    const row: IdRequest = { ...data, at: Date.now(), status: "pending" };
-    const next = [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000);
-    await writeJson("id_requests", next);
-    return { ok: true, status: "pending" as IdStatus };
+    const existing = list.find((r) => r.id === data.id);
+    const settings = { ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) };
+    if (!settings.open && !existing) return { ok: false, closed: true, status: null as IdStatus | null };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row0 } = await supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle();
+    const rooms = mergeContent(row0?.data).rooms ?? [];
+    const names = [data.nameAr, data.nameDe].map(normName).filter(Boolean);
+    const match = names.length > 0 && rooms.some((r) => !r.hidden && names.includes(normName(r.name)));
+    const status: IdStatus = match ? "approved" : "pending";
+    const row: IdRequest = { ...data, at: Date.now(), status, auto: match };
+    await writeJson("id_requests", [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000));
+    return { ok: true, closed: false, status };
   });
 
 export const getIdStatus = createServerFn({ method: "POST" })
