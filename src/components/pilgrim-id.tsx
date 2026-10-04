@@ -177,8 +177,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
         <IconBtn label="تعديل | Bearbeiten" onClick={() => setLabelsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         <IconBtn label="إضافة خانة | Feld hinzufügen" onClick={() => { setAddNew(true); setFieldsOpen(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setLabelsOpen(true)}><span className="text-sm font-bold">T</span></IconBtn>
-        <IconBtn label="حذف | Löschen" danger onClick={() => { if (window.confirm("حذف البطاقة من هذا الجهاز؟ | Karte auf diesem Gerät löschen?")) { save(empty); setDraft(empty); setEditing(true); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="حذف خانة | Feld löschen" danger onClick={() => { setAddNew(false); setFieldsOpen(true); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>}</div>
     {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
@@ -344,7 +343,12 @@ function EmTextEditor({ initial, onSave }: { initial: IdSettings; onSave: (s: Id
 
 const LABELS: [string, string, string][] = [["title", "هويتي والطوارئ", "Mein Ausweis & Notfall"], ["name", "الاسم بالعربية", "Name (Arabisch)"], ["foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)"], ["phone", "رقم هاتفي (اختياري)", "Meine Nummer"], ["stays", "الإقامة في كل مدينة", "Unterkunft je Stadt"]];
 function LabelsEditor({ st, fields, onSave }: { st: IdSettings; fields: IdField[]; onSave: (s: IdSettings, f: IdField[]) => Promise<void> }) {
-  const [lb, setLb] = useState<Record<string, string>>({ ...(st.labels ?? {}), titleAr: st.titleAr ?? "", titleDe: st.titleDe ?? "" });
+  const [lb, setLb] = useState<Record<string, string>>(() => {
+    const src: Record<string, string> = { ...(st.labels ?? {}), titleAr: st.titleAr ?? "", titleDe: st.titleDe ?? "" };
+    const out: Record<string, string> = {};
+    for (const [k, ar, de] of LABELS) { out[`${k}Ar`] = src[`${k}Ar`] || ar; out[`${k}De`] = src[`${k}De`] || de; }
+    return out;
+  });
   const [list, setList] = useState<IdField[]>(fields);
   const set = (id: string, patch: Partial<IdField>) => setList(list.map((f) => f.id === id ? { ...f, ...patch } : f));
   return <div className="space-y-3">
@@ -374,13 +378,20 @@ export function ScrollToTop() {
   const [show, setShow] = useState(false);
   const [audioOpen, setAudioOpen] = useState(false);
   useEffect(() => {
-    const on = () => setShow(window.scrollY > window.innerHeight * 1.5);
-    const detectAudio = () => setAudioOpen(Boolean(document.querySelector("[data-audio-player]")));
-    const observer = new MutationObserver(detectAudio);
-    on(); detectAudio();
+    let raf = 0;
+    const on = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const s = window.scrollY > window.innerHeight * 1.5;
+        setShow((p) => (p === s ? p : s));
+        const a = Boolean(document.querySelector("[data-audio-player]"));
+        setAudioOpen((p) => (p === a ? p : a));
+      });
+    };
+    on();
     window.addEventListener("scroll", on, { passive: true });
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => { window.removeEventListener("scroll", on); observer.disconnect(); };
+    return () => { window.removeEventListener("scroll", on); if (raf) cancelAnimationFrame(raf); };
   }, []);
   if (!show) return null;
   return <Button type="button" size="icon" aria-label="إلى الأعلى | Nach oben" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={`fixed left-3 z-40 h-10 w-10 rounded-full border border-secondary bg-primary text-secondary shadow-lg hover:bg-primary ${audioOpen ? "bottom-[8.25rem]" : "bottom-24"}`}><ArrowUp className="h-4 w-4" /></Button>;

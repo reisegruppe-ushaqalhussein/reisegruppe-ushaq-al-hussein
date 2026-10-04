@@ -20,7 +20,7 @@ import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, GearMenu, IconBtn, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { Trash2 as TrashIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
   AlignCenter,
@@ -869,17 +869,18 @@ function Index() {
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
     const v = sessionStorage.getItem("view") as View | null;
     if (v && v in viewTitles) setView(v);
   }, []);
-  useEffect(() => { sessionStorage.setItem("view", view); }, [view]);
+  useEffect(() => { if (welcomed !== null) sessionStorage.setItem("view", view); }, [view, welcomed]);
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
   const go = (next: View) => { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); };
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
+  if (welcomed === null) return <div className="min-h-screen bg-muted" />;
   return (
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
