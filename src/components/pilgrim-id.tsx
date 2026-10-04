@@ -221,7 +221,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <div className="mt-3 text-center text-xs"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block font-bold text-secondary">{x}</a>)}</div>
     </section>}
 
-    {editing && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+    {editing && !locked && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
       {staff && <p className="rounded-md bg-accent px-3 py-2 text-xs font-bold text-primary"><T ar="تحكم المشرف: إضافة وتعديل وحذف بيانات البطاقة والإقامة" de="Mitarbeiter: Ausweis- und Unterkunftsdaten verwalten" /></p>}
       <label className="block text-xs font-bold text-primary">الاسم بالعربية | Name (Arabisch)<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">الأحرف الأجنبية (ألماني / إنجليزي) | Fremdschrift (Deutsch / Englisch)<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
@@ -250,11 +250,21 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
 
     <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
       <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-        <h3 className="min-w-0 font-bold text-destructive"><T ar="🚨 طوارئ — بدون إنترنت" de="🚨 Notfall — ohne Internet" /></h3>
-        {staff && <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة أرقام الطوارئ | Notfallnummern verwalten" className="h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary"><Settings className="h-3.5 w-3.5" /></Button>}
+        <h3 className="min-w-0 font-bold text-destructive"><T ar={st.emTitleAr || "🚨 طوارئ — بدون إنترنت"} de={st.emTitleDe || "🚨 Notfall — ohne Internet"} /></h3>
+        {staff && <GearMenu>
+          {staff.role === "admin" && <IconBtn label="تعديل النصوص | Texte bearbeiten" onClick={() => setTextOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+          <IconBtn label="الأرقام: إضافة/تعديل/إخفاء/حذف | Nummern" onClick={() => setManage(true)}><Phone className="h-3.5 w-3.5" /></IconBtn>
+          {staff.role === "admin" && <IconBtn label={st.emergencyPublic ? "ظاهر للجميع ← حصر بالمعتمدين | Für alle → nur Bestätigte" : "للمعتمدين فقط ← إظهار للجميع | Nur Bestätigte → für alle"} onClick={() => saveSt({ ...st, emergencyPublic: !st.emergencyPublic })}>{st.emergencyPublic ? <Globe className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}</IconBtn>}
+        </GearMenu>}
       </div>
-      <p className="mb-3 text-xs text-muted-foreground"><T ar="يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال." de="Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden." /></p>
-      <EmergencySmsButton content={content} />
+      {staff && <p className="mb-2 w-fit rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{st.emergencyPublic ? "🌐 للجميع | Für alle" : "🛡️ للمعتمدين | Nur Bestätigte"}</p>}
+      {canSeeEmergency ? <>
+        <p className="mb-3 whitespace-pre-line text-xs text-muted-foreground"><T ar={st.emNoteAr || "يفتح رسالة SMS جاهزة فيها اسمك وفندقك وموقعك، فقط اضغط إرسال."} de={st.emNoteDe || "Öffnet eine fertige SMS mit Name, Hotel und Standort – nur noch senden."} /></p>
+        <EmergencySmsButton content={content} />
+      </> : <div className="flex items-start gap-2 rounded-md border border-destructive/25 bg-background p-3 text-xs text-muted-foreground">
+        <ShieldCheck className="h-5 w-5 shrink-0 text-destructive" />
+        <T ar="أرقام الطوارئ وخدمة SMS مخصصة للحجاج المسجلين والمعتمدين في الرحلة الحالية." de="Notfallnummern und SMS-Dienst sind nur für registrierte und bestätigte Pilger der aktuellen Reise." />
+      </div>}
     </section>
     {staff && <Dialog open={manage} onOpenChange={setManage}>
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
