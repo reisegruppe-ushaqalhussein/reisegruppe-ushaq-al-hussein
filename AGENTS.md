@@ -24,3 +24,5 @@
 - Only admin-in-admin-mode sees hidden items and hide/restore buttons (`useShowHidden`); every list must filter with it, because the leader view must stay uncluttered.
 - Removed items from any content array are auto-captured into `site_content.trash` by `withTrash` inside `saveOrQueue`, so new sections get the recycle bin by adding their key to `trashSections`.
 - Device list and failed attempts are JSON values in `admin_settings` (`devices`, `failures`), because no extra tables are needed.
+- English mode uses the built-in dictionary, then automatic AI translation (`translateToEnglish`) cached per device, because admin-written content must also switch fully to English.
+- Section navigation pushes browser history and handles `popstate` (closing open dialogs first), because the phone back button must stay inside the app.
