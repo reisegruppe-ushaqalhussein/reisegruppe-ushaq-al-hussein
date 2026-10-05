@@ -192,7 +192,16 @@ function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent
     <div className="space-y-2">
       <Button variant={current === "" ? "default" : "outline"} className="h-11 w-full justify-start" onClick={() => pick("")}>🏠 الرئيسية | Startseite</Button>
       {folders.map((f) => { const I = cmsIcons[f.icon] ?? Folder; const t = nameOf(f); return <Button key={f.id} variant={current === f.id ? "default" : "outline"} className="h-11 w-full justify-start gap-2" onClick={() => pick(f.id)}><I className="h-4 w-4" />{t?.ar || f.ar} {(t?.de || f.de) && <span className="text-xs italic opacity-70">| {t?.de || f.de}</span>}</Button>; })}
-      {!folders.length && <p className="text-center text-xs text-muted-foreground">أنشئي قسماً جديداً أولاً ليكون مجلداً. | Erst einen Bereich anlegen.</p>}
+      <Button variant="outline" className="h-11 w-full justify-start gap-2 border-dashed" onClick={() => {
+        const name = window.prompt("اسم المجلد الجديد | Name des neuen Ordners");
+        if (!name?.trim()) return;
+        const sec: CmsSection = { id: newId(), ar: name.trim(), de: "", icon: "folder", items: [] };
+        const next = { ...parents, [tile.id]: sec.id };
+        const cur = parents[tile.id];
+        if (cur) next[customTileId(sec.id)] = cur;
+        void save({ ...cms, sections: [...(cms.sections ?? []), sec], parents: next });
+        onClose();
+      }}><Plus className="h-4 w-4" />مجلد جديد ونقل إليه | Neuer Ordner</Button>
     </div>
   </DialogContent></Dialog>;
 }
@@ -204,15 +213,45 @@ const themes: Array<{ id: string; ar: string; de: string; swatch: string }> = [
   { id: "onyx", ar: "أسود فاخر", de: "Onyx", swatch: "oklch(0.2 0.01 250)" },
   { id: "royal", ar: "بنفسجي ملكي", de: "Königsblau", swatch: "oklch(0.3 0.1 275)" },
 ];
+const LATIN_LINE = /^[^\u0600-\u06FF]*[A-Za-zÄÖÜäöüß][^\u0600-\u06FF]*$/;
+/** Removes German/Latin-only lines and "| German" tails from Arabic text fields, keeping all Arabic. */
+function stripLatin(v: string) {
+  return v.split("\n").map((l) => (/[\u0600-\u06FF]/.test(l) ? l.replace(/\s*\|\s*[^\u0600-\u06FF]*[A-Za-zÄÖÜäöüß][^\u0600-\u06FF]*$/, "") : l)).filter((l) => !LATIN_LINE.test(l.trim())).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+function cleanArabic(x: unknown, key = ""): unknown {
+  if (typeof x === "string") return (key === "ar" || /Ar$/.test(key)) && /[\u0600-\u06FF]/.test(x) ? stripLatin(x) : x;
+  if (Array.isArray(x)) return x.map((v) => cleanArabic(v));
+  if (x && typeof x === "object") return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, k === "trash" ? v : cleanArabic(v, k)]));
+  return x;
+}
+
 function DesignDialog({ content, onClose }: { content: SiteContent; onClose: () => void }) {
-  const { cms, save } = useCms(content);
+  const { cms } = useCms(content);
   const s = useAdminSession();
-  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="w-[calc(100%-24px)] max-w-[360px]" dir="rtl">
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<CmsConfig>(cms);
+  const [busy, setBusy] = useState(false);
+  const persist = async (next: SiteContent) => {
+    if (!s) return;
+    setBusy(true);
+    try {
+      const { queued } = await saveOrQueue(s.password, next, "التصميم | Design", qc);
+      if (queued) window.alert("محفوظ محلياً | Lokal gespeichert");
+      onClose();
+    } catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); } finally { setBusy(false); }
+  };
+  const clean = () => {
+    if (!window.confirm("سيُحذف كل نص ألماني/لاتيني مكتوب داخل خانات العربية في كل التطبيق، ويبقى العربي فقط. خانات الألمانية لا تُمس. متابعة؟\nDeutsche Texte in arabischen Feldern entfernen?")) return;
+    void persist({ ...(cleanArabic(content) as SiteContent), cms: draft });
+  };
+  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir="rtl">
     <DialogHeader className="text-right"><DialogTitle>التصميم <span className="text-sm italic text-muted-foreground">| Design</span></DialogTitle><DialogDescription>يُطبّق على كل الأجهزة | Gilt auf allen Geräten</DialogDescription></DialogHeader>
     <div className="space-y-4 text-sm">
-      <div><p className="mb-2 font-bold">اللون الأساسي | Hauptfarbe</p><div className="grid grid-cols-5 gap-2">{themes.map((t) => <button key={t.id} type="button" aria-label={t.de} aria-pressed={(cms.theme ?? "") === t.id} onClick={() => save({ ...cms, theme: t.id })} className={`flex flex-col items-center gap-1 rounded-md border p-1.5 text-[9px] ${(cms.theme ?? "") === t.id ? "border-secondary ring-2 ring-secondary" : "border-border"}`}><span className="h-7 w-7 rounded-full border-2 border-secondary" style={{ background: t.swatch }} />{t.ar}</button>)}</div></div>
-      <div><p className="mb-2 font-bold">عدد المربعات في الصف | Kacheln pro Reihe</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(cms.columns ?? 2) === n ? "default" : "outline"} onClick={() => save({ ...cms, columns: n })}>{n}</Button>)}</div></div>
-      {s?.role === "admin" && <label className="flex items-center gap-2 rounded-md border border-border p-3 font-bold"><input type="checkbox" checked={!!cms.hajCanManage} onChange={(e) => save({ ...cms, hajCanManage: e.target.checked })} className="h-4 w-4 accent-secondary" />السماح للحاج بأدوات التحكم الكاملة <span className="text-xs italic text-muted-foreground">| Volle Kontrolle für Hajj</span></label>}
+      <div><p className="mb-2 font-bold">اللون الأساسي | Hauptfarbe</p><div className="grid grid-cols-5 gap-2">{themes.map((t) => <button key={t.id} type="button" aria-label={t.de} aria-pressed={(draft.theme ?? "") === t.id} onClick={() => setDraft({ ...draft, theme: t.id })} className={`flex flex-col items-center gap-1 rounded-md border p-1.5 text-[9px] ${(draft.theme ?? "") === t.id ? "border-secondary ring-2 ring-secondary" : "border-border"}`}><span className="h-7 w-7 rounded-full border-2 border-secondary" style={{ background: t.swatch }} />{t.ar}</button>)}</div></div>
+      <div><p className="mb-2 font-bold">عدد المربعات في الصف | Kacheln pro Reihe</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(draft.columns ?? 2) === n ? "default" : "outline"} onClick={() => setDraft({ ...draft, columns: n })}>{n}</Button>)}</div></div>
+      {s?.role === "admin" && <label className="flex items-center gap-2 rounded-md border border-border p-3 font-bold"><input type="checkbox" checked={!!draft.hajCanManage} onChange={(e) => setDraft({ ...draft, hajCanManage: e.target.checked })} className="h-4 w-4 accent-secondary" />السماح للحاج بأدوات التحكم الكاملة <span className="text-xs italic text-muted-foreground">| Volle Kontrolle für Hajj</span></label>}
+      <Button disabled={busy} className="h-11 w-full" onClick={() => void persist({ ...content, cms: draft })}>{busy ? <Loader2 className="animate-spin" /> : "حفظ التصميم"} <span className="text-xs italic opacity-75">| Speichern</span></Button>
+      {s?.role === "admin" && <Button disabled={busy} variant="outline" className="h-auto w-full whitespace-normal py-2 text-xs" onClick={clean}>🧹 حذف الألماني من خانات العربية بضغطة واحدة | Deutsch aus arabischen Feldern entfernen</Button>}
     </div>
   </DialogContent></Dialog>;
 }

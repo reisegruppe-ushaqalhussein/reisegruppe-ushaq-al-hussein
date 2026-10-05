@@ -151,6 +151,7 @@ const contentSchema = z.object({
   labels: z.record(z.string().max(100), z.object({ ar: s, de: s, hidden: z.boolean().optional() })).optional(),
   trash: z.array(z.unknown()).max(300).optional(),
   modeLabels: z.object({ admin: z.string().max(60), haj: z.string().max(60), leader: z.string().max(60) }).optional(),
+  cms: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const saveSiteContent = createServerFn({ method: "POST" })
