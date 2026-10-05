@@ -12,7 +12,11 @@ const DEVICE_KEY = "admin-device-id";
 let session: AdminSession | null = null;
 let started = false;
 const listeners = new Set<() => void>();
-const emit = () => listeners.forEach((l) => l());
+const TOOLS_KEY = "admin-tools-hidden";
+let toolsHidden = false;
+/** What editing controls see: null while the staff member has hidden the tools for a clean view. */
+let visible: AdminSession | null = null;
+const emit = () => { visible = toolsHidden ? null : session; listeners.forEach((l) => l()); };
 
 export function deviceInfo() {
   let id = localStorage.getItem(DEVICE_KEY);
@@ -36,11 +40,13 @@ function set(next: AdminSession | null) {
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
+  toolsHidden = localStorage.getItem(TOOLS_KEY) === "1";
   const pw = localStorage.getItem(ADMIN_KEY) ?? sessionStorage.getItem(ADMIN_KEY);
   if (!pw) return;
   const role = (localStorage.getItem(ROLE_KEY) as AccessRole | null) ?? "admin";
   const mode = (localStorage.getItem(MODE_KEY) as AccessRole | null) ?? role;
   session = { password: pw, role, mode: role === "haj" ? "haj" : mode };
+  visible = toolsHidden ? null : session;
   checkAdminPassword({ data: { password: pw, ...deviceInfo() } })
     .then((r) => { if (r.ok && r.role) set({ password: pw, role: r.role, mode: r.role === "haj" ? "haj" : (session?.mode ?? r.role) }); else set(null); })
     .catch(() => { /* offline: keep the stored session */ });
@@ -48,8 +54,26 @@ function start() {
 
 function subscribe(l: () => void) { start(); listeners.add(l); return () => { listeners.delete(l); }; }
 
+/** Session for editing controls; returns null while tools are hidden (clean view). */
 export function useAdminSession() {
+  return useSyncExternalStore(subscribe, () => visible, () => null);
+}
+/** The real signed-in staff session, even while tools are hidden (used by the staff bar). */
+export function useStaffSession() {
   return useSyncExternalStore(subscribe, () => session, () => null);
+}
+export function useToolsHidden() {
+  return useSyncExternalStore(subscribe, () => toolsHidden, () => false);
+}
+export function setToolsHidden(hidden: boolean) {
+  toolsHidden = hidden;
+  localStorage.setItem(TOOLS_KEY, hidden ? "1" : "0");
+  emit();
+}
+/** Full app-structure control: always the admin; the haj only when the admin has allowed it. */
+export function useCanManage(content: { cms?: { hajCanManage?: boolean } | undefined }) {
+  const s = useAdminSession();
+  return !!s && (s.role === "admin" || (s.role === "haj" && !!content.cms?.hajCanManage));
 }
 
 /** Only the general admin in admin mode sees hidden items and hide/restore controls. */
