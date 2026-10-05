@@ -26,3 +26,6 @@
 - Device list and failed attempts are JSON values in `admin_settings` (`devices`, `failures`), because no extra tables are needed.
 - English mode uses the built-in dictionary, then automatic AI translation (`translateToEnglish`) cached per device, because admin-written content must also switch fully to English.
 - Section navigation pushes browser history and handles `popstate` (closing open dialogs first), because the phone back button must stay inside the app.
+- App structure (tile order, hidden tiles, folder nesting via `parents`, admin-created sections, palette/columns, haj permission) lives in `site_content.cms` and renders through `TileGrid`/`CustomSectionView` in `src/components/cms.tsx`, because new sections must look identical to built-in ones and stay editable without code.
+- All bilingual text goes through `display()`/`LangText` in `src/lib/i18n.tsx` (missing German is auto-translated from Arabic), because every language mode must show one consistent language with start alignment.
+- `useAdminSession` returns null while staff hide tools (`setToolsHidden`); the staff bar uses `useStaffSession`, because the admin needs a clean view without signing out.
