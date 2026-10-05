@@ -5,7 +5,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
 import { defaultContacts, defaultContent, defaultIraqItems, type IraqItem, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
-import { LangProvider, display, isArabic, useLang, type AppLang } from "@/lib/i18n";
+import { LangProvider, display, isArabic, useLang, toEnglish, toGerman, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
@@ -736,7 +736,11 @@ function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void 
   const night = theme === "navy";
   const bump = (d: number) => { setArabicScale((v) => Math.min(150, Math.max(80, v + d))); setGermanScale((v) => Math.min(150, Math.max(80, v + d))); };
   const trFirst = readerLang === "de" || readerLang === "en";
-  const trText = readerLang === "en" && item.textEn ? item.textEn : item.translation;
+  // Manual translation wins; otherwise the Arabic text is translated automatically (cached per device).
+  const autoTr = readerLang === "en"
+    ? (item.textEn || toEnglish(item.translation || item.textAr || ""))
+    : (item.translation || toGerman(item.textAr || ""));
+  const trText = autoTr && !isArabic(autoTr) ? autoTr : (item.translation || "");
   const trBlock = <p lang={readerLang === "en" ? "en" : "de"} dir="ltr" className={`reader-de whitespace-pre-line leading-relaxed ${trFirst ? "font-semibold" : "mt-5 italic opacity-75"} ${alignment === "center" ? "text-center" : "text-left"}`}>{trText}</p>;
   const [progress, setProgress] = useState(0);
   useEffect(() => {
