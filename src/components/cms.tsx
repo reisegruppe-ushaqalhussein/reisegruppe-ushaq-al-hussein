@@ -2,7 +2,7 @@ import { useState, type ComponentType } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown, ArrowUp, BookOpen, Briefcase, CalendarDays, Camera, Compass, Eye, EyeOff, Feather, FileText, Folder, FolderInput, Gift, Globe, HandHeart, Heart, Image as ImageIcon,
-  Info, Landmark, Link2, Loader2, Luggage, Map, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Upload, Users, Video,
+  Info, Landmark, Link2, Loader2, Luggage, Map as MapIcon, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Upload, Users, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,7 +19,7 @@ export type Tile = { id: string; ar: string; de: string; icon: IconType; builtin
 
 export const cmsIcons: Record<string, IconType> = {
   folder: Folder, book: BookOpen, scroll: ScrollText, star: Star, sparkles: Sparkles, heart: Heart, hand: HandHeart, moon: MoonStar, feather: Feather, landmark: Landmark,
-  plane: Plane, luggage: Luggage, map: Map, pin: MapPin, compass: Compass, globe: Globe, calendar: CalendarDays, megaphone: Megaphone, phone: Phone, users: Users,
+  plane: Plane, luggage: Luggage, map: MapIcon, pin: MapPin, compass: Compass, globe: Globe, calendar: CalendarDays, megaphone: Megaphone, phone: Phone, users: Users,
   camera: Camera, image: ImageIcon, video: Video, music: Music2, file: FileText, info: Info, gift: Gift, shield: Shield, briefcase: Briefcase, link: Link2,
 };
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
@@ -157,7 +157,7 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
       await save({ ...cms, sections: (cms.sections ?? []).map((s) => s.id === sec.id ? { ...s, ...filled, icon } : s) });
     } else {
       const s: CmsSection = { id: newId(), ...filled, icon, items: [] };
-      await save({ ...cms, sections: [...(cms.sections ?? []), s], parents: parentId ? { ...(cms.parents ?? {}), [customTileId(s.id)]: parentId } : cms.parents });
+      await save({ ...cms, sections: [...(cms.sections ?? []), s], ...(parentId ? { parents: { ...(cms.parents ?? {}), [customTileId(s.id)]: parentId } } : {}) });
     }
     setBusy(false);
     onClose();

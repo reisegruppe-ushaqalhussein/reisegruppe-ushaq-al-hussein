@@ -868,7 +868,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
   const [customId, setCustomId] = useState<string | null>(null);
   useEffect(() => { if (customId) sessionStorage.setItem("custom-id", customId); }, [customId]);
-  useEffect(() => { document.documentElement.dataset.theme = content.cms?.theme ?? ""; }, [content.cms?.theme]);
+  useEffect(() => { document.documentElement.dataset["theme"] = content.cms?.theme ?? ""; }, [content.cms?.theme]);
   useLayoutEffect(() => {
     setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
     const v = sessionStorage.getItem("view") as View | null;
