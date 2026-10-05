@@ -82,9 +82,8 @@ async function pushStaff(title: string, body: string) {
 }
 
 async function isStaff(password: string) {
-  const { checkAdminPassword } = await import("./site-content.functions");
-  const r = await checkAdminPassword({ data: { password } });
-  return !!r.ok;
+  const { verifyRole } = await import("./site-content.functions");
+  return (await verifyRole(password)) !== null;
 }
 
 export const submitBooking = createServerFn({ method: "POST" })

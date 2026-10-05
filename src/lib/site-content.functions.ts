@@ -21,7 +21,7 @@ async function storedMatches(key: string, input: string) {
 }
 
 /** Identifies which role (general admin or campaign leader) a secret code belongs to. */
-async function verifyRole(input: string): Promise<AccessRole | null> {
+export async function verifyRole(input: string): Promise<AccessRole | null> {
   if (!input) return null;
   const admin = await storedMatches("password", input);
   if (admin === true) return "admin";
@@ -176,10 +176,11 @@ export const saveSiteContent = createServerFn({ method: "POST" })
   });
 
 export const registerPushToken = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ token: z.string().min(20).max(4096) }).parse(d))
+  .validator((d) => z.object({ token: z.string().min(20).max(4096), password: z.string().max(200).optional() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("push_tokens").upsert({ token: data.token });
+    const staff = data.password ? (await verifyRole(data.password)) !== null : false;
+    const { error } = await supabaseAdmin.from("push_tokens").upsert(staff ? { token: data.token, staff: true } : { token: data.token });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
