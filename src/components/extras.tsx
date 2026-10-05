@@ -10,7 +10,7 @@ import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, Locat
 
 type Admin = { password: string; content: SiteContent } | null;
 
-const T = LangText;
+const P = LangText;
 
 function Title({ icon: Icon, ar, de }: { icon: typeof MapPin; ar: string; de: string }) {
   return <div className="mb-5 flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Icon className="h-5 w-5" /></span><h2 className="text-xl text-primary"><P ar={ar} de={de} /></h2></div>;
