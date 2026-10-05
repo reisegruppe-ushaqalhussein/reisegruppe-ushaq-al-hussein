@@ -153,7 +153,7 @@ export const updateBooking = createServerFn({ method: "POST" })
     if (!(await isStaff(data.password))) return { ok: false as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { password: _p, id, remove, ...patch } = data;
-    const q = remove ? supabaseAdmin.from("bookings").delete().eq("id", id) : supabaseAdmin.from("bookings").update(Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined))).eq("id", id);
+    const q = remove ? supabaseAdmin.from("bookings").delete().eq("id", id) : supabaseAdmin.from("bookings").update(Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as never).eq("id", id);
     const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true as const };
