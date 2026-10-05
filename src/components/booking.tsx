@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, Bell, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
+import { Baby, Bell, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LangText } from "@/lib/i18n";
-import { useStaffSession } from "@/lib/admin-session";
+import { useAdminSession, useStaffSession } from "@/lib/admin-session";
+import { useQueryClient } from "@tanstack/react-query";
+import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
 import { bookingFileUrl, listBookings, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
 import type { SiteContent } from "@/lib/site-content";
@@ -142,7 +144,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   </section>;
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
-  return <section className="overflow-hidden rounded-lg border border-secondary/60 bg-card shadow-md">
+  return <>{note}<section className="overflow-hidden rounded-lg border border-secondary/60 bg-card shadow-md">
     <div className="bg-primary px-4 py-4 text-primary-foreground">
       <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar="استمارة التسجيل" de="Anmeldeformular" inverse /></span></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
@@ -158,6 +160,12 @@ export function BookingForm({ content }: { content: SiteContent }) {
           <label className="block font-bold"><L ar="الوجهة (العراق، إيران، العمرة…)" de="Reiseziel (Irak, Iran, Umrah …)" /><input value={otherTrip} onChange={(e) => setOtherTrip(e.target.value)} maxLength={150} className={inputCls} /></label>
           <label className="block font-bold"><L ar="التاريخ أو الفترة المطلوبة" de="Gewünschtes Datum / Zeitraum" /><input value={otherDate} onChange={(e) => setOtherDate(e.target.value)} maxLength={90} placeholder="z.B. 20.12.2026 – 03.01.2027" className={inputCls} /></label>
         </div>}
+        <p className="pt-2 font-bold text-primary"><L ar="مطار الانطلاق في ألمانيا" de="Abflughafen in Deutschland" /></p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {AIRPORTS.map((a) => <button key={a} type="button" onClick={() => setAirportSel(a)} dir="ltr" className={`rounded-md border px-2 py-2 text-xs font-bold ${airportSel === a ? "border-secondary bg-accent text-primary ring-1 ring-secondary" : "border-border"}`}>{a}</button>)}
+          <button type="button" onClick={() => setAirportSel(OTHER)} className={`col-span-2 rounded-md border border-dashed px-2 py-2 text-xs font-bold ${airportSel === OTHER ? "border-secondary bg-accent text-primary" : "border-border"}`}><L ar="مطار آخر" de="Anderer Flughafen" /></button>
+        </div>
+        {airportSel === OTHER && <input value={otherAirport} onChange={(e) => setOtherAirport(e.target.value)} maxLength={80} placeholder="z.B. Leipzig (LEJ)" className={inputCls} />}
       </>}
 
       {step === 1 && <>
@@ -209,7 +217,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
           : <Button type="button" disabled={busy} className="h-12 flex-[2] bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={send}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}<L ar="تأكيد وإرسال الطلب" de="Anmeldung absenden" /></Button>}
       </div>
     </div>
-  </section>;
+  </section></>;
 }
 
 const statusLabels: Record<string, string> = { new: "جديد | Neu", confirmed: "مؤكد | Bestätigt", cancelled: "ملغى | Storniert" };
@@ -217,18 +225,29 @@ const payLabels: Record<string, string> = { unpaid: "غير مدفوع | Offen",
 
 function csv(rows: BookingRow[]) {
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["REF", "TRIP", "TRIP_DATE", "STATUS", "PAYMENT", "PAID", "TOTAL", "NO", "TITLE", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "PAX_TYPE", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "RELATION", "EMAIL", "PHONE", "ROOM", "NOTES"];
+  const head = ["REF", "TRIP", "TRIP_DATE", "STATUS", "PAYMENT", "PAID", "TOTAL", "NO", "TITLE", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "PAX_TYPE", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "DEP_AIRPORT", "RELATION", "EMAIL", "PHONE", "ROOM", "NOTES"];
   const lines = rows.flatMap((r) => r.travelers.map((t, i) => {
     const title = t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : t["gender"] === "f" ? "MRS" : "MR";
     const pax = t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
-    return [r.ref, r.trip, r.trip_date, r.status, r.payment_status, r.paid_amount, r.total_amount, i + 1, title, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], pax, t["nationality"], t["passportNo"], t["passportExpiry"], t["relation"], r.contact_email, r.contact_phone, r.room_pref, r.notes].map(esc).join(",");
+    return [r.ref, r.trip, r.trip_date, r.status, r.payment_status, r.paid_amount, r.total_amount, i + 1, title, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], pax, t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], t["relation"], r.contact_email, r.contact_phone, r.room_pref, r.notes].map(esc).join(",");
   }));
   return "\uFEFF" + [head.join(","), ...lines].join("\r\n");
 }
 
 /** Staff-only list of incoming registrations with status, payment and flight-list export. */
-export function BookingsPanel() {
+export function BookingsPanel({ content }: { content: SiteContent }) {
   const s = useStaffSession();
+  const adminS = useAdminSession();
+  const qc = useQueryClient();
+  const reg = regOf(content);
+  const [regOpen, setRegOpen] = useState(false);
+  const [noteAr, setNoteAr] = useState(reg.noteAr ?? "");
+  const [noteDe, setNoteDe] = useState(reg.noteDe ?? "");
+  const saveReg = async (patch: RegCfg) => {
+    if (!adminS) return;
+    try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
+    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
+  };
   const list = useServerFn(listBookings);
   const update = useServerFn(updateBooking);
   const fileUrl = useServerFn(bookingFileUrl);
@@ -236,6 +255,7 @@ export function BookingsPanel() {
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
   const [push, setPush] = useState("");
+  useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv"); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
   const trips = useMemo(() => [...new Set((rows ?? []).map((r) => r.trip))], [rows]);
@@ -251,7 +271,16 @@ export function BookingsPanel() {
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
       <button type="button" aria-label="تصدير | Export" onClick={download} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><Download className="h-4 w-4" /></button>
     </div>
-    <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren"}</Button>
+    <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren"}</Button>
+    {adminS?.role === "admin" && <div className="mt-2 rounded-md border border-border p-2 text-xs">
+      <button type="button" className="flex w-full items-center gap-2 font-bold text-primary" onClick={() => setRegOpen(!regOpen)}><Settings className="h-4 w-4" />إعدادات الاستمارة | Formular-Einstellungen {reg.closed && <span className="rounded-full bg-destructive/15 px-2 text-destructive">مغلق | Geschlossen</span>}</button>
+      {regOpen && <div className="mt-2 space-y-2">
+        <Button size="sm" variant={reg.closed ? "default" : "outline"} className="w-full" onClick={() => void saveReg({ closed: !reg.closed })}>{reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen"}</Button>
+        <label className="block">ملاحظة أعلى الاستمارة (عربي)<textarea rows={2} value={noteAr} onChange={(e) => setNoteAr(e.target.value)} maxLength={1000} className={inputCls} /></label>
+        <label className="block">Hinweis über dem Formular (Deutsch)<textarea dir="ltr" rows={2} value={noteDe} onChange={(e) => setNoteDe(e.target.value)} maxLength={1000} className={inputCls} /></label>
+        <Button size="sm" className="w-full" onClick={() => void saveReg({ noteAr: noteAr.trim(), noteDe: noteDe.trim() })}>حفظ الملاحظة | Hinweis speichern</Button>
+      </div>}
+    </div>}
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">كل الرحلات | Alle Reisen</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
@@ -262,7 +291,7 @@ export function BookingsPanel() {
         </button>
         {open === r.id && <div className="mt-2 space-y-2 border-t border-border pt-2">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
-          {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["relation"] && `— ${t["relation"]}`}
+          {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
             <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span></div>)}
           {(r.room_pref || r.notes) && <p>🛏 {r.room_pref} · {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">

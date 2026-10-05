@@ -457,7 +457,7 @@ function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar
 }
 
 function RegistrationView({ content }: { content: SiteContent }) {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" /><BookingsPanel /><BookingForm content={content} /></div>;
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" /><BookingsPanel content={content} /><BookingForm content={content} /></div>;
 }
 
 function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
