@@ -120,7 +120,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
           return <div key={t.id} className={`relative min-w-0 ${off ? "opacity-45" : ""}`}>
             <Button variant="outline" onClick={() => !arranging && onOpen(t.id)} className={`${cms.columns === 3 ? "h-28 gap-2 px-1.5 text-xs" : "h-32 gap-3 px-3"} w-full flex-col whitespace-normal bg-card shadow-sm hover:border-secondary hover:bg-card`}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><Icon className="h-5 w-5" /></span>
-              <span className="w-full text-center"><LangText ar={t.ar} de={t.de} /></span>
+              <span className="w-full"><LangText ar={t.ar} de={t.de} center /></span>
             </Button>
             {arranging && <div className="absolute inset-x-1 bottom-1 flex flex-wrap justify-center gap-1">
               <IconBtn label="قبل | Davor" onClick={() => move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>
