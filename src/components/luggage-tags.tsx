@@ -351,9 +351,3 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   </section>;
 }
 
-/** Dev-only render hook used for visual verification. */
-export async function __test(kind: Kind) {
-  const c = await renderCard(kind, { ar: "علي حسن الموسوي", de: "Ali Hassan Al-Musawi" });
-  const s = await renderSheets(kind, [{ ar: "زينب محمد", de: "Zainab Mohammad" }]);
-  return [c.toDataURL(), s[0]!.toDataURL()];
-}

@@ -33,3 +33,4 @@
 
 - Bookings live in the `bookings` table + private `booking-docs` bucket, service-role only, reached via password-checked server fns in `src/lib/bookings.functions.ts`; emails go through the linked Gmail connector and staff push uses `push_tokens.staff`, because pilgrims have no accounts.
 - Staff code checks live in `src/lib/roles.server.ts`, because exporting them from a client-imported module leaks node:crypto into the browser.
+- Luggage tags are drawn on canvas at 300 dpi in `src/components/luggage-tags.tsx` with fixed mm sheet grids, because the leader's laminator cutter needs exact card sizes.
