@@ -77,14 +77,21 @@ function FileField({ label, value, onChange }: { label: { ar: string; de: string
   </label>;
 }
 
+const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
+type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string };
+const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } | undefined)?.registration ?? {});
+
 /** Bilingual multi-step registration form replacing the external form. */
 export function BookingForm({ content }: { content: SiteContent }) {
   const submit = useServerFn(submitBooking);
   const trips = content.trips.filter((t) => t.visible !== false && !t.hidden);
+  const reg = regOf(content);
   const [step, setStep] = useState(0);
   const [trip, setTrip] = useState("");
   const [otherTrip, setOtherTrip] = useState("");
   const [otherDate, setOtherDate] = useState("");
+  const [airportSel, setAirportSel] = useState("");
+  const [otherAirport, setOtherAirport] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [travelers, setTravelers] = useState<Traveler[]>([blank("adult", "صاحب الطلب | Antragsteller")]);
@@ -98,10 +105,11 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const chosen = trips.find((t) => t.id === trip);
   const tripName = trip === OTHER ? otherTrip.trim() : chosen ? `${chosen.ar} | ${chosen.de}` : "";
   const tripDate = trip === OTHER ? otherDate.trim() : chosen?.date ?? "";
+  const airport = airportSel === OTHER ? otherAirport.trim() : airportSel;
   const setT = (i: number, patch: Partial<Traveler>) => setTravelers((l) => l.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
   const validate = (s: number): string[] => {
-    if (s === 0) return !tripName ? ["اختر الرحلة أو اكتب الوجهة | Bitte Reise wählen oder Reiseziel eingeben"] : trip === OTHER && !tripDate ? ["اكتب التاريخ المطلوب | Bitte Wunschdatum angeben"] : [];
+    if (s === 0) { const e: string[] = []; if (!tripName) e.push("اختر الرحلة أو اكتب الوجهة | Bitte Reise wählen oder Reiseziel eingeben"); else if (trip === OTHER && !tripDate) e.push("اكتب التاريخ المطلوب | Bitte Wunschdatum angeben"); if (airport.length < 2) e.push("اختر مطار الانطلاق | Bitte Abflughafen wählen"); return e; }
     if (s === 1) { const e: string[] = []; if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.push("البريد الإلكتروني | E-Mail"); if (!/^[+0-9 ()-]{6,30}$/.test(phone.trim())) e.push("رقم الواتساب | WhatsApp-Nummer"); return e; }
     if (s === 2) { const e = travelers.flatMap(travelerErrors); if (!travelers.some((t) => t.category === "adult")) e.push("يجب وجود بالغ واحد على الأقل | Mindestens ein Erwachsener"); return e; }
     if (s === 3) return consent ? [] : ["الرجاء تأكيد صحة البيانات | Bitte Richtigkeit bestätigen"];
@@ -114,7 +122,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
     if (all.length) return;
     setBusy(true);
     try {
-      const r = await submit({ data: { trip: tripName, tripDate, email: email.trim(), phone: phone.trim(), roomPref, notes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
+      const r = await submit({ data: { trip: tripName, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
       setDone(r.ref);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
@@ -122,11 +130,15 @@ export function BookingForm({ content }: { content: SiteContent }) {
     } finally { setBusy(false); }
   };
 
+  const note = (reg.noteAr || reg.noteDe) && <div className="mb-3 rounded-md border border-secondary bg-accent p-3 text-sm"><LangText ar={reg.noteAr ?? ""} de={reg.noteDe ?? ""} /></div>;
+  if (reg.closed) return <>{note}<section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><h2 className="text-lg"><LangText ar="التسجيل مغلق حالياً" de="Anmeldung vorübergehend geschlossen" inverse center /></h2></section></>;
+
   if (done) return <section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md">
     <CheckCircle2 className="mx-auto h-12 w-12 text-secondary" />
     <h2 className="mt-4 text-xl"><LangText ar="تم استلام طلبكم بنجاح" de="Ihre Anmeldung ist eingegangen" inverse center /></h2>
     <p dir="ltr" className="mx-auto mt-4 w-fit rounded-full border border-secondary px-5 py-2 font-mono text-lg font-bold text-secondary">{done}</p>
     <p className="mt-4 text-sm"><LangText ar="أرسلنا تأكيد الاستلام إلى بريدكم. هذا ليس تأكيداً نهائياً للحجز، وستتواصل معكم إدارة الحملة عبر الواتساب." de="Eine Eingangsbestätigung wurde per E-Mail gesendet. Dies ist keine endgültige Buchung – die Reiseleitung meldet sich per WhatsApp." inverse center /></p>
+    <p className="mt-5 text-xs leading-relaxed text-secondary">Reisegruppe Ushaq al-Hussein DE<br />حملة عشاق الحسين - ألمانيا · بإدارة الحاج ياسر الدر</p>
   </section>;
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
