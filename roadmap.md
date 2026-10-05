@@ -37,6 +37,7 @@
 - [x] Unified language display with auto German/English translation and start alignment.
 - [x] Staff "clean view" switch hiding all editing tools; haj full-control permission toggle.
 - [x] Free section manager: create/rename/icon/nest/reorder/hide tiles, custom section pages with content cards, palette and column design.
-- [ ] Booking pipeline (registration form, bookings list, IATA flight export).
+- [x] Booking pipeline: in-app registration form (travelers, age groups, passport/photo uploads), staff alerts + Gmail emails, bookings list with payments, flight CSV export.
+- [x] Working up/down tile reordering.
 - [ ] Passport OCR as optional fill-in.
 - [ ] Baggage tag generator with app QR.

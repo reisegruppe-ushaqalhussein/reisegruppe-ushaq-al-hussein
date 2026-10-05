@@ -30,3 +30,6 @@
 - All bilingual text goes through `display()`/`LangText` in `src/lib/i18n.tsx` (missing German is auto-translated from Arabic), because every language mode must show one consistent language with start alignment.
 - `useAdminSession` returns null while staff hide tools (`setToolsHidden`); the staff bar uses `useStaffSession`, because the admin needs a clean view without signing out.
 - Tiles may nest under built-in sections too: `cms.parents` values are a built-in view id or a raw custom section id, and every built-in view renders `TileGrid` with its id as parentId, so any section can hold sub-folders. Home banner text/image/intensity live in `cms.banner`.
+
+- Bookings live in the `bookings` table + private `booking-docs` bucket, service-role only, reached via password-checked server fns in `src/lib/bookings.functions.ts`; emails go through the linked Gmail connector and staff push uses `push_tokens.staff`, because pilgrims have no accounts.
+- Staff code checks live in `src/lib/roles.server.ts`, because exporting them from a client-imported module leaks node:crypto into the browser.
