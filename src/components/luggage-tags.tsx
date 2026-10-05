@@ -187,17 +187,16 @@ function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: num
   p.text("Reisegruppe Aldor", cx, 21.3, 2.9, { weight: 400, maxW: mw });
   phoneRow(p, "المانيا:", PHONE_DE, cx, 25.6, mw);
 
-  const kw = 31;
+  const kw = 28;
   const kh = p.img(a.kaaba, cx - kw / 2, 27.6, kw);
 
   // QR left, title right
   const ty = 27.6 + kh + 2;
-  const qs = 19;
+  const qs = 17;
   p.qr(APP_URL, 4, ty, qs, 2);
   const rx = W - 4, rmin = 4 + qs + 1.5, rw = rx - rmin, rcx = (rx + rmin) / 2;
   p.text("بطاقة زائر", rcx, ty + 7, 4.2, { color: BLUE, maxW: rw });
-  p.text("لبيك اللهم لبيك", rcx, ty + 12.5, 2.6, { weight: 600, color: INK, maxW: rw });
-  p.text("Umrah", rcx, ty + 16.8, 2.6, { weight: 600, color: BLUE, maxW: rw });
+  p.text("Umrah", rcx, ty + 13, 3, { weight: 600, color: BLUE, maxW: rw });
 
   // Blue name band
   const by = ty + qs + 1.8, bh = 9.5;
