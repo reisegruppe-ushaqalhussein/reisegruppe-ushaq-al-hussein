@@ -90,7 +90,7 @@ const s = z.string().max(20000);
 const long = z.string().max(500000);
 const resourceSchema = z.object({ id: z.string().max(100), ar: s, de: s, en: s.optional(), textAr: long, textDe: long, textEn: long.optional(), pdfUrl: z.string().max(5000).optional(), audioUrl: z.string().max(5000).optional(), place: z.string().max(100).optional(), hidden: z.boolean().optional() });
 const contentSchema = z.object({
-  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), hidden: z.boolean().optional(), statusAr: s.optional(), statusDe: s.optional(), programAr: long.optional(), programDe: long.optional(), descAr: long.optional(), descDe: long.optional() })).max(200),
+  trips: z.array(z.object({ id: z.string().max(100), ar: s, de: s, date: s, visible: z.boolean(), hidden: z.boolean().optional(), statusAr: s.optional(), statusDe: s.optional(), programAr: long.optional(), programDe: long.optional(), descAr: long.optional(), descDe: long.optional(), imageUrl: z.string().max(5000).optional() })).max(200),
   hotels: z.object({ kadhimiya: s, karbala: s, najaf: s }),
   program: z.object({ ar: long, de: long }),
   visa: z.object({ eu: long, nonEu: long, airportsAr: long.optional(), airportsDe: long.optional() }),
@@ -111,6 +111,7 @@ const contentSchema = z.object({
   emergency: z.array(z.object({ id: z.string().max(100), ar: s, de: s, phone: z.string().max(100), hidden: z.boolean().optional() })).max(100).optional(),
   donations: z.array(z.object({ id: z.string().max(100), ar: long, de: long, value: s, hidden: z.boolean().optional() })).max(100).optional(),
   donationIntro: z.object({ ar: long, de: long }).optional(),
+  donationContact: z.object({ ar: s.optional(), de: s.optional(), link: s.optional() }).optional(),
   memories: z.array(z.object({ id: z.string().max(100), imageUrl: z.string().max(5000), ar: s, de: s, place: s, date: z.string().max(20), hidden: z.boolean().optional() })).max(500).optional(),
   reviewUrl: z.string().max(2000).optional(),
   rooms: z.array(z.object({ id: z.string().max(100), name: s, city: s, hotel: s, floor: z.string().max(50), room: z.string().max(50), hidden: z.boolean().optional() })).max(2000).optional(),
