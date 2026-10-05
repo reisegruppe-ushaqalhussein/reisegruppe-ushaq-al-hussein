@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { hash, verifyRole } from "./roles.server";
+import { hash, storedMatches, verifyRole } from "./roles.server";
 import { mergeContent, type SiteContent } from "./site-content";
 
 export type AccessRole = "admin" | "haj";

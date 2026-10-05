@@ -6,7 +6,7 @@ export function hash(input: string, salt: string) {
   return createHash("sha256").update(salt + input, "utf8").digest("hex");
 }
 
-async function storedMatches(key: string, input: string) {
+export async function storedMatches(key: string, input: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin.from("admin_settings").select("value").eq("key", key).maybeSingle();
   if (!data?.value) return null; // not set
