@@ -32,6 +32,60 @@ export type Database = {
         }
         Relationships: []
       }
+      bookings: {
+        Row: {
+          admin_notes: string | null
+          contact_email: string
+          contact_phone: string
+          created_at: string
+          id: string
+          notes: string | null
+          paid_amount: number
+          payment_status: string
+          ref: string
+          room_pref: string | null
+          status: string
+          total_amount: number
+          travelers: Json
+          trip: string
+          trip_date: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          contact_email: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          payment_status?: string
+          ref: string
+          room_pref?: string | null
+          status?: string
+          total_amount?: number
+          travelers?: Json
+          trip: string
+          trip_date?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          contact_email?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          payment_status?: string
+          ref?: string
+          room_pref?: string | null
+          status?: string
+          total_amount?: number
+          travelers?: Json
+          trip?: string
+          trip_date?: string | null
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           created_at: string
@@ -68,14 +122,17 @@ export type Database = {
       push_tokens: {
         Row: {
           created_at: string
+          staff: boolean
           token: string
         }
         Insert: {
           created_at?: string
+          staff?: boolean
           token: string
         }
         Update: {
           created_at?: string
+          staff?: boolean
           token?: string
         }
         Relationships: []
