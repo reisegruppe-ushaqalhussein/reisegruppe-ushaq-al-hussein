@@ -13,7 +13,9 @@ import { FolderCard, FullPage, GuidelinesFolders, RenameTitle } from "@/componen
 import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
-import { CustomSectionView, TileGrid, type Tile } from "@/components/cms";
+import { CustomSectionView, HomeBanner, TileGrid, pathOf, type Tile } from "@/components/cms";
+import { LanguageSwitcher } from "@/components/lang-switcher";
+import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
@@ -220,13 +222,14 @@ function useLongPress(cb: () => void, ms = 3000) {
   return { onPointerDown: () => { clear(); t.current = window.setTimeout(() => { navigator.vibrate?.(40); cb(); }, ms); }, onPointerUp: clear, onPointerLeave: clear, onPointerCancel: clear, onContextMenu: (e: React.MouseEvent) => e.preventDefault() };
 }
 
-function AppHeader({ view, onHome, title }: { view: View; onHome: () => void; title?: { ar: string; de: string } | undefined }) {
+function AppHeader({ view, onHome, title, crumbs, onCrumb }: { view: View; onHome: () => void; title?: { ar: string; de: string } | undefined; crumbs: Tile[]; onCrumb: (id: string) => void }) {
   const longPress = useLongPress(openGateway);
+  const t = title ?? viewTitles[view];
   return (
     <header className="bg-primary px-5 pb-5 pt-6 text-primary-foreground">
       <div className="flex items-center justify-between gap-4">
         {view !== "home" ? (
-          <Button variant="ghost" size="icon" onClick={onHome} aria-label="العودة للرئيسية | Zurück zur Startseite" className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+          <Button variant="ghost" size="icon" onClick={() => (crumbs.length ? onCrumb(crumbs[crumbs.length - 1]!.id) : onHome())} aria-label="رجوع | Zurück" className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
             <ArrowLeft className="rotate-180" />
           </Button>
         ) : <span className="h-9 w-9" />}
@@ -234,11 +237,15 @@ function AppHeader({ view, onHome, title }: { view: View; onHome: () => void; ti
           <p {...longPress} className="select-none text-sm font-extrabold [-webkit-touch-callout:none]">حملة عشاق الحسين (ع) — ألمانيا</p>
           <p lang="de" dir="ltr" className="mt-1 text-[10px] font-medium text-primary-foreground/65">Reisegruppe Ushaq al-Hussein (as) — Deutschland</p>
           <div className="gold-line mx-auto my-3 h-px w-24" />
-          <Pair ar={(title ?? viewTitles[view]).ar} de={(title ?? viewTitles[view]).de} align="center" inverse />
+          <LangText ar={t.ar} de={t.de} inverse center />
         </div>
         <DarkModeToggle />
       </div>
       <LanguageSwitcher />
+      {view !== "home" && crumbs.length > 0 && <nav aria-label="المسار | Pfad" className="mt-3 flex flex-wrap items-center justify-center gap-1 text-[11px]">
+        <button type="button" onClick={onHome} className="rounded-full px-2 py-0.5 text-primary-foreground/75 hover:bg-primary-foreground/10"><LangText ar="الرئيسية" de="Start" inverse /></button>
+        {crumbs.map((c) => <span key={c.id} className="flex items-center gap-1"><ChevronLeft className="h-3 w-3 text-secondary" aria-hidden="true" /><button type="button" onClick={() => onCrumb(c.id)} className="rounded-full px-2 py-0.5 text-primary-foreground/75 hover:bg-primary-foreground/10"><LangText ar={c.ar} de={c.de} inverse /></button></span>)}
+      </nav>}
     </header>
   );
 }
@@ -248,17 +255,6 @@ function DarkModeToggle() {
   useEffect(() => { const on = localStorage.getItem("dark-mode") === "1"; setDark(on); document.documentElement.classList.toggle("dark", on); }, []);
   const flip = () => { const on = !dark; setDark(on); localStorage.setItem("dark-mode", on ? "1" : "0"); document.documentElement.classList.toggle("dark", on); navigator.vibrate?.(10); };
   return <button type="button" onClick={flip} aria-pressed={dark} aria-label="الوضع الليلي | Nachtmodus" className="grid h-9 w-9 place-items-center rounded-md border border-secondary/50 text-secondary transition-colors hover:bg-secondary/15">{dark ? <Sun className="h-5 w-5" /> : <MoonStar className="h-5 w-5" />}</button>;
-}
-
-function LanguageSwitcher() {
-  const { lang, setLang } = useLang();
-  const options: { id: AppLang; label: string }[] = [{ id: "both", label: "ع | DE" }, { id: "ar", label: "العربية" }, { id: "de", label: "Deutsch" }, { id: "en", label: "English" }];
-  return (
-    <div className="mt-3 flex items-center justify-center gap-1" role="group" aria-label="اللغة | Sprache">
-      <Languages className="h-4 w-4 text-secondary" aria-hidden="true" />
-      {options.map((o) => <button key={o.id} type="button" onClick={() => setLang(o.id)} aria-pressed={lang === o.id} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${lang === o.id ? "bg-secondary text-secondary-foreground" : "text-primary-foreground/75 hover:bg-primary-foreground/10"}`}>{o.label}</button>)}
-    </div>
-  );
 }
 
 function NavLabel({ ar, de }: { ar: string; de: string }) {
@@ -299,17 +295,7 @@ const homeTiles: Tile[] = [
 function HomeView({ open, content, payment }: { open: (id: string) => void; content: SiteContent; payment: SiteContent["payment"] }) {
   return (
     <div className="screen-enter px-4 py-5">
-      <section className="overflow-hidden rounded-lg bg-primary text-primary-foreground shadow-md">
-        <div className="relative h-28 overflow-hidden">
-          <img src={shrineImage} alt="مرقد الإمام الحسين في كربلاء | Imam-Hussein-Schrein in Kerbela" className="h-full w-full object-cover object-center opacity-55" />
-          <div className="hero-shade absolute inset-0" />
-        </div>
-        <div className="px-5 pb-6 pt-5 text-center">
-          <h1 className="text-lg"><Pair ar="بإدارة الحاج ياسر الدر" de="Geleitet von Hajj Yasser Aldor" align="center" inverse /></h1>
-          <div className="gold-line mx-auto my-4 h-px w-28" />
-          <p className="text-sm"><Pair ar="كل رحلاتنا الدينية بمكان واحد: العراق، إيران، العمرة والحج." de="Alle unsere religiösen Reisen an einem Ort: Irak, Iran, Umrah und Hadsch." align="center" inverse /></p>
-        </div>
-      </section>
+      <HomeBanner content={content} fallbackImage={shrineImage} />
 
       <TileGrid content={content} builtins={homeTiles} onOpen={open} />
 
@@ -923,7 +909,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
-        <AppHeader view={view} onHome={() => go("home")} title={customTitle} />
+        <AppHeader view={view} onHome={() => go("home")} title={customTitle} crumbs={view === "home" ? [] : pathOf(content, homeTiles, view === "custom" ? `c:${customId ?? ""}` : view)} onCrumb={open} />
+        {view !== "home" && view !== "custom" && <div className="px-4"><TileGrid content={content} builtins={homeTiles} parentId={view} onOpen={open} /></div>}
         {view === "home" && <AdminBar content={content} />}
         <AlertBanner alert={content.alert} />
         {view === "home" && <HomeView open={open} content={content} payment={content.payment ?? defaultContent.payment} />}
