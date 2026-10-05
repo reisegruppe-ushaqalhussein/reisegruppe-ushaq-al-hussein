@@ -367,8 +367,7 @@ function GuidePost({ g, fallbackPdf, onUpdate, onDelete }: { g: GuidelineEntry; 
     {n > 0 && <div className="flex justify-center"><button type="button" onClick={() => void downloadImage(cur)} aria-label="تحميل الصورة | Bild herunterladen" title="تحميل الصورة | Bild herunterladen" className="grid h-9 w-9 place-items-center rounded-full border border-secondary/60 bg-background text-primary shadow-sm"><Download className="h-4 w-4" /></button></div>}
     {(g.ar || g.de) && <div className="relative rounded-md bg-accent p-4 pe-12 text-sm">
       <FavStar id={`guide:${g.id}`} className="absolute left-2 top-2 h-8 w-8" />
-      <p className="whitespace-pre-line">{g.ar}</p>
-      {g.de && <p lang="de" dir="ltr" className="mt-2 whitespace-pre-line text-xs italic text-muted-foreground">{g.de}</p>}
+      <div className="whitespace-pre-line"><LangText ar={g.ar} de={g.de} /></div>
     </div>}
     {(g.pdf || fallbackPdf) && <Button asChild variant="outline" className="h-10 w-full"><a href={g.pdf || fallbackPdf} target="_blank" rel="noreferrer" download><FileText />PDF <span className="text-xs italic opacity-70">| öffnen</span></a></Button>}
     {zoom && n > 0 && <Lightbox pics={pics} index={img % n} onIndex={setImg} onClose={() => setZoom(false)} />}

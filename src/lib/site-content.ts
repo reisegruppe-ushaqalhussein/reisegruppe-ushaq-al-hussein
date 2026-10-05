@@ -1,4 +1,4 @@
-export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; programAr?: string; programDe?: string; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string };
+export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; programAr?: string; programDe?: string; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string; imageUrl?: string };
 export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean; hidden?: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
 export type DuaCategory = string;
@@ -60,6 +60,7 @@ export type SiteContent = {
   donations: DonationEntry[];
   modeLabels: ModeLabels;
   donationIntro?: { ar: string; de: string } | undefined;
+  donationContact?: { ar?: string; de?: string; link?: string } | undefined;
   memories: MemoryEntry[];
   rooms?: RoomEntry[];
   guidelines?: GuidelineEntry[];
@@ -157,6 +158,7 @@ export function mergeContent(data: unknown): SiteContent {
     emergency: Array.isArray(d.emergency) ? d.emergency : [],
     donations: Array.isArray(d.donations) ? d.donations : [],
     donationIntro: d.donationIntro,
+    donationContact: d.donationContact,
     memories: Array.isArray(d.memories) ? d.memories : [],
     reviewUrl: d.reviewUrl,
     rooms: Array.isArray(d.rooms) ? d.rooms : [],

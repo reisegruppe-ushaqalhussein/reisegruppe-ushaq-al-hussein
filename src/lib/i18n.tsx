@@ -12,6 +12,12 @@ const en: Record<string, string> = {
   "Anmeldung": "Registration",
   "Anmeldung offen": "Registration open",
   "Termin angekündigt": "Date announced",
+  "Buchungen": "Bookings",
+  "Alle Reisen": "All trips",
+  "Formular-Einstellungen": "Form settings",
+  "Buchungsalarm aktivieren": "Enable booking alerts",
+  "Benachrichtigungen auf diesem Handy aktiv": "Alerts active on this phone",
+  "Noch keine Buchungen": "No bookings yet",
   "Anrufen": "Call",
   "App teilen": "Share app",
   "Arabische Schriftgröße": "Arabic font size",
@@ -139,7 +145,12 @@ export const toEnglish = (de: string) => {
 export const toGerman = (text: string) => (text && ARABIC.test(text) ? translate(text, "de") : text);
 
 /** The single source of truth for what a bilingual pair shows in each language mode. */
+const honor = (t: string) => t.replace(/\(\s*عج\s*\)/g, "(aj)").replace(/\(\s*ع\s*\)/g, "(as)").replace(/\(\s*ص\s*\)/g, "(s)").replace(/\(\s*رض\s*\)/g, "(ra)");
 export function display(lang: AppLang, ar: string, de: string): { main: string; sub: string } {
+  const r = displayRaw(lang, ar, de);
+  return lang === "de" || lang === "en" ? { main: honor(r.main), sub: "" } : { main: r.main, sub: honor(r.sub) };
+}
+function displayRaw(lang: AppLang, ar: string, de: string): { main: string; sub: string } {
   const a = (ar ?? "").trim();
   const d = (de ?? "").trim();
   if (lang === "en") return { main: toEnglish(d || a), sub: "" };
