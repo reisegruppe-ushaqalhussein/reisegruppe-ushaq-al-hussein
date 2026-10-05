@@ -236,16 +236,16 @@ function drawCard(kind: Kind, ctx: CanvasRenderingContext2D, S: number, ox: numb
   return drawIraq(ctx, S, ox, oy, a, who, st);
 }
 
-async function renderCard(kind: Kind, who: Person, S = PX_PER_MM) {
+async function renderCard(kind: Kind, who: Person, st: Style, S = PX_PER_MM) {
   const a = await loadAssets();
   const sp = SPEC[kind];
   const c = document.createElement("canvas");
   c.width = Math.round(sp.w * S); c.height = Math.round(sp.h * S);
-  drawCard(kind, c.getContext("2d")!, S, 0, 0, a, who);
+  drawCard(kind, c.getContext("2d")!, S, 0, 0, a, who, st);
   return c;
 }
 
-async function renderSheets(kind: Kind, people: Person[]) {
+async function renderSheets(kind: Kind, people: Person[], st: Style) {
   const a = await loadAssets();
   const sp = SPEC[kind];
   const per = sp.cols * sp.rows;
@@ -260,7 +260,7 @@ async function renderSheets(kind: Kind, people: Person[]) {
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
     filled.slice(i, i + per).forEach((who: Person | undefined, k) => {
       const col = k % sp.cols, row = Math.floor(k / sp.cols);
-      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" });
+      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" }, st);
     });
     if (kind === "iraq") {
       // Thin cut guides on the exact card edges
@@ -302,29 +302,43 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [variant, setVariant] = useState<Style["variant"]>("new");
+  const [color, setColor] = useState<Style["color"]>("black");
+  const [bold, setBold] = useState(true);
+  const [scale, setScale] = useState(1);
+  const [layout, setLayout] = useState<Style["layout"]>("side");
+  const [hasCustom, setHasCustom] = useState(false);
+  useEffect(() => { setHasCustom(!!localStorage.getItem(CUSTOM_KEY)); }, []);
+  const st: Style = { variant: variant === "custom" && !hasCustom ? "new" : variant, color, bold, scale, layout };
+  const onUpload = (file?: File) => {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => { try { localStorage.setItem(CUSTOM_KEY, String(r.result)); setHasCustom(true); setVariant("custom"); } catch { setErr("الصورة كبيرة جداً | Bild zu groß"); } };
+    r.readAsDataURL(file);
+  };
   const preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    renderCard(kind, { ar, de }, 10).then((c) => {
+    renderCard(kind, { ar, de }, st, 10).then((c) => {
       const el = preview.current; if (!alive || !el) return;
       el.width = c.width; el.height = c.height; el.getContext("2d")!.drawImage(c, 0, 0);
     }).catch(() => setErr("تعذر تحميل التصميم | Design konnte nicht geladen werden"));
     return () => { alive = false; };
-  }, [open, kind, ar, de]);
+  }, [open, kind, ar, de, st.variant, color, bold, scale, layout, hasCustom]);
 
   const people = () => { const b = parseNames(bulk); return b.length ? b : [{ ar, de }]; };
   const run = async (fn: () => Promise<void>) => { setBusy(true); setErr(""); try { await fn(); } catch { setErr("حدث خطأ، حاول مجدداً | Fehler, bitte erneut versuchen"); } setBusy(false); };
   const fileBase = kind === "iraq" ? "bataqat-zaer-iraq" : "bataqat-zaer-umrah";
 
-  const saveCard = () => run(async () => { await download(await renderCard(kind, { ar, de }), `${fileBase}.png`); });
-  const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people()); for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); });
+  const saveCard = () => run(async () => { await download(await renderCard(kind, { ar, de }, st), `${fileBase}.png`); });
+  const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people(), st); for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); });
   const printSheet = () => {
     const w = window.open("", "_blank");
     run(async () => {
-      const pages = await renderSheets(kind, people());
+      const pages = await renderSheets(kind, people(), st);
       const urls = pages.map((c) => c.toDataURL("image/png"));
       if (!w) { for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); return; }
       w.document.write(`<!doctype html><html><head><title>بطاقة زائر</title><style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script></body></html>`);
@@ -348,6 +362,31 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       </div>
       <canvas ref={preview} className="w-full rounded-md border border-border bg-background shadow-sm" style={{ aspectRatio: `${sp.w} / ${sp.h}`, maxWidth: kind === "umrah" ? "60%" : "100%", marginInline: "auto", display: "block" }} />
       <p className="text-center text-[11px] text-muted-foreground" dir="ltr">{sp.w} × {sp.h} mm · {sp.cols * sp.rows} / A4</p>
+      {kind === "iraq" && <div className="space-y-1">
+        <p className="text-xs font-bold text-primary"><L ar="تصميم البطاقة" de="Kartendesign" /></p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {([["new", "الجديد", "Neu"], ["classic", "السابق", "Vorherig"], ["custom", "مرفوع", "Eigenes"]] as const).map(([v, a1, d1]) => <button key={v} type="button" disabled={v === "custom" && !hasCustom} onClick={() => setVariant(v)} className={`min-h-10 rounded-md border-2 px-1 text-xs font-bold disabled:opacity-40 ${st.variant === v ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}><L ar={a1} de={d1} /></button>)}
+        </div>
+        <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border text-xs font-bold text-primary">
+          <Upload className="h-4 w-4" /><L ar="رفع تصميم بطاقة جديد (PNG/JPG بمقاس 105×74 مم)" de="Neues Kartendesign hochladen" />
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
+        </label>
+      </div>}
+      <div className="space-y-2 rounded-md border border-border p-2">
+        <p className="text-xs font-bold text-primary"><L ar="خط اسم الزائر" de="Schrift des Namens" /></p>
+        {kind === "iraq" && <div className="grid grid-cols-3 gap-1.5">
+          {([["black", "أسود", "Schwarz"], ["red", "أحمر", "Rot"], ["gold", "ذهبي", "Gold"]] as const).map(([v, a1, d1]) => <button key={v} type="button" onClick={() => setColor(v)} className={`min-h-10 rounded-md border-2 text-xs font-bold ${color === v ? "border-secondary bg-accent" : "border-border bg-background"}`} style={{ color: IRAQ_COLORS[v] }}><L ar={a1} de={d1} /></button>)}
+        </div>}
+        <div className="grid grid-cols-2 gap-1.5">
+          <button type="button" onClick={() => setBold(!bold)} className={`min-h-10 rounded-md border-2 text-sm ${bold ? "border-secondary bg-accent font-extrabold text-primary" : "border-border bg-background font-normal text-muted-foreground"}`}><L ar="عريض" de="Fett" /></button>
+          <button type="button" onClick={() => setLayout(layout === "side" ? "stack" : "side")} className="min-h-10 rounded-md border-2 border-border bg-background text-xs font-bold text-primary">{layout === "side" ? <L ar="عربي يمين · أجنبي يسار" de="Arabisch rechts · Latein links" /> : <L ar="عربي فوق · أجنبي تحت" de="Arabisch oben · Latein unten" />}</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setScale(Math.max(0.7, +(scale - 0.1).toFixed(1)))} className="h-10 w-10 rounded-md border border-border text-lg font-bold">−</button>
+          <span className="flex-1 text-center text-sm font-bold" dir="ltr">{Math.round(scale * 100)}%</span>
+          <button type="button" onClick={() => setScale(Math.min(1.5, +(scale + 0.1).toFixed(1)))} className="h-10 w-10 rounded-md border border-border text-lg font-bold">+</button>
+        </div>
+      </div>
       <div className="grid gap-2">
         <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="اسم الزائر بالعربية" />
         <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Name (Latin)" />
