@@ -1,41 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { hash, storedMatches, verifyRole } from "./roles.server";
 import { mergeContent, type SiteContent } from "./site-content";
 
-function hash(input: string, salt: string) {
-  return createHash("sha256").update(salt + input, "utf8").digest("hex");
-}
-
 export type AccessRole = "admin" | "haj";
-
-async function storedMatches(key: string, input: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("admin_settings").select("value").eq("key", key).maybeSingle();
-  if (!data?.value) return null; // not set
-  const [salt, stored] = data.value.split(":");
-  if (!salt || !stored) return false;
-  const a = Buffer.from(hash(input, salt), "hex");
-  const b = Buffer.from(stored, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-/** Identifies which role (general admin or campaign leader) a secret code belongs to. */
-async function verifyRole(input: string): Promise<AccessRole | null> {
-  if (!input) return null;
-  const admin = await storedMatches("password", input);
-  if (admin === true) return "admin";
-  if (admin === null) {
-    const expected = process.env["ADMIN_PASSWORD"];
-    if (expected) {
-      const a = createHash("sha256").update(input, "utf8").digest();
-      const b = createHash("sha256").update(expected, "utf8").digest();
-      if (timingSafeEqual(a, b)) return "admin";
-    }
-  }
-  if ((await storedMatches("haj_password", input)) === true) return "haj";
-  return null;
-}
 
 async function passwordMatches(input: string) {
   return (await verifyRole(input)) !== null;
@@ -176,10 +145,11 @@ export const saveSiteContent = createServerFn({ method: "POST" })
   });
 
 export const registerPushToken = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ token: z.string().min(20).max(4096) }).parse(d))
+  .validator((d) => z.object({ token: z.string().min(20).max(4096), password: z.string().max(200).optional() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("push_tokens").upsert({ token: data.token });
+    const staff = data.password ? (await verifyRole(data.password)) !== null : false;
+    const { error } = await supabaseAdmin.from("push_tokens").upsert(staff ? { token: data.token, staff: true } : { token: data.token });
     if (error) throw new Error(error.message);
     return { ok: true };
   });

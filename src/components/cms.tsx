@@ -33,6 +33,8 @@ function useCms(content: SiteContent) {
   const cms: CmsConfig = content.cms ?? {};
   const save = async (next: CmsConfig, extra: Partial<SiteContent> = {}) => {
     if (!s) return;
+    // Show the change instantly; the server save follows.
+    qc.setQueryData(["site-content"], { ...content, ...extra, cms: next });
     try {
       const { queued } = await saveOrQueue(s.password, { ...content, ...extra, cms: next }, "هيكل التطبيق | App-Struktur", qc);
       if (queued) window.alert("محفوظ محلياً — سيُرفع عند عودة الإنترنت | Lokal gespeichert");
@@ -81,7 +83,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const cols = cms.columns === 3 ? "grid-cols-3" : "grid-cols-2";
 
   const move = (t: Tile, dir: -1 | 1) => {
-    const i = shown.indexOf(t);
+    const i = shown.findIndex((x) => x.id === t.id);
     const other = shown[i + dir];
     if (!other) return;
     const ids = everything.map((x) => x.id);
@@ -124,8 +126,8 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
               <span className="w-full"><LangText ar={t.ar} de={t.de} center /></span>
             </Button>
             {arranging && <div className="absolute inset-x-1 bottom-1 flex flex-wrap justify-center gap-1">
-              <IconBtn label="قبل | Davor" onClick={() => move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>
-              <IconBtn label="بعد | Danach" onClick={() => move(t, 1)}><ArrowDown className="h-3.5 w-3.5" /></IconBtn>
+              {shown.length > 1 && <IconBtn label="قبل | Davor" onClick={() => void move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>}
+              {shown.length > 1 && <IconBtn label="بعد | Danach" onClick={() => void move(t, 1)}><ArrowDown className="h-3.5 w-3.5" /></IconBtn>}
               <IconBtn label="إخفاء/إظهار | Sichtbarkeit" onClick={() => toggleHidden(t)}>{off ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
               <IconBtn label="نقل إلى مجلد | Verschieben" onClick={() => setMoving(t)}><FolderInput className="h-3.5 w-3.5" /></IconBtn>
               <IconBtn label="تعديل | Bearbeiten" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" /></IconBtn>

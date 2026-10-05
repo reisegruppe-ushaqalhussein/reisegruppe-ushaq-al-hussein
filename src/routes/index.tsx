@@ -19,6 +19,7 @@ import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
+import { BookingForm, BookingsPanel } from "@/components/booking";
 import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, GearMenu, IconBtn, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
@@ -108,7 +109,6 @@ if (typeof window !== "undefined") window.addEventListener("beforeinstallprompt"
 
 const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: fetchContentOfflineFirst, networkMode: "offlineFirst", retry: 1 });
 
-const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSdpuQ5tU5kNJL7Pp8f-vwALemNfp8NF2qRWazP5yb1UP2nDeg/viewform";
 const officialEmail = "ushaqalhussein.contact@gmail.com";
 const socialLinks = [
   { href: "https://www.instagram.com/reisegruppe_ushaq_al_hussein", label: "إنستغرام | Instagram", icon: Instagram },
@@ -437,7 +437,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
                   <h3 className="text-base text-primary"><Pair ar="برنامج الرحلة لهذا الموعد" de="Reiseprogramm für diesen Termin" /></h3>
                   <div className="mt-3 text-sm"><div className="whitespace-pre-line"><Pair ar={content.trips.find((t) => t.id === selected.id)?.programAr || program.ar} de={content.trips.find((t) => t.id === selected.id)?.programDe || program.de} /></div></div>
                 </div>
-                <Button asChild className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></a></Button>
+                <Button className="mt-5 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => { setSelected(null); window.dispatchEvent(new CustomEvent("open-view", { detail: "registration" })); }}><ScrollText /><Pair ar="سجّل في الرحلة" de="Zur Reise anmelden" align="center" /></Button>
               </div>
             </>
           )}
@@ -456,8 +456,8 @@ function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar
   return <div dir={ltr ? "ltr" : "rtl"} className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div className="min-w-0 flex-1 text-start"><Pair ar={ar} de={de} /><div className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></div></div></div>;
 }
 
-function RegistrationView() {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" /><section className="rounded-lg bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><ScrollText className="mx-auto h-10 w-10 text-secondary" aria-hidden="true" /><h2 className="mt-5 text-xl"><Pair ar="ابدأ تسجيلك الآن" de="Jetzt anmelden" align="center" inverse /></h2><p className="mt-4 text-sm"><Pair ar="املأ الاستمارة، وسيتواصل معك فريق الحملة لإتمام التفاصيل." de="Füllen Sie das Formular aus. Unser Team meldet sich anschließend bei Ihnen." align="center" inverse /></p><Button asChild className="mt-7 h-14 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={formUrl} target="_blank" rel="noreferrer"><ScrollText /><Pair ar="فتح استمارة التسجيل" de="Anmeldeformular öffnen" align="center" /></a></Button></section></div>;
+function RegistrationView({ content }: { content: SiteContent }) {
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" /><BookingsPanel /><BookingForm content={content} /></div>;
 }
 
 function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
@@ -900,8 +900,10 @@ function CampaignApp({ content }: { content: SiteContent }) {
       setView(next in viewTitles ? next : "home");
       window.scrollTo({ top: 0 });
     };
+    const onOpen = (e: Event) => open(String((e as CustomEvent).detail));
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    window.addEventListener("open-view", onOpen);
+    return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("open-view", onOpen); };
   }, []);
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
   if (welcomed === null) return <div className="min-h-screen bg-muted" />;
@@ -916,7 +918,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "home" && <HomeView open={open} content={content} payment={content.payment ?? defaultContent.payment} />}
         {view === "custom" && customId && <CustomSectionView key={customId} content={content} id={customId} builtins={homeTiles} onOpen={open} />}
         {view === "trips" && <TripsView content={content} admin={admin} />}
-        {view === "registration" && <RegistrationView />}
+        {view === "registration" && <RegistrationView content={content} />}
         {view === "contacts" && <ContactsView content={content} admin={admin} />}
         {view === "news" && <NewsView content={content} admin={admin} />}
         {view === "donations" && <DonationsView content={content} admin={admin} />}

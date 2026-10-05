@@ -1,4 +1,5 @@
 import { registerPushToken } from "@/lib/site-content.functions";
+import { getSession } from "@/lib/admin-session";
 
 const env = import.meta.env as Record<string, string | undefined>;
 const appId = env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_APP_ID"];
@@ -27,7 +28,8 @@ export async function enablePush(): Promise<PushStatus> {
   const messaging = getMessaging(app);
   const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: reg });
   if (!token) return "denied";
-  await registerPushToken({ data: { token } });
+  const pw = getSession()?.password;
+  await registerPushToken({ data: pw ? { token, password: pw } : { token } });
   localStorage.setItem("push-enabled", "1");
   onMessage(messaging, (p) => {
     if (p.notification?.title) new Notification(p.notification.title, { body: p.notification.body ?? "", icon: "/icons/icon-192.png" });
