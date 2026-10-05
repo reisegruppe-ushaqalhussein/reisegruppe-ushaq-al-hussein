@@ -410,4 +410,3 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   </section>;
 }
 
-export const __t = { renderCard };
