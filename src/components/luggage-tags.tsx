@@ -239,9 +239,9 @@ async function renderSheets(kind: Kind, people: Person[]) {
     c.width = Math.round(A4.w * PX_PER_MM); c.height = Math.round(A4.h * PX_PER_MM);
     const ctx = c.getContext("2d")!;
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
-    filled.slice(i, i + per).forEach((who, k) => {
+    filled.slice(i, i + per).forEach((who: Person | undefined, k) => {
       const col = k % sp.cols, row = Math.floor(k / sp.cols);
-      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who);
+      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" });
     });
     if (kind === "iraq") {
       // Thin cut guides on the exact card edges
@@ -301,13 +301,13 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const fileBase = kind === "iraq" ? "bataqat-zaer-iraq" : "bataqat-zaer-umrah";
 
   const saveCard = () => run(async () => { await download(await renderCard(kind, { ar, de }), `${fileBase}.png`); });
-  const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people()); for (let i = 0; i < pages.length; i++) await download(pages[i], `${fileBase}-A4-${i + 1}.png`); });
+  const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people()); for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); });
   const printSheet = () => {
     const w = window.open("", "_blank");
     run(async () => {
       const pages = await renderSheets(kind, people());
       const urls = pages.map((c) => c.toDataURL("image/png"));
-      if (!w) { for (let i = 0; i < pages.length; i++) await download(pages[i], `${fileBase}-A4-${i + 1}.png`); return; }
+      if (!w) { for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); return; }
       w.document.write(`<!doctype html><html><head><title>بطاقة زائر</title><style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script></body></html>`);
       w.document.close();
     });
@@ -350,4 +350,11 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       {err && <p className="text-xs font-bold text-destructive">{err}</p>}
     </div>}
   </section>;
+}
+
+/** Dev-only render hook used for visual verification. */
+export async function __test(kind: Kind) {
+  const c = await renderCard(kind, { ar: "علي حسن الموسوي", de: "Ali Hassan Al-Musawi" });
+  const s = await renderSheets(kind, [{ ar: "زينب محمد", de: "Zainab Mohammad" }]);
+  return [c.toDataURL(), s[0]!.toDataURL()];
 }
