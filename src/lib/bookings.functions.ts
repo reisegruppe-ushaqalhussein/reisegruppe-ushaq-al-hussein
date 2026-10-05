@@ -22,6 +22,7 @@ const travelerSchema = z.object({
 const bookingSchema = z.object({
   trip: z.string().trim().min(1).max(200),
   tripDate: z.string().trim().max(100),
+  airport: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(255),
   phone: z.string().trim().min(6).max(30).regex(/^[+0-9 ()-]+$/),
   roomPref: z.string().max(40),
@@ -31,7 +32,6 @@ const bookingSchema = z.object({
 });
 
 const CAMPAIGN_EMAIL = "ushaqalhussein.contact@gmail.com";
-const catLabel = { adult: "بالغ | Erwachsener (12+)", child: "طفل | Kind (2–11)", infant: "رضيع | Kleinkind (<2)" } as const;
 
 function b64(s: string) {
   return Buffer.from(s, "utf8").toString("base64");
@@ -44,7 +44,7 @@ async function sendMail(to: string, subject: string, body: string, replyTo?: str
   const gmail = process.env["GOOGLE_MAIL_API_KEY"];
   if (!lovable || !gmail) return false;
   const raw = [
-    `From: ${header("حملة عشاق الحسين | Ushaq al-Hussein")} <${CAMPAIGN_EMAIL}>`,
+    `From: Reisegruppe Ushaq al-Hussein DE <${CAMPAIGN_EMAIL}>`,
     `To: ${to}`,
     ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
     `Subject: ${header(subject)}`,
@@ -90,6 +90,9 @@ export const submitBooking = createServerFn({ method: "POST" })
   .validator((d) => bookingSchema.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sc } = await supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle();
+    const reg = ((sc?.data as { cms?: { registration?: { closed?: boolean } } } | null)?.cms?.registration);
+    if (reg?.closed) throw new Error("Registration closed / التسجيل مغلق حالياً");
     const ref = `UH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
     const travelers = [];
     for (const [i, t] of data.travelers.entries()) {
@@ -104,7 +107,7 @@ export const submitBooking = createServerFn({ method: "POST" })
         files[key] = path;
       }
       const { passportFile: _p, photoFile: _f, ...rest } = t;
-      travelers.push({ ...rest, firstName: rest.firstName.toUpperCase(), lastName: rest.lastName.toUpperCase(), passportNo: rest.passportNo.toUpperCase(), ...files });
+      travelers.push({ ...rest, airport: data.airport, firstName: rest.firstName.toUpperCase(), lastName: rest.lastName.toUpperCase(), passportNo: rest.passportNo.toUpperCase(), ...files });
     }
     const { error } = await supabaseAdmin.from("bookings").insert({
       ref, trip: data.trip, trip_date: data.tripDate, contact_email: data.email, contact_phone: data.phone,
@@ -115,14 +118,21 @@ export const submitBooking = createServerFn({ method: "POST" })
     const lead = travelers[0]!;
     const counts = { adult: 0, child: 0, infant: 0 };
     travelers.forEach((t) => { counts[t.category]++; });
-    const list = travelers.map((t, i) => `${i + 1}. ${t.lastName}/${t.firstName} — ${catLabel[t.category]} — ${t.birthDate} — Pass ${t.passportNo} (${t.passportExpiry}) — ${t.nationality}${t.relation ? ` — ${t.relation}` : ""}`).join("\n");
-    const summary = `الرحلة | Reise: ${data.trip}${data.tripDate ? ` — ${data.tripDate}` : ""}\nالمسافرون | Reisende: ${travelers.length} (بالغ/Erw. ${counts.adult}, طفل/Kind ${counts.child}, رضيع/Kleinkind ${counts.infant})\n\n${list}\n\nالغرفة | Zimmer: ${data.roomPref || "-"}\nملاحظات | Notizen: ${data.notes || "-"}`;
+    const air = data.airport || "-";
+    const list = travelers.map((t, i) => `${i + 1}. ${t.lastName}/${t.firstName} — ${t.category.toUpperCase()} — ${t.birthDate} — Pass ${t.passportNo} (${t.passportExpiry}) — ${t.nationality}${t.relation ? ` — ${t.relation}` : ""}`).join("\n");
+    const sumDe = `Reise: ${data.trip}${data.tripDate ? ` — ${data.tripDate}` : ""}\nAbflughafen: ${air}\nReisende: ${travelers.length} (Erwachsene ${counts.adult}, Kinder ${counts.child}, Kleinkinder ${counts.infant})\n\n${list}\n\nZimmerwunsch: ${data.roomPref || "-"}\nHinweise: ${data.notes || "-"}`;
+    const sumAr = `الرحلة: ${data.trip}${data.tripDate ? ` — ${data.tripDate}` : ""}\nمطار الانطلاق: ${air}\nعدد المسافرين: ${travelers.length} (بالغ ${counts.adult}، طفل ${counts.child}، رضيع ${counts.infant})\n\nتفضيل الغرفة: ${data.roomPref || "-"}\nملاحظات: ${data.notes || "-"}`;
+    const sep = "\n\n────────────────────────\n\n";
+    const sigDe = `Reisegruppe Ushaq al-Hussein DE\nGeleitet von Hajj Yasser Aldor\n${CAMPAIGN_EMAIL}`;
+    const sigAr = `حملة عشاق الحسين - ألمانيا\nبإدارة الحاج ياسر الدر\n${CAMPAIGN_EMAIL}`;
+    const name = `${lead.firstName} ${lead.lastName}`;
+    const de = `Guten Tag ${name},\n\nIhre Anmeldung ist bei uns eingegangen.\nBuchungsnummer: ${ref}\n\nDies ist nur eine Eingangsbestätigung, keine endgültige Buchung. Die Reiseleitung meldet sich per WhatsApp für Visum und Platzbestätigung.\n\n${sumDe}\n\nMit freundlichen Grüßen\n${sigDe}`;
+    const ar = `السلام عليكم ${name}،\n\nتم استلام طلب تسجيلكم بنجاح.\nرقم الطلب: ${ref}\n\nهذا تأكيد استلام فقط وليس تأكيداً نهائياً للحجز. ستتواصل معكم إدارة الحملة عبر الواتساب لإتمام التأشيرات وتأكيد المقاعد.\n\n${sumAr}\n\nمع خالص الدعاء\n${sigAr}`;
 
     await Promise.allSettled([
-      pushStaff(`🔔 حجز جديد ${ref}`, `${lead.firstName} ${lead.lastName} — ${data.trip} — ${travelers.length} مسافر`),
-      sendMail(CAMPAIGN_EMAIL, `حجز جديد | Neue Buchung ${ref} — ${lead.lastName}`, `${summary}\n\nالإيميل | E-Mail: ${data.email}\nالهاتف | Telefon: ${data.phone}`, data.email),
-      sendMail(data.email, `تأكيد استلام طلبكم | Eingangsbestätigung ${ref}`,
-        `السلام عليكم ${lead.firstName} ${lead.lastName}،\n\nتم استلام طلب تسجيلكم بنجاح. رقم الطلب: ${ref}\nهذا تأكيد استلام فقط وليس تأكيداً نهائياً للحجز. ستتواصل معكم إدارة الحملة عبر الواتساب لإتمام التأشيرات وتأكيد المقاعد.\n\nGuten Tag ${lead.firstName} ${lead.lastName},\n\nIhre Anmeldung ist bei uns eingegangen. Buchungsnummer: ${ref}\nDies ist nur eine Eingangsbestätigung, keine endgültige Buchung. Die Reiseleitung meldet sich per WhatsApp für Visum und Platzbestätigung.\n\n${summary}\n\nحملة عشاق الحسين - ألمانيا | Reisegruppe Ushaq al-Hussein\nبإدارة الحاج ياسر الدر | Geleitet von Hajj Yasser Aldor\n${CAMPAIGN_EMAIL}`),
+      pushStaff(`🔔 حجز جديد ${ref}`, `${name} — ${data.trip} — ${travelers.length} مسافر — ${air}`),
+      sendMail(CAMPAIGN_EMAIL, `Neue Buchung | حجز جديد ${ref} — ${lead.lastName}`, `${sumDe}\n\nE-Mail: ${data.email}\nTelefon: ${data.phone}`, data.email),
+      sendMail(data.email, `Eingangsbestätigung ${ref} — Reisegruppe Ushaq al-Hussein DE`, `${de}${sep}${ar}`),
     ]);
     return { ok: true as const, ref };
   });
