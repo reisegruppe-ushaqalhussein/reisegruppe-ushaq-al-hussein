@@ -103,6 +103,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
     save({ ...cms, sections: (cms.sections ?? []).filter((s) => s.id !== id), parents: nextParents, order: (cms.order ?? []).filter((x) => x !== t.id) });
   };
 
+  if (parentId && !canManage && shown.length === 0) return null;
   return (
     <div className="mt-5">
       {canManage && <div className="mb-2 flex items-center justify-end gap-2">
@@ -173,25 +174,47 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
   </DialogContent></Dialog>;
 }
 
+/** Converts a stored parent value (built-in id or raw section id) to its tile id. */
+const parentTile = (v: string, builtins: Tile[]) => (builtins.some((b) => b.id === v) ? v : customTileId(v));
+
+/** Chain of ancestors (outermost first) for a tile, used for breadcrumbs. */
+export function pathOf(content: SiteContent, builtins: Tile[], tileId: string): Tile[] {
+  const parents = content.cms?.parents ?? {};
+  const tiles = allTiles(content, builtins);
+  const out: Tile[] = [];
+  const seen = new Set<string>([tileId]);
+  let p = parents[tileId];
+  while (p) {
+    const id = parentTile(p, builtins);
+    if (seen.has(id)) break;
+    seen.add(id);
+    const t = tiles.find((x) => x.id === id);
+    if (!t) break;
+    out.unshift(t);
+    p = parents[id];
+  }
+  return out;
+}
+
 function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent; tile: Tile; builtins: Tile[]; onClose: () => void }) {
   const { cms, save } = useCms(content);
   const parents = cms.parents ?? {};
-  // A folder may not move into itself or into one of its own sub-folders.
-  const isInside = (folderId: string) => { let cur: string | undefined = customTileId(folderId); while (cur) { if (cur === tile.id) return true; const p: string | undefined = parents[cur]; cur = p ? customTileId(p) : undefined; } return false; };
-  const folders = (cms.sections ?? []).filter((s) => !isInside(s.id));
+  // A tile may not move into itself or into anything nested inside it.
+  const isInside = (destTileId: string) => { let cur: string | undefined = destTileId; const seen = new Set<string>(); while (cur && !seen.has(cur)) { if (cur === tile.id) return true; seen.add(cur); const p: string | undefined = parents[cur]; cur = p ? parentTile(p, builtins) : undefined; } return false; };
+  // Destinations: every section (built-in or created) as { value stored in parents, tile }.
+  const dests = allTiles(content, builtins).map((t) => ({ value: t.builtin ? t.id : t.id.slice(2), t })).filter((d) => !isInside(d.t.id));
   const pick = (folder: string) => {
     const next = { ...parents };
     if (folder) next[tile.id] = folder; else delete next[tile.id];
-    save({ ...cms, parents: next });
+    void save({ ...cms, parents: next });
     onClose();
   };
   const current = parents[tile.id] ?? "";
-  const nameOf = (s: CmsSection) => allTiles(content, builtins).find((t) => t.id === customTileId(s.id));
   return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir="rtl">
-    <DialogHeader className="text-right"><DialogTitle>نقل إلى <span className="text-sm italic text-muted-foreground">| Verschieben nach</span></DialogTitle><DialogDescription className="sr-only">Folder</DialogDescription></DialogHeader>
+    <DialogHeader className="text-right"><DialogTitle>نقل إلى <span className="text-sm italic text-muted-foreground">| Verschieben nach</span></DialogTitle><DialogDescription>«{tile.ar || tile.de}» ينتقل مع كل ما بداخله. | Mit allem Inhalt.</DialogDescription></DialogHeader>
     <div className="space-y-2">
       <Button variant={current === "" ? "default" : "outline"} className="h-11 w-full justify-start" onClick={() => pick("")}>🏠 الرئيسية | Startseite</Button>
-      {folders.map((f) => { const I = cmsIcons[f.icon] ?? Folder; const t = nameOf(f); return <Button key={f.id} variant={current === f.id ? "default" : "outline"} className="h-11 w-full justify-start gap-2" onClick={() => pick(f.id)}><I className="h-4 w-4" />{t?.ar || f.ar} {(t?.de || f.de) && <span className="text-xs italic opacity-70">| {t?.de || f.de}</span>}</Button>; })}
+      {dests.map(({ value, t }) => { const I = t.icon; return <Button key={t.id} variant={current === value ? "default" : "outline"} className="h-11 w-full justify-start gap-2" onClick={() => pick(value)}><I className="h-4 w-4" /><span className="truncate">{t.ar}{t.de && <span className="text-xs italic opacity-70"> | {t.de}</span>}</span></Button>; })}
       <Button variant="outline" className="h-11 w-full justify-start gap-2 border-dashed" onClick={() => {
         const name = window.prompt("اسم المجلد الجديد | Name des neuen Ordners");
         if (!name?.trim()) return;
@@ -202,6 +225,76 @@ function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent
         void save({ ...cms, sections: [...(cms.sections ?? []), sec], parents: next });
         onClose();
       }}><Plus className="h-4 w-4" />مجلد جديد ونقل إليه | Neuer Ordner</Button>
+    </div>
+  </DialogContent></Dialog>;
+}
+
+const bannerModes: Array<{ id: string; ar: string; de: string; opacity: number; blur: number }> = [
+  { id: "bright", ar: "ساطع", de: "Hell", opacity: 0.7, blur: 0 },
+  { id: "calm", ar: "هادئ", de: "Ruhig", opacity: 0.45, blur: 0 },
+  { id: "ghost", ar: "خيال", de: "Schemen", opacity: 0.25, blur: 2 },
+  { id: "night", ar: "ليلي", de: "Nacht", opacity: 0.15, blur: 1 },
+];
+const bannerDefaults = { titleAr: "بإدارة الحاج ياسر الدر", titleDe: "Geleitet von Hajj Yasser Aldor", textAr: "كل رحلاتنا الدينية بمكان واحد: العراق، إيران، العمرة والحج.", textDe: "Alle unsere religiösen Reisen an einem Ort: Irak, Iran, Umrah und Hadsch." };
+
+/** Home banner: one seamless block, image stays behind the text; admin can edit text, image and intensity. */
+export function HomeBanner({ content, fallbackImage }: { content: SiteContent; fallbackImage: string }) {
+  const canManage = useCanManage(content);
+  const [edit, setEdit] = useState(false);
+  const b = content.cms?.banner ?? {};
+  const opacity = b.opacity ?? 0.55;
+  const blur = b.blur ?? 0;
+  return <section className="relative isolate overflow-hidden rounded-lg bg-primary text-primary-foreground shadow-md">
+    <img src={b.image || fallbackImage} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 h-full w-full scale-105 object-cover" style={{ opacity, filter: blur ? `blur(${blur}px)` : undefined }} />
+    <div className="hero-shade pointer-events-none absolute inset-0 -z-10" />
+    {canManage && <div className="absolute left-2 top-2 z-10"><IconBtn label="تعديل البانر | Banner bearbeiten" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn></div>}
+    <div className="relative px-5 pb-6 pt-16 text-center">
+      <h1 className="text-lg"><LangText ar={b.titleAr || bannerDefaults.titleAr} de={b.titleDe || bannerDefaults.titleDe} inverse center /></h1>
+      {(b.lineAr || b.lineDe) && <p className="mx-auto mt-3 max-w-[300px] rounded-full border border-secondary/50 bg-primary/40 px-4 py-1.5 text-sm font-bold text-secondary backdrop-blur-sm"><LangText ar={b.lineAr ?? ""} de={b.lineDe ?? ""} inverse center /></p>}
+      <div className="gold-line mx-auto my-4 h-px w-28" />
+      <p className="text-sm"><LangText ar={b.textAr || bannerDefaults.textAr} de={b.textDe || bannerDefaults.textDe} inverse center /></p>
+    </div>
+    {edit && <BannerDialog content={content} onClose={() => setEdit(false)} />}
+  </section>;
+}
+
+function BannerDialog({ content, onClose }: { content: SiteContent; onClose: () => void }) {
+  const { cms, save, password } = useCms(content);
+  const [d, setD] = useState({ ...bannerDefaults, opacity: 0.55, blur: 0, image: "", lineAr: "", lineDe: "", ...(cms.banner ?? {}) });
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const set = (k: string, v: string | number) => setD((x) => ({ ...x, [k]: v }));
+  const submit = async () => {
+    setBusy(true);
+    // Clear stale German when Arabic changed but German was left as before, so it re-translates.
+    const old = cms.banner ?? {};
+    const row = { ...d };
+    (["title", "line", "text"] as const).forEach((k) => { const a = `${k}Ar` as const, g = `${k}De` as const; if (row[a] !== (old[a] ?? (bannerDefaults as Record<string, string>)[a] ?? "") && row[g] === (old[g] ?? (bannerDefaults as Record<string, string>)[g] ?? "")) row[g] = ""; });
+    const filled = await fillGerman(row as Record<string, unknown>, [["titleAr", "titleDe"], ["lineAr", "lineDe"], ["textAr", "textDe"]]) as typeof d;
+    await save({ ...cms, banner: filled });
+    setBusy(false);
+    onClose();
+  };
+  const field = (k: keyof typeof d, label: string, ltr = false, multi = false) => multi
+    ? <label className="block font-bold">{label}<textarea dir={ltr ? "ltr" : undefined} rows={2} value={String(d[k] ?? "")} onChange={(e) => set(k, e.target.value)} placeholder={ltr ? "تلقائي | automatisch" : undefined} className={inputCls} /></label>
+    : <label className="block font-bold">{label}<input dir={ltr ? "ltr" : undefined} value={String(d[k] ?? "")} onChange={(e) => set(k, e.target.value)} placeholder={ltr ? "تلقائي | automatisch" : undefined} className={inputCls} /></label>;
+  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+    <DialogHeader className="text-right"><DialogTitle>البانر الرئيسي <span className="text-sm italic text-muted-foreground">| Banner</span></DialogTitle><DialogDescription>اكتبي بالعربية فقط إن شئتِ — الألمانية والإنجليزية تُترجمان تلقائياً.</DialogDescription></DialogHeader>
+    <div className="space-y-3 text-sm">
+      {field("titleAr", "العنوان")}{field("titleDe", "Titel (DE)", true)}
+      {field("lineAr", "سطر اليوم (دعاء / كلمة) — اختياري", false, true)}{field("lineDe", "Tageszeile (DE)", true, true)}
+      {field("textAr", "النص التعريفي", false, true)}{field("textDe", "Text (DE)", true, true)}
+      <div className="font-bold">صورة الخلفية | Hintergrundbild
+        <div className="mt-1 flex gap-2"><input dir="ltr" value={d.image ?? ""} onChange={(e) => set("image", e.target.value)} placeholder="https://… (فارغ = الصورة الأصلية)" className={inputCls + " mt-0"} />
+          <label className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md border border-border bg-card text-primary">{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}<input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setUploading(true); try { set("image", await uploadImage(f, password)); } catch (err) { window.alert(String(err)); } finally { setUploading(false); } }} /></label>
+        </div>
+      </div>
+      <div><p className="mb-1 font-bold">درجة الصورة | Bildstärke</p>
+        <div className="grid grid-cols-4 gap-1.5">{bannerModes.map((m) => <button key={m.id} type="button" onClick={() => setD((x) => ({ ...x, opacity: m.opacity, blur: m.blur }))} aria-pressed={d.opacity === m.opacity && d.blur === m.blur} className={`rounded-md border px-1 py-2 text-xs font-bold ${d.opacity === m.opacity && d.blur === m.blur ? "border-secondary bg-accent text-primary" : "border-border bg-card"}`}>{m.ar}<span className="block text-[10px] italic opacity-70">{m.de}</span></button>)}</div>
+        <label className="mt-2 block text-xs">الشفافية {Math.round((d.opacity ?? 0.55) * 100)}%<input type="range" min={5} max={90} value={Math.round((d.opacity ?? 0.55) * 100)} onChange={(e) => set("opacity", Number(e.target.value) / 100)} className="w-full accent-secondary" /></label>
+        <label className="block text-xs">التمويه | Weichzeichner {d.blur ?? 0}px<input type="range" min={0} max={6} value={d.blur ?? 0} onChange={(e) => set("blur", Number(e.target.value))} className="w-full accent-secondary" /></label>
+      </div>
+      <Button disabled={busy || uploading} className="h-11 w-full" onClick={submit}>{busy ? <Loader2 className="animate-spin" /> : "حفظ"} <span className="text-xs italic opacity-75">| Speichern</span></Button>
     </div>
   </DialogContent></Dialog>;
 }
