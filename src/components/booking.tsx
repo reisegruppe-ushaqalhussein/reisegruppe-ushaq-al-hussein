@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Baby, Bell, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LangText } from "@/lib/i18n";
+import { LangText, display, useLang } from "@/lib/i18n";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
@@ -239,6 +239,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const s = useStaffSession();
   const adminS = useAdminSession();
   const qc = useQueryClient();
+  const { lang } = useLang();
+  const bi = (t: string) => { const k = t.indexOf(" | "); return k < 0 ? t : display(lang, t.slice(0, k), t.slice(k + 3)).main; };
   const reg = regOf(content);
   const [regOpen, setRegOpen] = useState(false);
   const [noteAr, setNoteAr] = useState(reg.noteAr ?? "");
@@ -255,7 +257,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
   const [push, setPush] = useState("");
-  useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv"); }, []);
+  useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
   const trips = useMemo(() => [...new Set((rows ?? []).map((r) => r.trip))], [rows]);
@@ -267,27 +269,27 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const download = () => { const blob = new Blob([csv(shown)], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `flight-list-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
-    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">📋 الحجوزات | Buchungen <span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
+    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
       <button type="button" aria-label="تصدير | Export" onClick={download} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><Download className="h-4 w-4" /></button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren"}</Button>
     {adminS?.role === "admin" && <div className="mt-2 rounded-md border border-border p-2 text-xs">
-      <button type="button" className="flex w-full items-center gap-2 font-bold text-primary" onClick={() => setRegOpen(!regOpen)}><Settings className="h-4 w-4" />إعدادات الاستمارة | Formular-Einstellungen {reg.closed && <span className="rounded-full bg-destructive/15 px-2 text-destructive">مغلق | Geschlossen</span>}</button>
+      <button type="button" className="flex w-full items-center gap-2 font-bold text-primary" onClick={() => setRegOpen(!regOpen)}><Settings className="h-4 w-4" />إعدادات الاستمارة | Formular-Einstellungen {reg.closed && <span className="rounded-full bg-destructive/15 px-2 text-destructive">{bi("مغلق | Geschlossen")}</span>}</button>
       {regOpen && <div className="mt-2 space-y-2">
         <Button size="sm" variant={reg.closed ? "default" : "outline"} className="w-full" onClick={() => void saveReg({ closed: !reg.closed })}>{reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen"}</Button>
         <label className="block">ملاحظة أعلى الاستمارة (عربي)<textarea rows={2} value={noteAr} onChange={(e) => setNoteAr(e.target.value)} maxLength={1000} className={inputCls} /></label>
         <label className="block">Hinweis über dem Formular (Deutsch)<textarea dir="ltr" rows={2} value={noteDe} onChange={(e) => setNoteDe(e.target.value)} maxLength={1000} className={inputCls} /></label>
-        <Button size="sm" className="w-full" onClick={() => void saveReg({ noteAr: noteAr.trim(), noteDe: noteDe.trim() })}>حفظ الملاحظة | Hinweis speichern</Button>
+        <Button size="sm" className="w-full" onClick={() => void saveReg({ noteAr: noteAr.trim(), noteDe: noteDe.trim() })}>{bi("حفظ الملاحظة | Hinweis speichern")}</Button>
       </div>}
     </div>}
-    <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">كل الرحلات | Alle Reisen</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
       return <li key={r.id} className="rounded-md border border-border p-2 text-xs">
         <button type="button" className="w-full text-start" onClick={() => setOpen(open === r.id ? null : r.id)}>
           <span dir="ltr" className="font-mono font-bold text-primary">{r.ref}</span> · <span className="font-bold">{lead["lastName"]} {lead["firstName"]}</span> · {r.travelers.length} pax
-          <span className="mt-1 flex flex-wrap gap-1"><span className="rounded-full bg-accent px-2">{statusLabels[r.status]}</span><span className="rounded-full bg-muted px-2">{payLabels[r.payment_status]} {r.paid_amount}/{r.total_amount}€</span><span className="text-muted-foreground">{r.trip} {r.trip_date}</span></span>
+          <span className="mt-1 flex flex-wrap gap-1"><span className="rounded-full bg-accent px-2">{bi(statusLabels[r.status] ?? "")}</span><span className="rounded-full bg-muted px-2">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span><span className="text-muted-foreground">{r.trip} {r.trip_date}</span></span>
         </button>
         {open === r.id && <div className="mt-2 space-y-2 border-t border-border pt-2">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
@@ -300,11 +302,11 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
             <label>مدفوع € <input type="number" min={0} defaultValue={r.paid_amount} onBlur={(e) => Number(e.target.value) !== r.paid_amount && void patch(r, { paid_amount: Number(e.target.value) })} className={inputCls + " mt-0 py-1.5"} /></label>
             <label>المجموع € <input type="number" min={0} defaultValue={r.total_amount} onBlur={(e) => Number(e.target.value) !== r.total_amount && void patch(r, { total_amount: Number(e.target.value) })} className={inputCls + " mt-0 py-1.5"} /></label>
           </div>
-          <p>المتبقي | Rest: <b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
-          <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder="ملاحظات الإدارة | Interne Notiz" onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
-          <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف الحجز نهائياً؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>حذف | Löschen</button>
+          <p>{bi("المتبقي | Rest: ")}<b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
+          <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder={bi("ملاحظات الإدارة | Interne Notiz")} onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
+          <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف الحجز نهائياً؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف | Löschen")}</button>
         </div>}
       </li>;
-    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">لا توجد حجوزات بعد | Noch keine Buchungen</li>}</ul>}
+    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi("لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
   </section>;
 }
