@@ -465,7 +465,9 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
 const iraqFields: FieldDef[] = [{ key: "ar", ar: "العنوان (عربي)", de: "Titel (AR)" }, { key: "de", ar: "العنوان (ألماني)", de: "Titel (DE)" }, { key: "bodyAr", ar: "النص (عربي)", de: "Text (AR)", multiline: true }, { key: "bodyDe", ar: "النص (ألماني)", de: "Text (DE)", multiline: true }];
 
 function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar: string; de: string; detailAr: string; detailDe: string }) {
-  return <div className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div><Pair ar={ar} de={de} /><p className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></p></div></div>;
+  const { lang } = useLang();
+  const ltr = lang === "de" || lang === "en";
+  return <div dir={ltr ? "ltr" : "rtl"} className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div className="min-w-0 flex-1 text-start"><Pair ar={ar} de={de} /><div className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></div></div></div>;
 }
 
 function RegistrationView() {
