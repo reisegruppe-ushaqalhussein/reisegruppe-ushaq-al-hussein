@@ -41,3 +41,4 @@
 - [x] Working up/down tile reordering.
 - [ ] Passport OCR as optional fill-in.
 - [ ] Baggage tag generator with app QR.
+- [x] Iraq tag uses leader-approved design image with classic/uploaded backups; name font colour/bold/size and Arabic-right/Latin-left layout; Umrah tag recentred with top title.

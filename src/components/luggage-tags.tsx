@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Download, Printer, Tag } from "lucide-react";
+import { Download, Printer, Tag, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { display, isArabic, useLang } from "@/lib/i18n";
 import calligraphySrc from "@/assets/tag-calligraphy.png";
 import shrineSrc from "@/assets/tag-shrine.png";
 import kaabaSrc from "@/assets/tag-kaaba.png";
+import iraqTemplateSrc from "@/assets/tag-iraq-template.png";
 
 /* Fixed print data — do not change without the leader's approval. */
 const APP_URL = "https://reisegruppe-ushaq-al-hussein.lovable.app";
@@ -14,10 +15,12 @@ const PHONE_DE = "004915773055365";
 const DPI = 300;
 const PX_PER_MM = DPI / 25.4;
 const A4 = { w: 210, h: 297 };
+const CUSTOM_KEY = "luggage-tag-custom-iraq";
 
 type Kind = "iraq" | "umrah";
 type Person = { ar: string; de: string };
-type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement };
+type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement; template: HTMLImageElement; custom: HTMLImageElement | null };
+type Style = { variant: "new" | "classic" | "custom"; color: "red" | "gold" | "black"; bold: boolean; scale: number; layout: "side" | "stack" };
 
 /* Iraq/Iran: 2 x 4 on A4, exact A7 landscape (105 x 74.25 mm) — matches the leader's laminator sheet.
    Umrah: 3 x 3 on A4, 55.67 x 83.87 mm portrait — matches the Canva PDF grid. */
@@ -30,21 +33,30 @@ const GOLD = "#a8721a";
 const RED = "#8e1424";
 const BLUE = "#1f5fbf";
 const INK = "#1a1a1a";
+const IRAQ_COLORS: Record<Style["color"], string> = { red: RED, gold: GOLD, black: "#000000" };
 
 function loadImg(src: string) {
   return new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
-let assetsP: Promise<Assets> | null = null;
-function loadAssets() {
+let assetsP: Promise<Omit<Assets, "custom">> | null = null;
+let customCache: { src: string; img: HTMLImageElement } | null = null;
+async function loadAssets(): Promise<Assets> {
   if (!assetsP) {
     assetsP = (async () => {
-      await Promise.all(["700 40px Cairo", "600 40px Cairo", "400 40px Cairo"].map((f) => document.fonts.load(f).catch(() => null)));
-      const [call, shrine, kaaba] = await Promise.all([loadImg(calligraphySrc), loadImg(shrineSrc), loadImg(kaabaSrc)]);
-      return { call, shrine, kaaba };
+      await Promise.all(["800 40px Cairo", "700 40px Cairo", "600 40px Cairo", "500 40px Cairo", "400 40px Cairo"].map((f) => document.fonts.load(f).catch(() => null)));
+      const [call, shrine, kaaba, template] = await Promise.all([loadImg(calligraphySrc), loadImg(shrineSrc), loadImg(kaabaSrc), loadImg(iraqTemplateSrc)]);
+      return { call, shrine, kaaba, template };
     })();
     assetsP.catch(() => { assetsP = null; });
   }
-  return assetsP;
+  const base = await assetsP;
+  let custom: HTMLImageElement | null = null;
+  const src = typeof localStorage !== "undefined" ? localStorage.getItem(CUSTOM_KEY) : null;
+  if (src) {
+    if (customCache?.src !== src) customCache = { src, img: await loadImg(src).catch(() => null as unknown as HTMLImageElement) };
+    custom = customCache?.img ?? null;
+  }
+  return { ...base, custom };
 }
 
 function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
@@ -95,14 +107,14 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
 }
 
 /** Phone row: Arabic label on the right, number (LTR) on the left, centred on cx. */
-function phoneRow(p: ReturnType<typeof pen>, label: string, num: string, cx: number, y: number, maxW: number) {
+function phoneRow(p: ReturnType<typeof pen>, label: string, num: string, cx: number, y: number, maxW: number, labelColor = GOLD) {
   let ls = 2.3, ns = 3.1;
   const gap = 1.2;
   let total = p.width(label, ls, 600) + gap + p.width(num, ns, 700);
   if (total > maxW) { const k = maxW / total; ls *= k; ns *= k; total = maxW; }
   const left = cx - total / 2;
   p.text(num, left, y, ns, { weight: 700, align: "left", color: INK });
-  p.text(label, left + total, y, ls, { weight: 600, align: "right", color: GOLD });
+  p.text(label, left + total, y, ls, { weight: 600, align: "right", color: labelColor });
 }
 
 function drawGermanFlag(p: ReturnType<typeof pen>, x: number, y: number, w: number, h: number) {
@@ -130,102 +142,110 @@ function drawLebanonFlag(ctx: CanvasRenderingContext2D, p: ReturnType<typeof pen
   p.rect(x, y, w, h, { stroke: "#9a9a9a", lw: 0.15 });
 }
 
-function drawIraq(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person) {
+/** Visitor name: "side" = Arabic right / Latin left on one line; "stack" = Arabic above Latin, centred. */
+function drawName(p: ReturnType<typeof pen>, who: Person, st: Style, left: number, right: number, base: number, size: number, color: string) {
+  const w = st.bold ? 800 : 500;
+  const sz = size * st.scale;
+  const cx = (left + right) / 2, full = right - left;
+  if (who.ar && who.de && st.layout === "side") {
+    const half = full / 2 - 1;
+    p.text(who.ar, right, base, sz, { align: "right", color, weight: w, maxW: half });
+    p.text(who.de, left, base, sz * 0.85, { align: "left", color, weight: w, maxW: half });
+  } else if (who.ar && who.de) {
+    p.text(who.ar, cx, base - sz * 0.95, sz, { color, weight: w, maxW: full });
+    p.text(who.de, cx, base, sz * 0.78, { color, weight: w, maxW: full });
+  } else if (who.ar || who.de) {
+    p.text(who.ar || who.de, cx, base, sz, { color, weight: w, maxW: full });
+  }
+}
+
+/** Leader's approved design (image, exact A7 ratio) — only the visitor name is drawn on top. */
+function drawIraq(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person, st: Style) {
+  const p = pen(ctx, S, ox, oy);
+  const W = 105, H = 74.25;
+  const tpl = st.variant === "custom" && a.custom ? a.custom : a.template;
+  p.rect(0, 0, W, H, { fill: "#ffffff" });
+  p.img(tpl, 0, 0, W, H);
+  // Dashed name line in the template: x 24..82 mm, y 61.2 mm
+  drawName(p, who, st, 25, 81.5, 59.6, 4.4, IRAQ_COLORS[st.color]);
+}
+
+/** Previous (classic) design kept as a backup. */
+function drawIraqClassic(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person, st: Style) {
   const p = pen(ctx, S, ox, oy);
   const W = 105, H = 74.25;
   p.rect(0, 0, W, H, { fill: "#ffffff" });
-  // Gold frame, 3.5 mm inside the cut so the laminator cutter never touches it
   p.rect(3.5, 3.5, W - 7, H - 7, { stroke: GOLD, lw: 0.35 });
-
-  // Right column: QR (no rose) with generous white quiet zone + small flags below
   const qx = W - 5 - 27, qy = 6;
   p.rect(qx - 0.6, qy - 0.6, 28.2, 28.2, { stroke: "#d8c49a", lw: 0.2 });
   p.qr(APP_URL, qx, qy, 27, 3);
   const fw = 9.5, fh = 6.2, fy = qy + 27 + 3;
   drawLebanonFlag(ctx, p, qx + 27 / 2 - fw - 1, fy, fw, fh);
   drawGermanFlag(p, qx + 27 / 2 + 1, fy, fw, fh);
-
-  // Main column (x 5 .. 69)
   const cx = 38;
   p.text("بطاقة زائر", cx, 11.5, 4.4, { color: GOLD });
   const cw = 54;
   p.img(a.call, cx - cw / 2, 13.5, cw);
   p.text("بإدارة الحاج ياسر الدر", cx, 38.2, 4.1, { color: GOLD, maxW: 56 });
-
-  // Shrine bottom-left inside the frame
   const sh = 27, sw = (sh * a.shrine.naturalWidth) / a.shrine.naturalHeight;
   ctx.save();
   ctx.beginPath(); ctx.rect(p.X(3.7), p.Y(3.7), (W - 7.4) * S, (H - 7.4) * S); ctx.clip();
   p.img(a.shrine, 3.8, H - 3.7 - sh, sw, sh);
   ctx.restore();
-
   const px = 3.8 + sw + 1.5;
   const pcx = (px + 69) / 2;
   phoneRow(p, "رقم التلفون بالعراق", PHONE_IQ, pcx, 44, 69 - px);
   phoneRow(p, "رقم التلفون بألمانيا", PHONE_DE, pcx, 49, 69 - px);
-
-  // Visitor name line (x px .. W-5)
   const right = W - 6;
-  const lbl = "اسم الزائر:";
-  const lw = p.text(lbl, right, 60, 3, { color: INK, align: "right", weight: 700 });
+  const lw = p.text("اسم الزائر:", right, 60, 3, { color: INK, align: "right", weight: 700 });
   const nameRight = right - lw - 1.5;
-  const nameMax = nameRight - px;
-  if (who.ar || who.de) {
-    if (who.ar) p.text(who.ar, nameRight, 60.3, 4.4, { align: "right", color: RED, maxW: nameMax });
-    if (who.de) p.text(who.de, nameRight, who.ar ? 65.6 : 60.3, who.ar ? 3 : 4.2, { align: "right", color: INK, weight: 600, maxW: nameMax });
-  }
+  drawName(p, who, st, px, nameRight, 60.3, 4.2, IRAQ_COLORS[st.color]);
   p.line(px, 61.8, nameRight, 61.8, "#9a9a9a", 0.2, [0.6, 0.6]);
 }
 
-function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person) {
+function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person, st: Style) {
   const p = pen(ctx, S, ox, oy);
   const W = 55.67, H = 83.87, cx = W / 2, mw = W - 8;
   p.rect(0, 0, W, H, { fill: "#ffffff" });
-  p.text("شركة الحاج الدر", cx, 8, 4.8, { maxW: mw });
-  p.text("للسياحة و السفر", cx, 12.6, 2.9, { weight: 600, maxW: mw });
-  p.text("- بإدارة الحاج ياسر الدر -", cx, 17, 2.9, { maxW: mw });
-  p.text("Reisegruppe Aldor", cx, 21.3, 2.9, { weight: 400, maxW: mw });
-  phoneRow(p, "المانيا:", PHONE_DE, cx, 25.6, mw);
+  p.text("بطاقة زائر", cx, 8, 4.6, { color: BLUE, maxW: mw });
+  p.text("شركة الحاج الدر", cx, 13.6, 4.2, { maxW: mw });
+  p.text("للسياحة و السفر", cx, 17.6, 2.7, { weight: 600, maxW: mw });
+  p.text("- بإدارة الحاج ياسر الدر -", cx, 21.4, 2.7, { maxW: mw });
+  p.text("Reisegruppe Aldor", cx, 25.1, 2.7, { weight: 500, maxW: mw });
+  phoneRow(p, "المانيا:", PHONE_DE, cx, 29, mw, BLUE);
 
-  const kw = 28;
-  const kh = p.img(a.kaaba, cx - kw / 2, 27.6, kw);
-
-  // QR left, title right
-  const ty = 27.6 + kh + 2;
-  const qs = 17;
-  p.qr(APP_URL, 4, ty, qs, 2);
-  const rx = W - 4, rmin = 4 + qs + 1.5, rw = rx - rmin, rcx = (rx + rmin) / 2;
-  p.text("بطاقة زائر", rcx, ty + 7, 4.2, { color: BLUE, maxW: rw });
-  p.text("Umrah", rcx, ty + 13, 3, { weight: 600, color: BLUE, maxW: rw });
-
-  // Blue name band
-  const by = ty + qs + 1.8, bh = 9.5;
-  p.rect(0, by, W - 4.5, bh, { fill: BLUE });
-  p.line(0, by - 0.5, W - 4.5, by - 0.5, BLUE, 0.4);
-  if (who.ar && who.de) {
-    p.text(who.ar, (W - 4.5) / 2, by + 4.6, 3.6, { color: "#ffffff", maxW: W - 9 });
-    p.text(who.de, (W - 4.5) / 2, by + 8.3, 2.5, { color: "#ffffff", weight: 600, maxW: W - 9 });
-  } else if (who.ar || who.de) {
-    p.text(who.ar || who.de, (W - 4.5) / 2, by + 6.4, 3.8, { color: "#ffffff", maxW: W - 9 });
-  }
-  // Cut outline like the original sheet
+  // Bottom: blue name band, label above it, QR above the label — all centred
+  const bh = 10, by = H - 3.2 - bh, bx = 3, bw = W - 6;
+  const qs = 15.5, qy = by - 5.6 - qs;
+  // Kaaba centred in the space between the phone row and the QR
+  const top = 30.6, bottom = qy - 1.2;
+  const ratio = a.kaaba.naturalWidth / a.kaaba.naturalHeight;
+  let kh = bottom - top, kw = kh * ratio;
+  if (kw > mw) { kw = mw; kh = kw / ratio; }
+  p.img(a.kaaba, cx - kw / 2, top + (bottom - top - kh) / 2, kw, kh);
+  p.qr(APP_URL, cx - qs / 2, qy, qs, 2);
+  p.text("إسم الزائر:", cx, by - 1.3, 3, { color: BLUE, weight: 700, maxW: mw });
+  p.rect(bx, by, bw, bh, { fill: BLUE });
+  drawName(p, who, st, bx + 1.8, bx + bw - 1.8, who.ar && who.de && st.layout === "stack" ? by + 8.4 : by + 6.6, 3.7, "#ffffff");
   p.rect(0, 0, W, H, { stroke: BLUE, lw: 0.3 });
 }
 
-function drawCard(kind: Kind, ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person) {
-  (kind === "iraq" ? drawIraq : drawUmrah)(ctx, S, ox, oy, a, who);
+function drawCard(kind: Kind, ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person, st: Style) {
+  if (kind === "umrah") return drawUmrah(ctx, S, ox, oy, a, who, st);
+  if (st.variant === "classic") return drawIraqClassic(ctx, S, ox, oy, a, who, st);
+  return drawIraq(ctx, S, ox, oy, a, who, st);
 }
 
-async function renderCard(kind: Kind, who: Person, S = PX_PER_MM) {
+async function renderCard(kind: Kind, who: Person, st: Style, S = PX_PER_MM) {
   const a = await loadAssets();
   const sp = SPEC[kind];
   const c = document.createElement("canvas");
   c.width = Math.round(sp.w * S); c.height = Math.round(sp.h * S);
-  drawCard(kind, c.getContext("2d")!, S, 0, 0, a, who);
+  drawCard(kind, c.getContext("2d")!, S, 0, 0, a, who, st);
   return c;
 }
 
-async function renderSheets(kind: Kind, people: Person[]) {
+async function renderSheets(kind: Kind, people: Person[], st: Style) {
   const a = await loadAssets();
   const sp = SPEC[kind];
   const per = sp.cols * sp.rows;
@@ -240,7 +260,7 @@ async function renderSheets(kind: Kind, people: Person[]) {
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
     filled.slice(i, i + per).forEach((who: Person | undefined, k) => {
       const col = k % sp.cols, row = Math.floor(k / sp.cols);
-      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" });
+      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" }, st);
     });
     if (kind === "iraq") {
       // Thin cut guides on the exact card edges
@@ -282,29 +302,43 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [variant, setVariant] = useState<Style["variant"]>("new");
+  const [color, setColor] = useState<Style["color"]>("black");
+  const [bold, setBold] = useState(true);
+  const [scale, setScale] = useState(1);
+  const [layout, setLayout] = useState<Style["layout"]>("side");
+  const [hasCustom, setHasCustom] = useState(false);
+  useEffect(() => { setHasCustom(!!localStorage.getItem(CUSTOM_KEY)); }, []);
+  const st: Style = { variant: variant === "custom" && !hasCustom ? "new" : variant, color, bold, scale, layout };
+  const onUpload = (file?: File) => {
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = () => { try { localStorage.setItem(CUSTOM_KEY, String(r.result)); setHasCustom(true); setVariant("custom"); } catch { setErr("الصورة كبيرة جداً | Bild zu groß"); } };
+    r.readAsDataURL(file);
+  };
   const preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    renderCard(kind, { ar, de }, 10).then((c) => {
+    renderCard(kind, { ar, de }, st, 10).then((c) => {
       const el = preview.current; if (!alive || !el) return;
       el.width = c.width; el.height = c.height; el.getContext("2d")!.drawImage(c, 0, 0);
     }).catch(() => setErr("تعذر تحميل التصميم | Design konnte nicht geladen werden"));
     return () => { alive = false; };
-  }, [open, kind, ar, de]);
+  }, [open, kind, ar, de, st.variant, color, bold, scale, layout, hasCustom]);
 
   const people = () => { const b = parseNames(bulk); return b.length ? b : [{ ar, de }]; };
   const run = async (fn: () => Promise<void>) => { setBusy(true); setErr(""); try { await fn(); } catch { setErr("حدث خطأ، حاول مجدداً | Fehler, bitte erneut versuchen"); } setBusy(false); };
   const fileBase = kind === "iraq" ? "bataqat-zaer-iraq" : "bataqat-zaer-umrah";
 
-  const saveCard = () => run(async () => { await download(await renderCard(kind, { ar, de }), `${fileBase}.png`); });
-  const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people()); for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); });
+  const saveCard = () => run(async () => { await download(await renderCard(kind, { ar, de }, st), `${fileBase}.png`); });
+  const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people(), st); for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); });
   const printSheet = () => {
     const w = window.open("", "_blank");
     run(async () => {
-      const pages = await renderSheets(kind, people());
+      const pages = await renderSheets(kind, people(), st);
       const urls = pages.map((c) => c.toDataURL("image/png"));
       if (!w) { for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); return; }
       w.document.write(`<!doctype html><html><head><title>بطاقة زائر</title><style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script></body></html>`);
@@ -328,6 +362,31 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       </div>
       <canvas ref={preview} className="w-full rounded-md border border-border bg-background shadow-sm" style={{ aspectRatio: `${sp.w} / ${sp.h}`, maxWidth: kind === "umrah" ? "60%" : "100%", marginInline: "auto", display: "block" }} />
       <p className="text-center text-[11px] text-muted-foreground" dir="ltr">{sp.w} × {sp.h} mm · {sp.cols * sp.rows} / A4</p>
+      {kind === "iraq" && <div className="space-y-1">
+        <p className="text-xs font-bold text-primary"><L ar="تصميم البطاقة" de="Kartendesign" /></p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {([["new", "الجديد", "Neu"], ["classic", "السابق", "Vorherig"], ["custom", "مرفوع", "Eigenes"]] as const).map(([v, a1, d1]) => <button key={v} type="button" disabled={v === "custom" && !hasCustom} onClick={() => setVariant(v)} className={`min-h-10 rounded-md border-2 px-1 text-xs font-bold disabled:opacity-40 ${st.variant === v ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}><L ar={a1} de={d1} /></button>)}
+        </div>
+        <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border text-xs font-bold text-primary">
+          <Upload className="h-4 w-4" /><L ar="رفع تصميم بطاقة جديد (PNG/JPG بمقاس 105×74 مم)" de="Neues Kartendesign hochladen" />
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
+        </label>
+      </div>}
+      <div className="space-y-2 rounded-md border border-border p-2">
+        <p className="text-xs font-bold text-primary"><L ar="خط اسم الزائر" de="Schrift des Namens" /></p>
+        {kind === "iraq" && <div className="grid grid-cols-3 gap-1.5">
+          {([["black", "أسود", "Schwarz"], ["red", "أحمر", "Rot"], ["gold", "ذهبي", "Gold"]] as const).map(([v, a1, d1]) => <button key={v} type="button" onClick={() => setColor(v)} className={`min-h-10 rounded-md border-2 text-xs font-bold ${color === v ? "border-secondary bg-accent" : "border-border bg-background"}`} style={{ color: IRAQ_COLORS[v] }}><L ar={a1} de={d1} /></button>)}
+        </div>}
+        <div className="grid grid-cols-2 gap-1.5">
+          <button type="button" onClick={() => setBold(!bold)} className={`min-h-10 rounded-md border-2 text-sm ${bold ? "border-secondary bg-accent font-extrabold text-primary" : "border-border bg-background font-normal text-muted-foreground"}`}><L ar="عريض" de="Fett" /></button>
+          <button type="button" onClick={() => setLayout(layout === "side" ? "stack" : "side")} className="min-h-10 rounded-md border-2 border-border bg-background text-xs font-bold text-primary">{layout === "side" ? <L ar="عربي يمين · أجنبي يسار" de="Arabisch rechts · Latein links" /> : <L ar="عربي فوق · أجنبي تحت" de="Arabisch oben · Latein unten" />}</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setScale(Math.max(0.7, +(scale - 0.1).toFixed(1)))} className="h-10 w-10 rounded-md border border-border text-lg font-bold">−</button>
+          <span className="flex-1 text-center text-sm font-bold" dir="ltr">{Math.round(scale * 100)}%</span>
+          <button type="button" onClick={() => setScale(Math.min(1.5, +(scale + 0.1).toFixed(1)))} className="h-10 w-10 rounded-md border border-border text-lg font-bold">+</button>
+        </div>
+      </div>
       <div className="grid gap-2">
         <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="اسم الزائر بالعربية" />
         <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Name (Latin)" />
