@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LangText } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/lang-switcher";
 import { createPortal } from "react-dom";
 import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft } from "lucide-react";
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
@@ -379,10 +380,18 @@ export function FullPage({ title, onBack, menu, children }: { title: { ar: strin
   useEffect(() => { const y = window.scrollY; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; window.scrollTo(0, y); }; }, []);
   return createPortal(<div className="fixed inset-0 z-40 overflow-y-auto bg-muted" dir="rtl">
     <div className="mx-auto min-h-full w-full max-w-[420px] bg-background pb-28">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-secondary/40 bg-primary px-3 py-3 text-primary-foreground shadow-md">
-        <div className="min-w-0 flex-1 text-right"><p className="truncate text-base font-bold">{title.ar}</p><p dir="ltr" className="truncate text-right text-xs italic text-secondary">{title.de}</p></div>
-        {menu}
-        <button type="button" onClick={onBack} aria-label="رجوع | Zurück" title="رجوع | Zurück" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><ArrowLeft className="h-5 w-5" /></button>
+      <header className="sticky top-0 z-10 border-b border-secondary/40 bg-primary px-3 pb-3 pt-4 text-primary-foreground shadow-md">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onBack} aria-label="رجوع | Zurück" title="رجوع | Zurück" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"><ArrowLeft className="h-5 w-5 rotate-180" /></button>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="text-sm font-extrabold">حملة عشاق الحسين (ع) — ألمانيا</p>
+            <p lang="de" dir="ltr" className="mt-0.5 text-[10px] font-medium text-primary-foreground/65">Reisegruppe Ushaq al-Hussein (as) — Deutschland</p>
+            <div className="gold-line mx-auto my-2 h-px w-24" />
+            <div className="font-bold"><LangText ar={title.ar} de={title.de} inverse center /></div>
+          </div>
+          <div className="flex w-9 shrink-0 justify-center">{menu}</div>
+        </div>
+        <LanguageSwitcher />
       </header>
       <div className="space-y-4 p-4">{children}</div>
     </div>
