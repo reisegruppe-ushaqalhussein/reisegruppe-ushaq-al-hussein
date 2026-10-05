@@ -34,3 +34,9 @@
 - [x] Polish the mobile emergency card, compact the audio player, and prevent scroll-to-top overlap.
 - [x] Give staff clear direct controls for pilgrim identity, accommodation entries, and named emergency numbers.
 - [x] Final group: staff rooms panel (search, bulk paste, end-trip reset), guidelines carousel with PDF and favorites.
+- [x] Unified language display with auto German/English translation and start alignment.
+- [x] Staff "clean view" switch hiding all editing tools; haj full-control permission toggle.
+- [x] Free section manager: create/rename/icon/nest/reorder/hide tiles, custom section pages with content cards, palette and column design.
+- [ ] Booking pipeline (registration form, bookings list, IATA flight export).
+- [ ] Passport OCR as optional fill-in.
+- [ ] Baggage tag generator with app QR.

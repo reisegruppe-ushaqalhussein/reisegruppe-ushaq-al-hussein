@@ -4,7 +4,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
 import { defaultContacts, defaultContent, defaultIraqItems, type IraqItem, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
-import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
+import { LangProvider, display, isArabic, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
@@ -13,6 +13,7 @@ import { FolderCard, FullPage, GuidelinesFolders, RenameTitle } from "@/componen
 import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
 import { GuideView, ItineraryView, TasbeehView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
+import { CustomSectionView, TileGrid, type Tile } from "@/components/cms";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
@@ -113,19 +114,21 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId";
+type View = "custom" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
 function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
   const { lang } = useLang();
-  const alignCls = align === "center" ? "text-center" : "text-right";
-  if (lang === "ar") return <span lang="ar" dir="rtl" className={`block font-bold leading-relaxed ${alignCls}`}>{ar}</span>;
-  if (lang === "de" || lang === "en") return <span lang={lang} dir="ltr" className={`block font-bold leading-snug ${align === "center" ? "text-center" : "text-left"}`}>{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
+  const { main, sub } = display(lang, ar, de);
+  const center = align === "center";
+  const rtl = isArabic(main);
+  const own = center ? "text-center" : rtl ? "text-right" : "text-left";
+  if (!sub) return <span lang={rtl ? "ar" : lang === "en" ? "en" : "de"} dir={rtl ? "rtl" : "ltr"} className={`block font-bold ${rtl ? "leading-relaxed" : "leading-snug"} ${own}`}>{main}</span>;
   return (
-    <span className={`block ${align === "center" ? "text-center" : "text-right"}`}>
-      <span lang="ar" dir="rtl" className="block font-bold leading-relaxed">{ar}</span>
-      <span lang="de" dir="ltr" className={`mt-0.5 block text-[0.72em] font-medium italic leading-snug ${inverse ? "text-primary-foreground/65" : "text-muted-foreground"}`}>{de}</span>
+    <span className={`block ${center ? "text-center" : "text-right"}`}>
+      <span lang="ar" dir="rtl" className="block font-bold leading-relaxed">{main}</span>
+      <span lang="de" dir="ltr" className={`mt-0.5 block text-[0.72em] font-medium italic leading-snug ${inverse ? "text-primary-foreground/65" : "text-muted-foreground"}`}>{sub}</span>
     </span>
   );
 }
@@ -192,6 +195,7 @@ const shrineImages: Record<string, string> = { karbala: shrineImage, najaf: naja
 
 
 const viewTitles: Record<View, { ar: string; de: string }> = {
+  custom: { ar: "", de: "" },
   home: { ar: "الرئيسية", de: "Start" },
   trips: { ar: "الرحلات", de: "Reisen" },
   registration: { ar: "التسجيل", de: "Anmeldung" },
@@ -216,7 +220,7 @@ function useLongPress(cb: () => void, ms = 3000) {
   return { onPointerDown: () => { clear(); t.current = window.setTimeout(() => { navigator.vibrate?.(40); cb(); }, ms); }, onPointerUp: clear, onPointerLeave: clear, onPointerCancel: clear, onContextMenu: (e: React.MouseEvent) => e.preventDefault() };
 }
 
-function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
+function AppHeader({ view, onHome, title }: { view: View; onHome: () => void; title?: { ar: string; de: string } | undefined }) {
   const longPress = useLongPress(openGateway);
   return (
     <header className="bg-primary px-5 pb-5 pt-6 text-primary-foreground">
@@ -230,7 +234,7 @@ function AppHeader({ view, onHome }: { view: View; onHome: () => void }) {
           <p {...longPress} className="select-none text-sm font-extrabold [-webkit-touch-callout:none]">حملة عشاق الحسين (ع) — ألمانيا</p>
           <p lang="de" dir="ltr" className="mt-1 text-[10px] font-medium text-primary-foreground/65">Reisegruppe Ushaq al-Hussein (as) — Deutschland</p>
           <div className="gold-line mx-auto my-3 h-px w-24" />
-          <Pair ar={viewTitles[view].ar} de={viewTitles[view].de} align="center" inverse />
+          <Pair ar={(title ?? viewTitles[view]).ar} de={(title ?? viewTitles[view]).de} align="center" inverse />
         </div>
         <DarkModeToggle />
       </div>
@@ -259,9 +263,8 @@ function LanguageSwitcher() {
 
 function NavLabel({ ar, de }: { ar: string; de: string }) {
   const { lang } = useLang();
-  if (lang === "ar") return <span className="text-[10px] font-bold leading-none">{ar}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="max-w-full truncate text-[10px] font-bold leading-none">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
-  return <><span className="text-[10px] font-bold leading-none">{ar}</span><span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{de}</span></>;
+  const { main, sub } = display(lang, ar, de);
+  return <><span dir="auto" className="max-w-full truncate text-[10px] font-bold leading-none">{main}</span>{sub && <span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{sub}</span>}</>;
 }
 
 function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: string }) {
@@ -273,26 +276,27 @@ function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: s
   );
 }
 
-function HomeView({ go, content, admin, payment }: { go: (view: View) => void; content: SiteContent; admin: AdminProps; payment: SiteContent["payment"] }) {
-  const actions: Array<{ view: View; ar: string; de: string; icon: IconType }> = [
-    { view: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
-    { view: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
-    { view: "contacts", ar: "التواصل", de: "Kontakt", icon: Phone },
-    { view: "news", ar: "الأخبار", de: "Neuigkeiten", icon: Megaphone },
-    { view: "duas", ar: "الأدعية والزيارات", de: "Bittgebete & Ziyarat", icon: BookOpen },
-    { view: "itinerary", ar: "جدول الرحلة", de: "Tagesprogramm", icon: CalendarClock },
-    { view: "guide", ar: "دليل الإقامة والمواقع", de: "Unterkunft & Orte", icon: MapPin },
-    { view: "tasbeeh", ar: "السبحة الإلكترونية", de: "Digitale Tasbih", icon: Vibrate },
-    { view: "qibla", ar: "اتجاه القبلة", de: "Qibla-Kompass", icon: Compass },
-    { view: "occasions", ar: "المناسبات الخاصة", de: "Besondere Anlässe", icon: Sparkles },
-    { view: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
-    { view: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
-    { view: "visa", ar: "الفيزا والمطارات", de: "Visum & Flughäfen", icon: IdCard },
-    { view: "memories", ar: "ذكريات الزيارة", de: "Reiseerinnerungen", icon: Sparkles },
-    { view: "pilgrimId", ar: "هويتي والطوارئ", de: "Ausweis & Notfall", icon: IdCard },
-    { view: "favorites", ar: "محفوظاتي", de: "Meine Favoriten", icon: Star },
-    { view: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
-  ];
+const homeTiles: Tile[] = [
+    { builtin: true, id: "trips", ar: "الرحلات", de: "Reisen", icon: Luggage },
+    { builtin: true, id: "registration", ar: "التسجيل", de: "Anmeldung", icon: ScrollText },
+    { builtin: true, id: "contacts", ar: "التواصل", de: "Kontakt", icon: Phone },
+    { builtin: true, id: "news", ar: "الأخبار", de: "Neuigkeiten", icon: Megaphone },
+    { builtin: true, id: "duas", ar: "الأدعية والزيارات", de: "Bittgebete & Ziyarat", icon: BookOpen },
+    { builtin: true, id: "itinerary", ar: "جدول الرحلة", de: "Tagesprogramm", icon: CalendarClock },
+    { builtin: true, id: "guide", ar: "دليل الإقامة والمواقع", de: "Unterkunft & Orte", icon: MapPin },
+    { builtin: true, id: "tasbeeh", ar: "السبحة الإلكترونية", de: "Digitale Tasbih", icon: Vibrate },
+    { builtin: true, id: "qibla", ar: "اتجاه القبلة", de: "Qibla-Kompass", icon: Compass },
+    { builtin: true, id: "occasions", ar: "المناسبات الخاصة", de: "Besondere Anlässe", icon: Sparkles },
+    { builtin: true, id: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
+    { builtin: true, id: "faqs", ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)", icon: HelpCircle },
+    { builtin: true, id: "visa", ar: "الفيزا والمطارات", de: "Visum & Flughäfen", icon: IdCard },
+    { builtin: true, id: "memories", ar: "ذكريات الزيارة", de: "Reiseerinnerungen", icon: Sparkles },
+    { builtin: true, id: "pilgrimId", ar: "هويتي والطوارئ", de: "Ausweis & Notfall", icon: IdCard },
+    { builtin: true, id: "favorites", ar: "محفوظاتي", de: "Meine Favoriten", icon: Star },
+    { builtin: true, id: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
+];
+
+function HomeView({ open, content, payment }: { open: (id: string) => void; content: SiteContent; payment: SiteContent["payment"] }) {
   return (
     <div className="screen-enter px-4 py-5">
       <section className="overflow-hidden rounded-lg bg-primary text-primary-foreground shadow-md">
@@ -307,14 +311,7 @@ function HomeView({ go, content, admin, payment }: { go: (view: View) => void; c
         </div>
       </section>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        {actions.map(({ view, ar, de, icon: Icon }) => (
-          <Button key={view} variant="outline" onClick={() => go(view)} className={`h-32 flex-col gap-3 whitespace-normal bg-card px-3 shadow-sm hover:border-secondary hover:bg-card `}>
-            <span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span>
-            <Pair ar={ar} de={de} align="center" />
-          </Button>
-        ))}
-      </div>
+      <TileGrid content={content} builtins={homeTiles} onOpen={open} />
 
       <InstallButton />
       <PrayerTimesCard />
@@ -869,10 +866,14 @@ function Index() {
 function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
+  const [customId, setCustomId] = useState<string | null>(null);
+  useEffect(() => { if (customId) sessionStorage.setItem("custom-id", customId); }, [customId]);
+  useEffect(() => { document.documentElement.dataset["theme"] = content.cms?.theme ?? ""; }, [content.cms?.theme]);
   useLayoutEffect(() => {
     setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
     const v = sessionStorage.getItem("view") as View | null;
     if (v && v in viewTitles) setView(v);
+    setCustomId(sessionStorage.getItem("custom-id"));
   }, []);
   useEffect(() => { if (welcomed !== null) sessionStorage.setItem("view", view); }, [view, welcomed]);
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
@@ -883,6 +884,18 @@ function CampaignApp({ content }: { content: SiteContent }) {
     setView(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  /** Opens a built-in section or an admin-created one ("c:<id>"). */
+  const open = (id: string) => {
+    if (id.startsWith("c:")) {
+      const cid = id.slice(2);
+      window.history.pushState({ view: "custom", custom: cid }, "");
+      setCustomId(cid);
+      setView("custom");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else go(id as View);
+  };
+  const customSec = view === "custom" ? content.cms?.sections?.find((x) => x.id === customId) : undefined;
+  const customTitle = customSec ? { ar: content.labels?.[`tile:c:${customSec.id}`]?.ar || customSec.ar, de: customSec.de } : undefined;
   // Phone back button / back gesture: close an open window first, otherwise return to the previous section.
   useEffect(() => {
     if (!window.history.state?.view) window.history.replaceState({ ...(window.history.state ?? {}), view: "home" }, "");
@@ -895,6 +908,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         return;
       }
       const next = (e.state?.view as View | undefined) ?? "home";
+      if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? null);
       setView(next in viewTitles ? next : "home");
       window.scrollTo({ top: 0 });
     };
@@ -907,10 +921,11 @@ function CampaignApp({ content }: { content: SiteContent }) {
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
-        <AppHeader view={view} onHome={() => go("home")} />
+        <AppHeader view={view} onHome={() => go("home")} title={customTitle} />
         {view === "home" && <AdminBar content={content} />}
         <AlertBanner alert={content.alert} />
-        {view === "home" && <HomeView go={go} content={content} admin={admin} payment={content.payment ?? defaultContent.payment} />}
+        {view === "home" && <HomeView open={open} content={content} payment={content.payment ?? defaultContent.payment} />}
+        {view === "custom" && customId && <CustomSectionView key={customId} content={content} id={customId} builtins={homeTiles} onOpen={open} />}
         {view === "trips" && <TripsView content={content} admin={admin} />}
         {view === "registration" && <RegistrationView />}
         {view === "contacts" && <ContactsView content={content} admin={admin} />}

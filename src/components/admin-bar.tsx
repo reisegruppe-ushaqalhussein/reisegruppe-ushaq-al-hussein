@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Eye, KeyRound, LogOut, Pencil, RotateCcw, ShieldAlert, Trash2, LayoutDashboard, Smartphone } from "lucide-react";
+import { Eye, EyeOff, Wrench, KeyRound, LogOut, Pencil, RotateCcw, ShieldAlert, Trash2, LayoutDashboard, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { loginWithCode, logout, setMode, updatePassword, useAdminSession } from "@/lib/admin-session";
+import { loginWithCode, logout, setMode, setToolsHidden, updatePassword, useStaffSession, useToolsHidden } from "@/lib/admin-session";
 import { saveOrQueue } from "@/lib/offline";
 import { changeAdminPassword, clearSecurityLog, getSecurityOverview } from "@/lib/site-content.functions";
 import type { SiteContent, TrashEntry } from "@/lib/site-content";
@@ -42,7 +42,8 @@ export function AccessGateway() {
 
 /** Floating bar visible only to signed-in staff. */
 export function AdminBar({ content }: { content: SiteContent }) {
-  const s = useAdminSession();
+  const s = useStaffSession();
+  const toolsHidden = useToolsHidden();
   const [trashOpen, setTrashOpen] = useState(false);
   const [secOpen, setSecOpen] = useState(false);
   const [alerts, setAlerts] = useState(0);
@@ -76,6 +77,7 @@ export function AdminBar({ content }: { content: SiteContent }) {
         <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="القائمة | Menü" className="flex items-center gap-1.5 rounded-full border border-secondary bg-primary px-2.5 py-1 text-[10px] font-extrabold shadow-md">
           <span>{badge}</span>{alerts > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}<span className="text-sm leading-none tracking-widest">⋯</span>
         </button>
+        <button type="button" onClick={() => setToolsHidden(!toolsHidden)} aria-pressed={toolsHidden} aria-label={toolsHidden ? "إظهار أدوات التحكم | Werkzeuge zeigen" : "إخفاء أدوات التحكم | Werkzeuge ausblenden"} title={toolsHidden ? "إظهار الأدوات | Werkzeuge zeigen" : "عرض نظيف | Saubere Ansicht"} className={`ml-2 grid h-7 w-7 place-items-center rounded-full border border-secondary shadow-md ${toolsHidden ? "bg-secondary text-secondary-foreground" : "bg-primary text-secondary"}`}>{toolsHidden ? <Wrench className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</button>
         {menu && <div className="absolute left-3 top-10 w-52 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
           {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setMode(s.mode === "admin" ? "haj" : "admin")}>{s.mode === "admin" ? <><Eye className="h-3.5 w-3.5" />{labels.haj}</> : <><Pencil className="h-3.5 w-3.5" />{labels.admin}</>}</Button>}
           {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => { setDraft(labels); setRenameOpen(true); }}><Pencil className="h-3.5 w-3.5" />تعديل الأسماء | Namen</Button>}

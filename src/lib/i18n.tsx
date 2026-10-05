@@ -85,48 +85,71 @@ const en: Record<string, string> = {
   "Arabisch": "Arabic",
 };
 
-// ---- English: built-in dictionary + automatic translation cache for everything else ----
-const CACHE_KEY = "en-cache-v1";
-let cache: Record<string, string> = {};
-let loaded = false;
-const pending = new Set<string>();
-const failed = new Set<string>();
-let timer: ReturnType<typeof setTimeout> | null = null;
+// ---- Automatic translation (English, and German for Arabic-only texts), cached per device ----
+type Target = "en" | "de";
+const CACHE_KEYS: Record<Target, string> = { en: "en-cache-v1", de: "de-cache-v1" };
+const caches: Record<Target, Record<string, string>> = { en: {}, de: {} };
+const loaded: Record<Target, boolean> = { en: false, de: false };
+const pending: Record<Target, Set<string>> = { en: new Set(), de: new Set() };
+const failed: Record<Target, Set<string>> = { en: new Set(), de: new Set() };
+const timers: Record<Target, ReturnType<typeof setTimeout> | null> = { en: null, de: null };
 const listeners = new Set<() => void>();
+const ARABIC = /[\u0600-\u06FF]/;
+const NON_TEXT = /^[\d\s+()\-.:/,|€$%#@*•·–—]+$/;
 
-function loadCache() {
-  if (loaded || typeof window === "undefined") return;
-  loaded = true;
-  try { cache = JSON.parse(window.localStorage.getItem(CACHE_KEY) || "{}"); } catch { cache = {}; }
+function loadCache(t: Target) {
+  if (loaded[t] || typeof window === "undefined") return;
+  loaded[t] = true;
+  try { caches[t] = JSON.parse(window.localStorage.getItem(CACHE_KEYS[t]) || "{}"); } catch { caches[t] = {}; }
 }
-async function flush() {
-  timer = null;
-  const batch = [...pending].slice(0, 40);
-  batch.forEach((t) => pending.delete(t));
+async function flush(t: Target) {
+  timers[t] = null;
+  const batch = [...pending[t]].slice(0, 40);
+  batch.forEach((s) => pending[t].delete(s));
   if (!batch.length) return;
   try {
-    const r = await translateToEnglish({ data: { texts: batch } });
+    const r = await translateToEnglish({ data: { texts: batch, target: t } });
     if (r.ok) {
-      batch.forEach((t, i) => { cache[t] = r.out[i] ?? t; });
-      try { window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* storage full */ }
+      batch.forEach((s, i) => { caches[t][s] = r.out[i] || s; });
+      try { window.localStorage.setItem(CACHE_KEYS[t], JSON.stringify(caches[t])); } catch { /* storage full */ }
       listeners.forEach((l) => l());
-    } else batch.forEach((t) => failed.add(t));
-  } catch { batch.forEach((t) => failed.add(t)); }
-  if (pending.size) timer = setTimeout(flush, 50);
+    } else batch.forEach((s) => failed[t].add(s));
+  } catch { batch.forEach((s) => failed[t].add(s)); }
+  if (pending[t].size) timers[t] = setTimeout(() => flush(t), 50);
+}
+function translate(text: string, t: Target) {
+  if (!text || !text.trim() || NON_TEXT.test(text)) return text;
+  loadCache(t);
+  const hit = caches[t][text];
+  if (hit) return hit;
+  if (typeof window !== "undefined" && !failed[t].has(text)) {
+    pending[t].add(text);
+    if (!timers[t]) timers[t] = setTimeout(() => flush(t), 120);
+  }
+  return text;
 }
 
 /** Returns English for a German (or Arabic) source text; unknown texts are translated automatically and appear moments later. */
 export const toEnglish = (de: string) => {
   if (!de || !de.trim()) return de;
   if (en[de]) return en[de];
-  loadCache();
-  if (cache[de]) return cache[de];
-  if (typeof window !== "undefined" && !failed.has(de) && !/^[\d\s+()\-.:/,]+$/.test(de)) {
-    pending.add(de);
-    if (!timer) timer = setTimeout(flush, 120);
-  }
-  return de;
+  return translate(de, "en");
 };
+/** German for a text; Arabic-only texts are translated automatically. */
+export const toGerman = (text: string) => (text && ARABIC.test(text) ? translate(text, "de") : text);
+
+/** The single source of truth for what a bilingual pair shows in each language mode. */
+export function display(lang: AppLang, ar: string, de: string): { main: string; sub: string } {
+  const a = (ar ?? "").trim();
+  const d = (de ?? "").trim();
+  if (lang === "en") return { main: toEnglish(d || a), sub: "" };
+  if (lang === "de") return { main: d && !ARABIC.test(d) ? d : toGerman(d || a), sub: "" };
+  if (lang === "ar") return { main: a || d, sub: "" };
+  const germanSub = d && d !== a ? (ARABIC.test(d) ? toGerman(d) : d) : (a ? toGerman(a) : "");
+  return { main: a || d, sub: germanSub === (a || d) ? "" : germanSub };
+}
+export const isArabic = (s: string) => ARABIC.test(s);
+
 
 const LangContext = createContext<{ lang: AppLang; setLang: (l: AppLang) => void; v: number }>({ lang: "both", setLang: () => {}, v: 0 });
 
@@ -150,3 +173,12 @@ export function LangProvider({ children }: { children: ReactNode }) {
 }
 
 export const useLang = () => useContext(LangContext);
+
+/** Shared bilingual text: one language per mode, Arabic above German in "both"; aligns to the start of its own script. */
+export function LangText({ ar, de, en: enText, inverse, center }: { ar: string; de: string; en?: string | undefined; inverse?: boolean | undefined; center?: boolean | undefined }) {
+  const { lang } = useLang();
+  const { main, sub } = lang === "en" && enText ? { main: enText, sub: "" } : display(lang, ar, de);
+  const rtl = ARABIC.test(main);
+  if (!sub) return <span dir={rtl ? "rtl" : "ltr"} className={`block ${center ? "text-center" : rtl ? "text-right" : "text-left"}`}>{main}</span>;
+  return <span className={`block ${center ? "text-center" : ""}`}>{main && <span className="block">{main}</span>}<span lang="de" dir="ltr" className={`block text-[0.8em] italic ${inverse ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{sub}</span></span>;
+}

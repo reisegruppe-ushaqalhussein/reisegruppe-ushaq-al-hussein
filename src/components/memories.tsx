@@ -1,6 +1,6 @@
 import { Download, Facebook, ImageIcon, MapPin, CalendarDays, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLang, toEnglish } from "@/lib/i18n";
+import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
@@ -28,12 +28,7 @@ const fields: FieldDef[] = [
 const reviewFields: FieldDef[] = [{ key: "reviewUrl", ar: "رابط صفحة التقييم", de: "Bewertungs-Link", ltr: true }];
 const facebookUrl = "https://www.facebook.com/share/1KF3URwHzk/";
 
-function T({ ar, de, inverse }: { ar: string; de: string; inverse?: boolean }) {
-  const { lang } = useLang();
-  if (lang === "ar") return <span className="block">{ar || de}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="block">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
-  return <span className="block">{ar && <span className="block">{ar}</span>}{de && <span lang="de" dir="ltr" className={`block text-[0.8em] italic ${inverse ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{de}</span>}</span>;
-}
+const T = LangText;
 
 const fmt = (iso: string) => { const [y, m, d] = iso.split("-"); return y && m && d ? `${d}.${m}.${y}` : iso; };
 

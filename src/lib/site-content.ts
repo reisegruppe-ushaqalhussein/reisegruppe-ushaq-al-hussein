@@ -68,7 +68,12 @@ export type SiteContent = {
   labels?: LabelMap | undefined;
   reviewUrl?: string | undefined;
   trash?: TrashEntry[];
+  cms?: CmsConfig | undefined;
 };
+export type CmsItem = { id: string; ar: string; de: string; bodyAr?: string; bodyDe?: string; imageUrl?: string; link?: string; pdfUrl?: string; hidden?: boolean };
+export type CmsSection = { id: string; ar: string; de: string; icon: string; items: CmsItem[]; hidden?: boolean };
+/** Free app structure: tile order, hidden tiles, which folder holds which tile, admin-created sections and app design. */
+export type CmsConfig = { order?: string[]; hiddenTiles?: string[]; parents?: Record<string, string>; sections?: CmsSection[]; hajCanManage?: boolean; columns?: 2 | 3; theme?: string };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
 
 export const defaultContacts: ContactEntry[] = [
@@ -160,6 +165,7 @@ export function mergeContent(data: unknown): SiteContent {
     labels: d.labels ?? {},
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
+    cms: d.cms && typeof d.cms === "object" ? d.cms : {},
   };
 }
 
