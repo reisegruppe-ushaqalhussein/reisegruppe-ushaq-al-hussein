@@ -82,7 +82,7 @@ async function pushStaff(title: string, body: string) {
 }
 
 async function isStaff(password: string) {
-  const { verifyRole } = await import("./site-content.functions");
+  const { verifyRole } = await import("./roles.server");
   return (await verifyRole(password)) !== null;
 }
 
