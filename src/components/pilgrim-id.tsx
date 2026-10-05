@@ -1,4 +1,5 @@
 import { RoomsPanel } from "@/components/final-group";
+import { LuggageTags } from "@/components/luggage-tags";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
@@ -182,6 +183,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       </GearMenu>}</div>
     {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
+    <LuggageTags nameAr={p.nameAr} nameDe={p.nameDe} />
 
     {notice && <div className={`flex items-start gap-2 rounded-lg border-2 p-3 text-sm font-bold ${p.status === "approved" ? "border-secondary bg-accent text-primary" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
       {p.status === "approved" ? <Check className="h-5 w-5 shrink-0" /> : <X className="h-5 w-5 shrink-0" />}
