@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Download, Printer, Tag } from "lucide-react";
+import { Download, Printer, Tag, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { display, isArabic, useLang } from "@/lib/i18n";
 import calligraphySrc from "@/assets/tag-calligraphy.png";
 import shrineSrc from "@/assets/tag-shrine.png";
 import kaabaSrc from "@/assets/tag-kaaba.png";
+import iraqTemplateSrc from "@/assets/tag-iraq-template.png";
 
 /* Fixed print data — do not change without the leader's approval. */
 const APP_URL = "https://reisegruppe-ushaq-al-hussein.lovable.app";
@@ -14,10 +15,12 @@ const PHONE_DE = "004915773055365";
 const DPI = 300;
 const PX_PER_MM = DPI / 25.4;
 const A4 = { w: 210, h: 297 };
+const CUSTOM_KEY = "luggage-tag-custom-iraq";
 
 type Kind = "iraq" | "umrah";
 type Person = { ar: string; de: string };
-type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement };
+type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement; template: HTMLImageElement; custom: HTMLImageElement | null };
+type Style = { variant: "new" | "classic" | "custom"; color: "red" | "gold" | "black"; bold: boolean; scale: number; layout: "side" | "stack" };
 
 /* Iraq/Iran: 2 x 4 on A4, exact A7 landscape (105 x 74.25 mm) — matches the leader's laminator sheet.
    Umrah: 3 x 3 on A4, 55.67 x 83.87 mm portrait — matches the Canva PDF grid. */
@@ -30,21 +33,30 @@ const GOLD = "#a8721a";
 const RED = "#8e1424";
 const BLUE = "#1f5fbf";
 const INK = "#1a1a1a";
+const IRAQ_COLORS: Record<Style["color"], string> = { red: RED, gold: GOLD, black: "#000000" };
 
 function loadImg(src: string) {
   return new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
-let assetsP: Promise<Assets> | null = null;
-function loadAssets() {
+let assetsP: Promise<Omit<Assets, "custom">> | null = null;
+let customCache: { src: string; img: HTMLImageElement } | null = null;
+async function loadAssets(): Promise<Assets> {
   if (!assetsP) {
     assetsP = (async () => {
-      await Promise.all(["700 40px Cairo", "600 40px Cairo", "400 40px Cairo"].map((f) => document.fonts.load(f).catch(() => null)));
-      const [call, shrine, kaaba] = await Promise.all([loadImg(calligraphySrc), loadImg(shrineSrc), loadImg(kaabaSrc)]);
-      return { call, shrine, kaaba };
+      await Promise.all(["800 40px Cairo", "700 40px Cairo", "600 40px Cairo", "500 40px Cairo", "400 40px Cairo"].map((f) => document.fonts.load(f).catch(() => null)));
+      const [call, shrine, kaaba, template] = await Promise.all([loadImg(calligraphySrc), loadImg(shrineSrc), loadImg(kaabaSrc), loadImg(iraqTemplateSrc)]);
+      return { call, shrine, kaaba, template };
     })();
     assetsP.catch(() => { assetsP = null; });
   }
-  return assetsP;
+  const base = await assetsP;
+  let custom: HTMLImageElement | null = null;
+  const src = typeof localStorage !== "undefined" ? localStorage.getItem(CUSTOM_KEY) : null;
+  if (src) {
+    if (customCache?.src !== src) customCache = { src, img: await loadImg(src).catch(() => null as unknown as HTMLImageElement) };
+    custom = customCache?.img ?? null;
+  }
+  return { ...base, custom };
 }
 
 function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
@@ -95,14 +107,14 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
 }
 
 /** Phone row: Arabic label on the right, number (LTR) on the left, centred on cx. */
-function phoneRow(p: ReturnType<typeof pen>, label: string, num: string, cx: number, y: number, maxW: number) {
+function phoneRow(p: ReturnType<typeof pen>, label: string, num: string, cx: number, y: number, maxW: number, labelColor = GOLD) {
   let ls = 2.3, ns = 3.1;
   const gap = 1.2;
   let total = p.width(label, ls, 600) + gap + p.width(num, ns, 700);
   if (total > maxW) { const k = maxW / total; ls *= k; ns *= k; total = maxW; }
   const left = cx - total / 2;
   p.text(num, left, y, ns, { weight: 700, align: "left", color: INK });
-  p.text(label, left + total, y, ls, { weight: 600, align: "right", color: GOLD });
+  p.text(label, left + total, y, ls, { weight: 600, align: "right", color: labelColor });
 }
 
 function drawGermanFlag(p: ReturnType<typeof pen>, x: number, y: number, w: number, h: number) {
