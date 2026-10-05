@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { LangText } from "@/lib/i18n";
 import { createPortal } from "react-dom";
 import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft } from "lucide-react";
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
@@ -12,9 +13,7 @@ import { labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "
 const gearCls = "h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary";
 const inputCls = "h-11 w-full rounded-md border border-border bg-background px-3 text-sm";
 
-function Pair({ ar, de }: { ar: string; de: string }) {
-  return <span className="block"><span className="block">{ar}</span><span lang="de" dir="ltr" className="block text-[0.8em] italic text-muted-foreground">{de}</span></span>;
-}
+function Pair({ ar, de }: { ar: string; de: string }) { return <LangText ar={ar} de={de} />; }
 
 /** Clickable folder tile with an optional gear menu in its top-left corner. */
 export function FolderCard({ icon: Icon, ar, de, count, onOpen, menu }: { icon: React.ComponentType<{ className?: string }>; ar: string; de: string; count?: number; onOpen: () => void; menu?: React.ReactNode }) {

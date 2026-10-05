@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCcw, Settings, Users, Vibrate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useLang, toEnglish } from "@/lib/i18n";
+import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, ItemActions, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
@@ -10,13 +10,7 @@ import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, Locat
 
 type Admin = { password: string; content: SiteContent } | null;
 
-function P({ ar, de, inverse }: { ar: string; de: string; inverse?: boolean }) {
-  const { lang } = useLang();
-  const sub = inverse ? "text-primary-foreground/70" : "text-muted-foreground";
-  if (lang === "ar") return <span className="block">{ar || de}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="block">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
-  return <span className="block">{ar && <span className="block">{ar}</span>}{de && <span lang="de" dir="ltr" className={`block text-[0.8em] italic ${sub}`}>{de}</span>}</span>;
-}
+__X__
 
 function Title({ icon: Icon, ar, de }: { icon: typeof MapPin; ar: string; de: string }) {
   return <div className="mb-5 flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Icon className="h-5 w-5" /></span><h2 className="text-xl text-primary"><P ar={ar} de={de} /></h2></div>;

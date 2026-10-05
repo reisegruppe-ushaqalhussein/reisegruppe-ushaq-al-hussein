@@ -2,20 +2,14 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { ChevronDown, Star, Compass, FileText, Music, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLang, toEnglish } from "@/lib/i18n";
+import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
 type Admin = { password: string; content: SiteContent } | null;
 
-function P({ ar, de, en }: { ar: string; de: string; en?: string }) {
-  const { lang } = useLang();
-  if (lang === "ar") return <span className="block">{ar || de}</span>;
-  if (lang === "de") return <span dir="ltr" className="block">{de || ar}</span>;
-  if (lang === "en") return <span dir="ltr" className="block">{en || toEnglish(de || ar)}</span>;
-  return <span className="block">{ar && <span className="block">{ar}</span>}{de && <span lang="de" dir="ltr" className="block text-[0.8em] italic text-muted-foreground">{de}</span>}</span>;
-}
+const P = LangText;
 
 function Title({ icon: Icon, ar, de }: { icon: typeof Compass; ar: string; de: string }) {
   return <div className="mb-5 flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Icon className="h-5 w-5" /></span><h2 className="text-xl text-primary"><P ar={ar} de={de} /></h2></div>;
