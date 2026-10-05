@@ -4,7 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { toEnglish, useLang } from "@/lib/i18n";
+import { display, isArabic, useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
