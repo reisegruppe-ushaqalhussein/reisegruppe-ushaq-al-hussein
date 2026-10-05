@@ -32,7 +32,6 @@ const bookingSchema = z.object({
 });
 
 const CAMPAIGN_EMAIL = "ushaqalhussein.contact@gmail.com";
-const catLabel = { adult: "بالغ | Erwachsener (12+)", child: "طفل | Kind (2–11)", infant: "رضيع | Kleinkind (<2)" } as const;
 
 function b64(s: string) {
   return Buffer.from(s, "utf8").toString("base64");
