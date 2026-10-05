@@ -4,7 +4,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
 import { defaultContacts, defaultContent, defaultIraqItems, type IraqItem, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
-import { LangProvider, toEnglish, useLang, type AppLang } from "@/lib/i18n";
+import { LangProvider, display, isArabic, useLang, type AppLang } from "@/lib/i18n";
 import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
@@ -119,13 +119,15 @@ type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?:
 
 function Pair({ ar, de, align = "right", inverse = false }: PairProps) {
   const { lang } = useLang();
-  const alignCls = align === "center" ? "text-center" : "text-right";
-  if (lang === "ar") return <span lang="ar" dir="rtl" className={`block font-bold leading-relaxed ${alignCls}`}>{ar}</span>;
-  if (lang === "de" || lang === "en") return <span lang={lang} dir="ltr" className={`block font-bold leading-snug ${align === "center" ? "text-center" : "text-left"}`}>{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
+  const { main, sub } = display(lang, ar, de);
+  const center = align === "center";
+  const rtl = isArabic(main);
+  const own = center ? "text-center" : rtl ? "text-right" : "text-left";
+  if (!sub) return <span lang={rtl ? "ar" : lang === "en" ? "en" : "de"} dir={rtl ? "rtl" : "ltr"} className={`block font-bold ${rtl ? "leading-relaxed" : "leading-snug"} ${own}`}>{main}</span>;
   return (
-    <span className={`block ${align === "center" ? "text-center" : "text-right"}`}>
-      <span lang="ar" dir="rtl" className="block font-bold leading-relaxed">{ar}</span>
-      <span lang="de" dir="ltr" className={`mt-0.5 block text-[0.72em] font-medium italic leading-snug ${inverse ? "text-primary-foreground/65" : "text-muted-foreground"}`}>{de}</span>
+    <span className={`block ${center ? "text-center" : "text-right"}`}>
+      <span lang="ar" dir="rtl" className="block font-bold leading-relaxed">{main}</span>
+      <span lang="de" dir="ltr" className={`mt-0.5 block text-[0.72em] font-medium italic leading-snug ${inverse ? "text-primary-foreground/65" : "text-muted-foreground"}`}>{sub}</span>
     </span>
   );
 }
@@ -259,9 +261,8 @@ function LanguageSwitcher() {
 
 function NavLabel({ ar, de }: { ar: string; de: string }) {
   const { lang } = useLang();
-  if (lang === "ar") return <span className="text-[10px] font-bold leading-none">{ar}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="max-w-full truncate text-[10px] font-bold leading-none">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
-  return <><span className="text-[10px] font-bold leading-none">{ar}</span><span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{de}</span></>;
+  const { main, sub } = display(lang, ar, de);
+  return <><span dir="auto" className="max-w-full truncate text-[10px] font-bold leading-none">{main}</span>{sub && <span lang="de" dir="ltr" className="max-w-full truncate text-[8px] italic leading-none">{sub}</span>}</>;
 }
 
 function ScreenTitle({ icon: Icon, ar, de }: { icon: IconType; ar: string; de: string }) {

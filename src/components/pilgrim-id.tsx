@@ -50,9 +50,9 @@ const clean = (p: string) => p.replace(/[^\d+]/g, "").replace(/^00/, "+");
 
 function T({ ar, de }: { ar: string; de: string }) {
   const { lang } = useLang();
-  if (lang === "ar") return <span className="block">{ar}</span>;
-  if (lang === "de" || lang === "en") return <span dir="ltr" className="block">{lang === "en" ? toEnglish(de || ar) : de || ar}</span>;
-  return <span className="block">{ar}<span lang="de" dir="ltr" className="block text-[0.8em] italic opacity-75">{de}</span></span>;
+  const { main, sub } = display(lang, ar, de);
+  if (!sub) return <span dir={isArabic(main) ? "rtl" : "ltr"} className={`block ${isArabic(main) ? "text-right" : "text-left"}`}>{main}</span>;
+  return <span className="block">{main}<span lang="de" dir="ltr" className="block text-[0.8em] italic opacity-75">{sub}</span></span>;
 }
 
 function buildSms(p: PilgrimId, stay: Stay | undefined, loc: string, lang: string) {
