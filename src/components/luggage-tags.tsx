@@ -146,7 +146,7 @@ function drawLebanonFlag(ctx: CanvasRenderingContext2D, p: ReturnType<typeof pen
 function drawName(p: ReturnType<typeof pen>, who: Person, st: Style, left: number, right: number, base: number, size: number, color: string) {
   const w = st.bold ? 800 : 500;
   const sz = size * st.scale;
-  const cx = (left + right) / 2, full = right - left;
+  const full = right - left;
   if (who.ar && who.de && st.layout === "side") {
     const half = full / 2 - 1;
     p.text(who.ar, right, base, sz, { align: "right", color, weight: w, maxW: half });
