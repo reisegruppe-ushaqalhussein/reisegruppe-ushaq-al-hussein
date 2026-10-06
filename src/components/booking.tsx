@@ -339,24 +339,33 @@ const visaCls: Record<string, string> = { none: "bg-muted text-muted-foreground"
 const visaEn: Record<string, string> = { none: "NOT SUBMITTED", processing: "IN PROCESS", approved: "APPROVED", rejected: "REJECTED" };
 function destOf(trip: string) { const s = trip.toLowerCase(); return /عمر|umrah|umra|mekka|mecca|مكة/.test(s) ? "umrah" : /ايران|إيران|iran|مشهد|mashhad|قم|qom/.test(s) ? "iran" : "iraq"; }
 function visaType(trip: string) { const d = destOf(trip); return d === "umrah" ? "🕋 العمرة: تأشيرة عبر منصة نسك | Umrah: Visum über Nusuk" : d === "iran" ? "🇮🇷 إيران: تأشيرة إيرانية | Iran: Iranisches Visum" : "🇮🇶 العراق: فيزا إلكترونية | Irak: E-Visum"; }
-function visaCsv(rows: BookingRow[]) {
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["NO", "REF", "TRIP", "DESTINATION", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "VISA_STATUS", "PHONE"];
-  let n = 0;
-  const lines = rows.flatMap((r) => r.travelers.map((t) => [++n, r.ref, r.trip, destOf(r.trip).toUpperCase(), t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], t["nationality"], t["passportNo"], t["passportExpiry"], visaEn[t["visa"] || "none"], r.contact_phone].map(esc).join(",")));
-  return "\uFEFF" + [head.join(","), ...lines].join("\r\n");
-}
+const paxOf = (t: Record<string, string>) => t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
+const paxMark: Record<string, string> = { ADT: "ADT", CHD: "CHD ⚠ CHILD", INF: "INF ⚠ INFANT (lap)" };
+const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === id); return r ? `${r.de} / ${r.ar}` : id ?? ""; };
+/** One group per trip + date so each journey gets its own list. */
+const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
-function csv(rows: BookingRow[]) {
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["REF", "TRIP", "TRIP_DATE", "STATUS", "PAYMENT", "PAID", "TOTAL", "NO", "TITLE", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "PAX_TYPE", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "DEP_AIRPORT", "RELATION", "EMAIL", "PHONE", "ROOM", "NOTES"];
-  const lines = rows.flatMap((r) => r.travelers.map((t, i) => {
-    const title = t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : t["gender"] === "f" ? "MRS" : "MR";
-    const pax = t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
-    return [r.ref, r.trip, r.trip_date, r.status, r.payment_status, r.paid_amount, r.total_amount, i + 1, title, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], pax, t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], t["relation"], r.contact_email, r.contact_phone, r.room_pref, r.notes].map(esc).join(",");
-  }));
-  return "\uFEFF" + [head.join(","), ...lines].join("\r\n");
+type Sheet = { title: string; head: string[]; body: Array<{ cells: unknown[]; pax: string }> };
+function sheetOf(kind: "flight" | "visa", rows: BookingRow[]): Sheet {
+  const live = rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
+  let n = 0;
+  if (kind === "visa") return { title: "VISA LIST", head: ["NO", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "VISA TYPE", "VISA STATUS", "BOOKING REF", "PHONE"],
+    body: live.flatMap((r) => r.travelers.map((t) => ({ pax: paxOf(t), cells: [++n, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[paxOf(t)], t["nationality"], t["passportNo"], t["passportExpiry"], destOf(r.trip) === "umrah" ? "UMRAH (NUSUK)" : destOf(r.trip) === "iran" ? "IRAN VISA" : "IRAQ E-VISA", visaEn[t["visa"] || "none"], r.ref, r.contact_phone] }))) };
+  return { title: "PASSENGER MANIFEST", head: ["NO", "TITLE", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX TYPE", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "DEP. AIRPORT", "BOOKING REF", "STATUS", "PHONE", "ROOM"],
+    body: live.flatMap((r) => r.travelers.map((t) => { const p = paxOf(t); return { pax: p, cells: [++n, p === "ADT" ? (t["gender"] === "f" ? "MRS" : "MR") : p === "CHD" ? (t["gender"] === "f" ? "MISS" : "MSTR") : "INF", t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[p], t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], r.ref, r.status.toUpperCase(), r.contact_phone, roomName(r.room_pref)] }; })) };
 }
+const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function sheetHtml(s: Sheet, group: string, forPrint: boolean) {
+  const cnt = (p: string) => s.body.filter((b) => b.pax === p).length;
+  const tr = s.body.map((b) => `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"}">${b.cells.map((c, i) => `<td style="border:1px solid #888;padding:4px;mso-number-format:'\\@';${i === 6 || i === 5 ? "font-weight:bold" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("");
+  return `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><title>${esc(s.title)} – ${esc(group)}</title>${forPrint ? `<meta name="viewport" content="width=device-width,initial-scale=1"><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style>` : ""}</head><body style="font-family:Arial">
+${forPrint ? `<button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>` : ""}
+<table style="border-collapse:collapse"><tr><td colspan="${s.head.length}" style="font-size:16px;font-weight:bold">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</td></tr>
+<tr><td colspan="${s.head.length}" style="font-weight:bold">${esc(group)}</td></tr>
+<tr><td colspan="${s.head.length}">TOTAL ${s.body.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")} — ${new Date().toISOString().slice(0, 10)}</td></tr>
+<tr>${s.head.map((h) => `<th style="border:1px solid #333;background:#1f2a44;color:#fff;padding:5px">${h}</th>`).join("")}</tr>${tr}</table></body></html>`;
+}
+const fileSafe = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
 
 /** Staff-only list of incoming registrations with status, payment and flight-list export. */
 export function BookingsPanel({ content }: { content: SiteContent }) {
