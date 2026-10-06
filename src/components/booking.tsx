@@ -345,25 +345,61 @@ const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === i
 /** One group per trip + date so each journey gets its own list. */
 const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
-type Sheet = { title: string; head: string[]; body: Array<{ cells: unknown[]; pax: string }> };
-function sheetOf(kind: "flight" | "visa", rows: BookingRow[]): Sheet {
-  const live = rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
+type Kind = "flight" | "visa" | "rooms";
+type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; body: Array<{ cells: unknown[]; pax: string; band?: boolean }>; tall?: number };
+const live = (rows: BookingRow[]) => rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
+const hotelsFor = (trip: string) => { const d = destOf(trip); return d === "umrah" ? ["مكة / Mekka", "المدينة / Medina"] : d === "iran" ? ["مشهد / Mashhad", "قم / Qom"] : ["الكاظمية / Kadhimiya", "كربلاء / Karbala", "النجف / Najaf"]; };
+const groupOf = (r: BookingRow) => r.travelers.length > 1 ? 0 : r.travelers[0]?.["gender"] === "f" ? 2 : 1;
+const groupNames = ["👪 عائلات ومجموعات / Familien & Gruppen", "👨 شباب منفردون / Einzelreisende Männer", "🧕 نساء منفردات / Einzelreisende Frauen"];
+function sheetOf(kind: Kind, rows: BookingRow[]): Sheet {
+  const lv = live(rows);
+  const all = lv.flatMap((r) => r.travelers);
+  const cnt = (p: string) => all.filter((t) => paxOf(t) === p).length;
+  const total = `TOTAL ${all.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")}`;
   let n = 0;
-  if (kind === "visa") return { title: "VISA LIST", head: ["NO", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "VISA TYPE", "VISA STATUS", "BOOKING REF", "PHONE"],
-    body: live.flatMap((r) => r.travelers.map((t) => ({ pax: paxOf(t), cells: [++n, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[paxOf(t)], t["nationality"], t["passportNo"], t["passportExpiry"], destOf(r.trip) === "umrah" ? "UMRAH (NUSUK)" : destOf(r.trip) === "iran" ? "IRAN VISA" : "IRAQ E-VISA", visaEn[t["visa"] || "none"], r.ref, r.contact_phone] }))) };
-  return { title: "PASSENGER MANIFEST", head: ["NO", "TITLE", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX TYPE", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "DEP. AIRPORT", "BOOKING REF", "STATUS", "PHONE", "ROOM"],
-    body: live.flatMap((r) => r.travelers.map((t) => { const p = paxOf(t); return { pax: p, cells: [++n, p === "ADT" ? (t["gender"] === "f" ? "MRS" : "MR") : p === "CHD" ? (t["gender"] === "f" ? "MISS" : "MSTR") : "INF", t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[p], t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], r.ref, r.status.toUpperCase(), r.contact_phone, roomName(r.room_pref)] }; })) };
+  if (kind === "visa") return { title: "VISA APPLICATION LIST", info: [total], widths: [5, 32, 16, 14, 16, 14, 16, 16],
+    head: ["NO", "FULL NAME", "NATIONALITY", "DATE OF BIRTH", "PASSPORT NO", "PASSPORT TYPE", "PASSPORT EXPIRY", "PAX"],
+    body: lv.flatMap((r) => r.travelers.map((t) => ({ pax: paxOf(t), cells: [++n, `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.trim(), t["nationality"], t["birthDate"], t["passportNo"], "ORDINARY", t["passportExpiry"], paxMark[paxOf(t)]] }))) };
+  if (kind === "flight") return { title: "PASSENGER LIST", info: [total], widths: [5, 18, 22, 8, 14, 18, 16, 16, 16, 14],
+    head: ["NO", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX TYPE", "PASSPORT NO", "NATIONALITY", "PASSPORT EXPIRY", "DEP. AIRPORT"],
+    body: lv.flatMap((r) => r.travelers.map((t) => { const p = paxOf(t); return { pax: p, cells: [++n, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[p], t["passportNo"], t["nationality"], t["passportExpiry"], t["airport"]] }; })) };
+  // Leader's rooming / gathering sheet: one row per booking, grouped families / men / women.
+  const hotels = hotelsFor(lv[0]?.trip ?? "");
+  const air = new Map<string, number>();
+  all.forEach((t) => air.set(t["airport"] || "?", (air.get(t["airport"] || "?") ?? 0) + 1));
+  const body: Sheet["body"] = [];
+  [0, 1, 2].forEach((g) => {
+    const list = lv.filter((r) => groupOf(r) === g);
+    if (!list.length) return;
+    body.push({ band: true, pax: "", cells: [`${groupNames[g]} (${list.length})`] });
+    list.forEach((r) => {
+      const c = { ADT: 0, CHD: 0, INF: 0 } as Record<string, number>;
+      r.travelers.forEach((t) => c[paxOf(t)]!++);
+      const pax = c["INF"] ? "INF" : c["CHD"] ? "CHD" : "ADT";
+      body.push({ pax, cells: [++n, r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${t["relation"] ? ` (${t["relation"]})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", roomName(r.room_pref), r.notes ?? "", ...hotels.map(() => ""), ""] });
+    });
+  });
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 30, 7, 16, 16, 12, 22, 28, ...hotels.map(() => 18), 26],
+    info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`],
+    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "الغرفة المطلوبة / Zimmerwunsch", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}\nفندق-غرفة / Hotel-Zi.`), "ملاحظات الحاج / Notizen"],
+    body };
 }
-const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-function sheetHtml(s: Sheet, group: string, forPrint: boolean) {
-  const cnt = (p: string) => s.body.filter((b) => b.pax === p).length;
-  const tr = s.body.map((b) => `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"}">${b.cells.map((c, i) => `<td style="border:1px solid #888;padding:4px;mso-number-format:'\\@';${i === 6 || i === 5 ? "font-weight:bold" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("");
-  return `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><title>${esc(s.title)} – ${esc(group)}</title>${forPrint ? `<meta name="viewport" content="width=device-width,initial-scale=1"><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style>` : ""}</head><body style="font-family:Arial">
-${forPrint ? `<button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>` : ""}
-<table style="border-collapse:collapse"><tr><td colspan="${s.head.length}" style="font-size:16px;font-weight:bold">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</td></tr>
-<tr><td colspan="${s.head.length}" style="font-weight:bold">${esc(group)}</td></tr>
-<tr><td colspan="${s.head.length}">TOTAL ${s.body.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")} — ${new Date().toISOString().slice(0, 10)}</td></tr>
-<tr>${s.head.map((h) => `<th style="border:1px solid #333;background:#1f2a44;color:#fff;padding:5px">${h}</th>`).join("")}</tr>${tr}</table></body></html>`;
+const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+function printHtml(s: Sheet, group: string) {
+  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>@page{size:A4 landscape;margin:8mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:4px;vertical-align:top}th{background:#1f2a44;color:#fff}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style></head><body>
+<button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>
+<h2 style="margin:4px 0">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</h2><p style="margin:2px 0"><b>${esc(group)}</b></p>${s.info.map((i) => `<p style="margin:2px 0">${esc(i)}</p>`).join("")}
+<table><tr>${s.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
+}
+function sheetXlsx(s: Sheet, group: string): XSheet {
+  const rows: XSheet["rows"] = [
+    [{ v: `${s.title} — Reisegruppe Ushaq al-Hussein DE`, s: 2 }], [{ v: group, s: 2 }],
+    ...s.info.map((i) => [{ v: i }]), [{ v: `${new Date().toISOString().slice(0, 10)}` }],
+    s.head.map((h) => ({ v: h, s: 1 })),
+    ...s.body.map((b) => b.band ? [{ v: b.cells[0], s: 6 }] : b.cells.map((c) => ({ v: c, s: b.pax === "INF" ? 4 : b.pax === "CHD" ? 3 : 5 }))),
+  ];
+  return { name: s.title.includes("VISA") ? "Visa" : s.title.includes("PASSENGER") ? "Airline" : "Leader", widths: s.widths, rows, tall: s.tall };
 }
 /** Mismatch / missing-data warnings shown to staff on each booking. */
 function issuesOf(r: BookingRow): string[] {
