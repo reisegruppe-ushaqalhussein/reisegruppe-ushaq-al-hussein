@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
+import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LangText, display, useLang } from "@/lib/i18n";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
@@ -78,8 +78,15 @@ const biFor = (lang: Parameters<typeof display>[0]) => (t: string) => {
   return d.sub ? `${d.main} | ${d.sub}` : d.main;
 };
 
-/** Marks that a file/camera picker is open so the app's back-button handler ignores the return from the camera. */
-export const markPicking = () => { (window as unknown as { __picking?: number }).__picking = Date.now(); };
+const PICK_KEY = "booking-picking-at";
+/** Marks that a file/camera picker is open: the back handler ignores the camera return, and the form is saved in case the phone reloads the page. */
+export const markPicking = () => {
+  (window as unknown as { __picking?: number }).__picking = Date.now();
+  try { localStorage.setItem(PICK_KEY, String(Date.now())); localStorage.setItem("picking-view", sessionStorage.getItem("view") ?? "registration"); } catch { /* ignore */ }
+  window.dispatchEvent(new Event("booking-picking"));
+};
+/** Picker returned normally: no reload happened, so nothing should be restored later. */
+const donePicking = () => { window.setTimeout(() => { try { localStorage.removeItem(PICK_KEY); localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }, 1500); };
 async function checkFile(f: File, photo: boolean) {
   const head = new Uint8Array(await f.slice(0, 12).arrayBuffer());
   const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
@@ -100,15 +107,22 @@ async function checkFile(f: File, photo: boolean) {
 function FileField({ label, value, onChange, photo = false }: { label: { ar: string; de: string }; value?: FileData | undefined; onChange: (f: FileData | undefined) => void; photo?: boolean }) {
   const { lang } = useLang();
   const [busy, setBusy] = useState(false);
-  return <label className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-secondary">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : value ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}</span>
-    <span className="min-w-0 flex-1"><span className="block font-bold"><L {...label} /></span><span className="block truncate text-xs text-muted-foreground">{value ? value.name : photo ? "JPG / PNG — max 10 MB" : "JPG / PNG / PDF — max 10 MB"}</span></span>
-    <input type="file" accept={photo ? "image/*" : "image/*,application/pdf,.pdf"} className="hidden" onClick={markPicking} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); try { await checkFile(f, photo); onChange(await readFile(f)); } catch (err) { window.alert(biFor(lang)(err instanceof Error ? err.message : String(err))); } finally { setBusy(false); } }} />
-  </label>;
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; e.target.value = ""; donePicking(); if (!f) return; setBusy(true); try { await checkFile(f, photo); onChange(await readFile(f)); } catch (err) { window.alert(biFor(lang)(err instanceof Error ? err.message : String(err))); } finally { setBusy(false); } };
+  const btn = "flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-secondary bg-card px-2 py-2 text-xs font-bold text-primary";
+  return <div className={`rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
+    <div className="flex items-center gap-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-secondary">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : value ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}</span>
+      <span className="min-w-0 flex-1"><span className="block font-bold"><L {...label} /></span><span className="block truncate text-xs text-muted-foreground">{value ? value.name : photo ? "JPG / PNG — max 10 MB" : "JPG / PNG / PDF — max 10 MB"}</span></span>
+    </div>
+    <div className={`mt-2 grid gap-1.5 ${photo ? "grid-cols-1" : "grid-cols-2"}`}>
+      <label className={btn}><Camera className="h-3.5 w-3.5" /><L ar="صورة / كاميرا" de="Foto / Kamera" /><input type="file" accept="image/*" className="hidden" onClick={markPicking} onChange={pick} /></label>
+      {!photo && <label className={btn}><FileText className="h-3.5 w-3.5" /><L ar="ملف PDF" de="PDF-Datei" /><input type="file" accept="application/pdf,.pdf" className="hidden" onClick={markPicking} onChange={pick} /></label>}
+    </div>
+  </div>;
 }
 
 /** Camera/photo passport scan: fills the fields, attaches the page as passport copy; user reviews everything. */
-function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler>) => void }) {
+function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Traveler>) => void; pen?: React.ReactNode }) {
   const staff = useStaffSession();
   const scan = useServerFn(scanPassport);
   const [busy, setBusy] = useState(false);
@@ -135,8 +149,9 @@ function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler
     <label className={`flex cursor-pointer items-center gap-3 rounded-md border-2 border-secondary bg-primary p-3 text-primary-foreground ${busy ? "opacity-70" : ""}`}>
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}</span>
       <span className="min-w-0 flex-1 text-sm font-bold"><LangText ar="مسح الجواز وتعبئة البيانات تلقائياً" de="Pass scannen & automatisch ausfüllen" inverse /><span className="block text-[11px] font-normal opacity-80"><LangText ar={reg.ocrNoteAr || "صوّر صفحة البيانات كاملة مع السطرين السفليين، بدون فلاش ولمعان."} de={reg.ocrNoteDe || "Ganze Datenseite inkl. der zwei unteren Zeilen, ohne Blitz und Spiegelung."} inverse /></span></span>
-      <input type="file" accept="image/*" className="hidden" disabled={busy} onClick={markPicking} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void run(f); }} />
+      <input type="file" accept="image/*" className="hidden" disabled={busy} onClick={markPicking} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; donePicking(); if (f) void run(f); }} />
     </label>
+    {pen}
     {msg && <p className={`rounded-md p-2 text-xs ${msg.ok ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}><L ar={msg.ar} de={msg.de} /></p>}
   </div>;
 }
@@ -144,7 +159,15 @@ function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
 type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string };
 const DRAFT_KEY = "booking-draft";
-const PROFILE_KEY = "booking-profile";
+const HIST_KEY = "booking-history";
+type History = Partial<Record<"email" | "phone" | "firstName" | "lastName" | "nationality" | "passportNo" | "relation", string[]>>;
+/** Remembers previously typed values so they appear as suggestions under the field while typing. */
+function remember(h: History, add: History): History {
+  const out: History = { ...h };
+  (Object.keys(add) as Array<keyof History>).forEach((k) => { const vals = (add[k] ?? []).map((v) => v.trim()).filter(Boolean); out[k] = [...new Set([...vals, ...(h[k] ?? [])])].slice(0, 12); });
+  return out;
+}
+const Sugg = ({ id, items }: { id: string; items?: string[] | undefined }) => <datalist id={id}>{(items ?? []).map((v) => <option key={v} value={v} />)}</datalist>;
 const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } | undefined)?.registration ?? {});
 
 /** Bilingual multi-step registration form replacing the external form. */
@@ -170,19 +193,22 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const [errors, setErrors] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
   const rtl = lang === "ar" || lang === "both";
-  const [profile, setProfile] = useState<{ email?: string; phone?: string; travelers?: Traveler[] } | null>(null);
+  const [hist, setHist] = useState<History>({});
+  // Restore typed data ONLY when the phone reloaded the page while the camera/file picker was open.
   useEffect(() => {
     try {
+      setHist(JSON.parse(localStorage.getItem(HIST_KEY) ?? "{}"));
+      const at = Number(localStorage.getItem(PICK_KEY) ?? 0);
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
-      if (d && Date.now() - d.at < 6 * 3600e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); }
-      setProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null"));
+      if (d && at && Date.now() - at < 10 * 60e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); }
+      localStorage.removeItem(PICK_KEY); localStorage.removeItem(DRAFT_KEY); localStorage.removeItem("booking-profile");
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
-    if (done) { localStorage.removeItem(DRAFT_KEY); return; }
-    const strip = travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t);
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: strip, roomPref, notes })); } catch { /* quota */ }
-  }, [done, step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes]);
+    const save = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes })); } catch { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t), roomPref, notes })); } catch { /* quota */ } } };
+    window.addEventListener("booking-picking", save);
+    return () => window.removeEventListener("booking-picking", save);
+  }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes]);
 
   const chosen = trips.find((t) => t.id === trip);
   const tripName = trip === OTHER ? otherTrip.trim() : chosen ? `${chosen.ar} | ${chosen.de}` : "";
@@ -205,7 +231,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
     setBusy(true);
     try {
       const r = await submit({ data: { trip: tripName, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ email: email.trim(), phone: phone.trim(), travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t) })); } catch { /* ignore */ }
+      try { localStorage.setItem(HIST_KEY, JSON.stringify(remember(hist, { email: [email], phone: [phone], firstName: travelers.map((t) => t.firstName), lastName: travelers.map((t) => t.lastName), nationality: travelers.map((t) => t.nationality), passportNo: travelers.map((t) => t.passportNo), relation: travelers.map((t) => t.relation) }))); } catch { /* ignore */ }
       setDone(r.ref);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
@@ -226,15 +252,13 @@ export function BookingForm({ content }: { content: SiteContent }) {
   </section>;
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
-  const fillProfile = () => { if (!profile) return; if (profile.email) setEmail(profile.email); if (profile.phone) setPhone(profile.phone); if (profile.travelers?.length) setTravelers(profile.travelers.map((t) => ({ ...blank(), ...t, passportFile: undefined, photoFile: undefined }))); };
   return <>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
-      <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span></div>
+      <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span><EditPen content={content} k="title" label="عنوان الاستمارة" /></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
     </div>
     <div className="space-y-4 p-4 text-sm">
       {(reg.introAr || reg.introDe) && <p className="rounded-md bg-muted p-3 text-xs"><LangText ar={reg.introAr ?? ""} de={reg.introDe ?? ""} /></p>}
-      {profile && step <= 2 && <button type="button" onClick={fillProfile} className="w-full rounded-md border border-secondary bg-accent p-2.5 text-xs font-bold text-primary"><L ar="↺ تعبئة بياناتي من تسجيلي السابق على هذا الهاتف" de="↺ Meine Daten der letzten Anmeldung auf diesem Handy übernehmen" /></button>}
       {step === 0 && <>
         <p className="font-bold text-primary"><L ar="اختر الرحلة" de="Reise auswählen" /></p>
         <div className="space-y-2">
@@ -254,8 +278,8 @@ export function BookingForm({ content }: { content: SiteContent }) {
       </>}
 
       {step === 1 && <>
-        <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" list="bk-emails" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /><datalist id="bk-emails">{profile?.email && <option value={profile.email} />}</datalist></label>
-        <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" list="bk-phones" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /><datalist id="bk-phones">{profile?.phone && <option value={profile.phone} />}</datalist></label>
+        <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" list="bk-emails" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /><Sugg id="bk-emails" items={hist.email} /></label>
+        <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" list="bk-phones" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /><Sugg id="bk-phones" items={hist.phone} /></label>
         <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground"><L ar="للاستفسار: ushaqalhussein.contact@gmail.com" de="Fragen: ushaqalhussein.contact@gmail.com" /></p>
       </>}
 
@@ -268,24 +292,25 @@ export function BookingForm({ content }: { content: SiteContent }) {
             {i > 0 && <button type="button" aria-label="حذف | Entfernen" onClick={() => setTravelers((l) => l.filter((_, j) => j !== i))} className="grid h-8 w-8 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-4 w-4" /></button>}
           </div>
           <div className="grid grid-cols-3 gap-1.5">{cats.map((c) => <button key={c.id} type="button" onClick={() => setT(i, { category: c.id })} className={`rounded-md border px-1 py-2 text-[11px] font-bold ${t.category === c.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={c.ar} de={c.de} center /></button>)}</div>
-          <ScanButton reg={reg} onFill={(p) => setT(i, p)} />
-          {i > 0 && <label className="block font-bold"><L ar="صلة القرابة" de="Verwandtschaft" /><input value={t.relation} onChange={(e) => setT(i, { relation: e.target.value })} maxLength={60} className={inputCls} /></label>}
+          <ScanButton reg={reg} onFill={(p) => setT(i, p)} pen={i === 0 ? <EditPen content={content} k="ocrNote" label="إرشاد تصوير الجواز" /> : null} />
+          {i > 0 && <label className="block font-bold"><L ar="صلة القرابة" de="Verwandtschaft" /><input list="bk-rel" autoComplete="off" value={t.relation} onChange={(e) => setT(i, { relation: e.target.value })} maxLength={60} className={inputCls} /></label>}
           <div className="grid grid-cols-2 gap-2">
-            <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="given-name" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
-            <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="family-name" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
+            <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="off" list="bk-first" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
+            <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="off" list="bk-last" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {(["m", "f"] as const).map((g) => <button key={g} type="button" onClick={() => setT(i, { gender: g })} className={`rounded-md border py-2 font-bold ${t.gender === g ? "border-secondary bg-accent text-primary" : "border-border"}`}>{g === "m" ? <L ar="ذكر" de="Männlich" /> : <L ar="أنثى" de="Weiblich" />}</button>)}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="block font-bold"><L ar="تاريخ الميلاد" de="Geburtsdatum" /><input dir="ltr" type="date" value={t.birthDate} onChange={(e) => setT(i, { birthDate: e.target.value, ...(e.target.value ? { category: catOf(e.target.value) } : {}) })} className={inputCls} /></label>
-            <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
-            <label className="block font-bold"><L ar="رقم الجواز" de="Passnummer" /><input dir="ltr" value={t.passportNo} onChange={(e) => setT(i, { passportNo: e.target.value.replace(/\s/g, "") })} maxLength={20} className={inputCls + " uppercase"} /></label>
+            <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input list="bk-nat" autoComplete="off" value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
+            <label className="block font-bold"><L ar="رقم الجواز" de="Passnummer" /><input dir="ltr" list="bk-pass" autoComplete="off" value={t.passportNo} onChange={(e) => setT(i, { passportNo: e.target.value.replace(/\s/g, "") })} maxLength={20} className={inputCls + " uppercase"} /></label>
             <label className="block font-bold"><L ar="انتهاء الجواز" de="Pass gültig bis" /><input dir="ltr" type="date" value={t.passportExpiry} onChange={(e) => setT(i, { passportExpiry: e.target.value })} className={inputCls} /></label>
           </div>
           <FileField label={{ ar: "صورة صفحة الجواز", de: "Kopie der Passseite" }} value={t.passportFile} onChange={(f) => setT(i, { passportFile: f })} />
           <FileField label={{ ar: "صورة شخصية بيومترية للفيزا", de: "Biometrisches Passfoto (Visum)" }} value={t.photoFile} onChange={(f) => setT(i, { photoFile: f })} photo />
         </article>)}
+        <Sugg id="bk-rel" items={hist.relation} /><Sugg id="bk-first" items={hist.firstName} /><Sugg id="bk-last" items={hist.lastName} /><Sugg id="bk-nat" items={hist.nationality} /><Sugg id="bk-pass" items={hist.passportNo} />
         {travelers.length < 15 && <Button type="button" variant="outline" className="h-11 w-full border-dashed border-secondary" onClick={() => setTravelers((l) => [...l, blank()])}><Plus /><L ar="إضافة مرافق" de="Begleitperson hinzufügen" /></Button>}
       </>}
 
@@ -379,46 +404,47 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   </section>;
 }
 
-function OcrNote({ reg, save, bi }: { reg: RegCfg; save: (p: RegCfg) => Promise<void>; bi: (t: string) => string }) {
-  const [ar, setAr] = useState(reg.ocrNoteAr ?? "");
-  const [de, setDe] = useState(reg.ocrNoteDe ?? "");
-  return <div className="space-y-1 rounded-md bg-muted p-2">
-    <p className="font-bold">{bi("إرشاد تصوير الجواز | Hinweis zum Pass-Foto")}</p>
-    <textarea rows={2} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="عربي" className={inputCls} />
-    <textarea rows={2} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
-    <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void save({ ocrNoteAr: ar.trim(), ocrNoteDe: de.trim() })}>{bi("حفظ | Speichern")}</Button>
-    <Button size="sm" variant="outline" onClick={() => { setAr(""); setDe(""); void save({ ocrNoteAr: "", ocrNoteDe: "" }); }}>{bi("افتراضي | Standard")}</Button></div>
+/** Admin-only pencil next to a text: tap to edit that exact text (Arabic + German) in place. */
+function EditPen({ content, k, label }: { content: SiteContent; k: "title" | "intro" | "note" | "ocrNote"; label: string }) {
+  const adminS = useAdminSession();
+  const qc = useQueryClient();
+  const reg = regOf(content);
+  const [open, setOpen] = useState(false);
+  const [ar, setAr] = useState(""); const [de, setDe] = useState("");
+  if (adminS?.role !== "admin") return null;
+  const kA = `${k}Ar` as keyof RegCfg, kD = `${k}De` as keyof RegCfg;
+  const save = async (a: string, d: string) => {
+    try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, [kA]: a.trim(), [kD]: d.trim() } } as never }, "التسجيل | Anmeldung", qc); setOpen(false); }
+    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
+  };
+  if (!open) return <button type="button" aria-label={`تعديل ${label}`} title={`تعديل ${label}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAr(String(reg[kA] ?? "")); setDe(String(reg[kD] ?? "")); setOpen(true); }} className="ms-1 inline-grid h-6 w-6 shrink-0 place-items-center rounded-full bg-secondary align-middle text-secondary-foreground shadow-sm"><Pencil className="h-3 w-3" /></button>;
+  return <div className="my-2 space-y-1.5 rounded-md border-2 border-secondary bg-card p-2 text-xs text-foreground" onClick={(e) => e.stopPropagation()}>
+    <p className="font-bold text-primary">✏️ {label}</p>
+    <textarea dir="rtl" rows={2} value={ar} onChange={(e) => setAr(e.target.value)} placeholder="عربي" className={inputCls} />
+    <textarea dir="ltr" rows={2} value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
+    <div className="flex gap-1.5"><Button size="sm" className="flex-1" onClick={() => void save(ar, de)}>حفظ | Speichern</Button><Button size="sm" variant="outline" onClick={() => void save("", "")}>افتراضي</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>✕</Button></div>
   </div>;
 }
 
-/** Admin controls placed directly above the registration form. */
+/** Admin quick switches placed directly above the registration form; texts are edited with the pencils in place. */
 function RegSettings({ content }: { content: SiteContent }) {
   const adminS = useAdminSession();
   const qc = useQueryClient();
   const { lang } = useLang();
   const bi = biFor(lang);
   const reg = regOf(content);
-  const [open, setOpen] = useState(false);
-  const [t, setT] = useState({ noteAr: reg.noteAr ?? "", noteDe: reg.noteDe ?? "", titleAr: reg.titleAr ?? "", titleDe: reg.titleDe ?? "", introAr: reg.introAr ?? "", introDe: reg.introDe ?? "" });
   if (adminS?.role !== "admin") return null;
   const saveReg = async (patch: RegCfg) => {
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
     catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
   };
-  const txt = (k: keyof typeof t, label: string, ltr = false) => <label className="block">{bi(label)}<textarea dir={ltr ? "ltr" : "rtl"} rows={2} value={t[k]} onChange={(e) => setT({ ...t, [k]: e.target.value })} maxLength={1000} className={inputCls} /></label>;
   return <div className="mb-3 rounded-md border-2 border-secondary bg-card p-2 text-xs">
     <div className="grid grid-cols-2 gap-1.5">
       <Button size="sm" variant={reg.closed ? "default" : "outline"} onClick={() => void saveReg({ closed: !reg.closed })}>{bi(reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen")}</Button>
       <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>{bi(reg.ocrOff ? "📷 تفعيل المسح | Scan an" : "📷 إيقاف المسح | Scan aus")}</Button>
     </div>
     {!reg.ocrOff && <Button size="sm" variant={reg.ocrPublic ? "default" : "outline"} className="mt-1.5 w-full whitespace-normal" onClick={() => void saveReg({ ocrPublic: !reg.ocrPublic })}>{bi(reg.ocrPublic ? "👥 المسح متاح للزوار — اضغط لحصره بالإدارة والحاج | Scan für alle – nur Leitung" : "🔐 المسح للإدارة والحاج فقط — اضغط لإتاحته للزوار | Scan nur Leitung – für alle öffnen")}</Button>}
-    <button type="button" className="mt-2 flex w-full items-center gap-2 font-bold text-primary" onClick={() => setOpen(!open)}><Settings className="h-4 w-4" />{bi("تعديل نصوص الاستمارة | Formulartexte bearbeiten")}</button>
-    {open && <div className="mt-2 space-y-2">
-      {txt("titleAr", "عنوان الاستمارة (عربي) | Titel (Arabisch)")}{txt("titleDe", "عنوان الاستمارة (ألماني) | Titel (Deutsch)", true)}
-      {txt("introAr", "نص تعريفي داخل الاستمارة (عربي) | Einleitung (Arabisch)")}{txt("introDe", "نص تعريفي (ألماني) | Einleitung (Deutsch)", true)}
-      {txt("noteAr", "ملاحظة أعلى الاستمارة (عربي) | Hinweis (Arabisch)")}{txt("noteDe", "ملاحظة أعلى الاستمارة (ألماني) | Hinweis (Deutsch)", true)}
-      <Button size="sm" className="w-full" onClick={() => void saveReg(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v.trim()])) as RegCfg)}>{bi("حفظ النصوص | Texte speichern")}</Button>
-      <OcrNote reg={reg} save={saveReg} bi={bi} />
-    </div>}
+    <p className="mt-2 flex items-center gap-1 text-muted-foreground"><Pencil className="h-3 w-3" />{bi("لتعديل أي نص اضغط القلم الذهبي بجانبه | Zum Bearbeiten den goldenen Stift neben dem Text tippen")}</p>
+    <div className="mt-1 flex items-center gap-1">{bi("ملاحظة أعلى الاستمارة | Hinweis oben")}<EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /> · {bi("نص تعريفي | Einleitung")}<EditPen content={content} k="intro" label="النص التعريفي" /></div>
   </div>;
 }
