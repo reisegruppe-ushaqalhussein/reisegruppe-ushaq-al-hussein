@@ -455,7 +455,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
             </label></div>)}
           <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
           {issuesOf(r).length > 0 && <ul className="rounded-md border-2 border-destructive bg-destructive/10 p-2 font-bold text-destructive">{issuesOf(r).map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
-          {(r.room_pref || r.notes) && <p>🛏 {r.room_pref} · {r.notes}</p>}
+          {(r.room_pref || r.notes) && <p>🛏 {roomName(r.room_pref)} · {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
             <select value={r.payment_status} onChange={(e) => void patch(r, { payment_status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(payLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
