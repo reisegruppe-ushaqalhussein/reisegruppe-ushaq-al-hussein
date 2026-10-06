@@ -565,3 +565,84 @@ function RegSettings({ content }: { content: SiteContent }) {
     <div className="mt-1 flex items-center gap-1">{bi("ملاحظة أعلى الاستمارة | Hinweis oben")}<EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /> · {bi("نص تعريفي | Einleitung")}<EditPen content={content} k="intro" label="النص التعريفي" /></div>
   </div>;
 }
+
+type MT = Record<string, string>;
+const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
+
+/** Staff form to add a notebook booking (or edit any booking). Files optional, no emails sent. */
+function ManualBooking({ row, trips, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string }>; password: string; onDone: () => Promise<void> }) {
+  const { lang } = useLang();
+  const bi = biFor(lang);
+  const add = useServerFn(addManualBooking);
+  const update = useServerFn(updateBooking);
+  const [trip, setTrip] = useState(row?.trip ?? trips[0]?.trip ?? "");
+  const [tripDate, setTripDate] = useState(row?.trip_date ?? trips[0]?.date ?? "");
+  const [phone, setPhone] = useState(row?.contact_phone ?? "");
+  const [email, setEmail] = useState(row?.contact_email ?? "");
+  const [room, setRoom] = useState(row?.room_pref ?? "leader");
+  const [notes, setNotes] = useState(row?.notes ?? "");
+  const [status, setStatus] = useState<"new" | "confirmed">(row ? (row.status === "confirmed" ? "confirmed" : "new") : "confirmed");
+  const [pay, setPay] = useState<"unpaid" | "partial" | "paid">((row?.payment_status as "unpaid") ?? "unpaid");
+  const [paid, setPaid] = useState(row?.paid_amount ?? 0);
+  const [total, setTotal] = useState(row?.total_amount ?? 0);
+  const [tr, setTr] = useState<MT[]>(row ? row.travelers.map((t) => ({ ...blankMT(), ...t })) : [blankMT()]);
+  const [busy, setBusy] = useState(false);
+  const [errs, setErrs] = useState<string[]>([]);
+  const setT = (i: number, k: string, v: string) => setTr((a) => a.map((t, j) => j !== i ? t : { ...t, [k]: v, ...(k === "birthDate" && v ? { category: catOf(v) } : {}) }));
+  const save = async () => {
+    const e: string[] = [];
+    if (!trip.trim()) e.push("اختر الرحلة | Reise wählen");
+    tr.forEach((t, i) => {
+      if (!/^[A-Za-z][A-Za-z '\-]*$/.test(t["firstName"]!.trim()) || !/^[A-Za-z][A-Za-z '\-]*$/.test(t["lastName"]!.trim())) e.push(`#${i + 1}: الاسم واللقب بأحرف لاتينية كما في الجواز | Name lateinisch wie im Pass`);
+      if (!t["gender"]) e.push(`#${i + 1}: الجنس | Geschlecht`);
+      if (t["passportNo"] && !/^[A-Za-z0-9]{5,20}$/.test(t["passportNo"].trim())) e.push(`#${i + 1}: رقم الجواز غير صحيح | Passnummer ungültig`);
+    });
+    setErrs(e); if (e.length) return;
+    const travelers = tr.map((t) => Object.fromEntries(Object.entries({ ...t, firstName: t["firstName"]!.trim().toUpperCase(), lastName: t["lastName"]!.trim().toUpperCase(), passportNo: (t["passportNo"] ?? "").trim().toUpperCase() }).filter(([, v]) => typeof v === "string")) as MT);
+    setBusy(true);
+    try {
+      const common = { trip: trip.trim(), trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), room_pref: room, notes, travelers };
+      if (row) await update({ data: { password, id: row.id, ...common, ...(row.status === "new" || row.status === "confirmed" ? { status } : {}), payment_status: pay, paid_amount: paid, total_amount: total } });
+      else { const r = await add({ data: { password, ...common, status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
+      await onDone();
+    } catch (x) { window.alert(`تعذّر الحفظ | Fehler\n${x instanceof Error ? x.message : x}`); } finally { setBusy(false); }
+  };
+  const lbl = "block text-[11px] font-bold text-muted-foreground";
+  return <div className="mt-2 space-y-2 rounded-md border-2 border-secondary bg-card p-2 text-xs">
+    <p className="text-sm font-bold text-primary">{bi(row ? `✏️ تعديل الحجز ${row.ref} | Buchung bearbeiten` : "➕ حجز يدوي من الدفتر | Manuelle Buchung")}</p>
+    <p className="text-muted-foreground">{bi("الصور غير إلزامية ولا يُرسل أي إيميل. الحجز يدخل كل القوائم تلقائياً. | Fotos optional, keine E-Mail. Erscheint automatisch in allen Listen.")}</p>
+    <label className={lbl}>{bi("الرحلة | Reise")}<input list="mb-trips" value={trip} onChange={(e) => { setTrip(e.target.value); const m = trips.find((t) => t.trip === e.target.value); if (m) setTripDate(m.date); }} className={inputCls} /></label>
+    <datalist id="mb-trips">{trips.map((t) => <option key={t.trip} value={t.trip} />)}</datalist>
+    <div className="grid grid-cols-2 gap-1.5">
+      <label className={lbl}>{bi("التاريخ | Datum")}<input value={tripDate} onChange={(e) => setTripDate(e.target.value)} className={inputCls} /></label>
+      <label className={lbl}>{bi("الهاتف / واتساب | Telefon")}<input dir="ltr" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} /></label>
+    </div>
+    <label className={lbl}>{bi("الإيميل (اختياري) | E-Mail (optional)")}<input dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} /></label>
+    {tr.map((t, i) => <div key={i} className="space-y-1.5 rounded-md border border-border bg-muted/50 p-2">
+      <div className="flex items-center justify-between"><b className="text-primary">{bi(i === 0 ? "👤 صاحب الحجز | Hauptperson" : `👥 مرافق ${i} | Begleitung ${i}`)} · {paxOf(t)}</b>{tr.length > 1 && <button type="button" className="text-destructive" onClick={() => { if (window.confirm("حذف هذا المسافر؟ | Entfernen?")) setTr(tr.filter((_, j) => j !== i)); }}><Trash2 className="h-4 w-4" /></button>}</div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <label className={lbl}>{bi("الاسم الأول (لاتيني) | Vorname")}<input dir="ltr" value={t["firstName"]} onChange={(e) => setT(i, "firstName", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("اللقب (لاتيني) | Nachname")}<input dir="ltr" value={t["lastName"]} onChange={(e) => setT(i, "lastName", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("الجنس | Geschlecht")}<select value={t["gender"]} onChange={(e) => setT(i, "gender", e.target.value)} className={inputCls}><option value="">—</option><option value="m">{bi("ذكر | männlich")}</option><option value="f">{bi("أنثى | weiblich")}</option></select></label>
+        <label className={lbl}>{bi("تاريخ الميلاد | Geburtsdatum")}<input type="date" value={t["birthDate"]} onChange={(e) => setT(i, "birthDate", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("الجنسية | Nationalität")}<input value={t["nationality"]} onChange={(e) => setT(i, "nationality", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("رقم الجواز | Passnummer")}<input dir="ltr" value={t["passportNo"]} onChange={(e) => setT(i, "passportNo", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("انتهاء الجواز | Pass gültig bis")}<input type="date" value={t["passportExpiry"]} onChange={(e) => setT(i, "passportExpiry", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("المطار | Flughafen")}<input value={t["airport"]} onChange={(e) => setT(i, "airport", e.target.value)} className={inputCls} /></label>
+        {!t["birthDate"] && <label className={lbl}>{bi("الفئة | Kategorie")}<select value={t["category"]} onChange={(e) => setT(i, "category", e.target.value)} className={inputCls}>{cats.map((c) => <option key={c.id} value={c.id}>{bi(`${c.ar} | ${c.de}`)}</option>)}</select></label>}
+        {i > 0 && <label className={lbl}>{bi("صلة القرابة | Beziehung")}<input value={t["relation"]} onChange={(e) => setT(i, "relation", e.target.value)} className={inputCls} /></label>}
+      </div>
+    </div>)}
+    <Button size="sm" variant="outline" className="w-full" onClick={() => setTr([...tr, blankMT(tr[0]?.["airport"] ?? "")])}><Plus className="h-3.5 w-3.5" />{bi("إضافة مرافق | Begleitperson hinzufügen")}</Button>
+    <label className={lbl}>{bi("الغرفة المطلوبة | Zimmerwunsch")}<select value={room} onChange={(e) => setRoom(e.target.value)} className={inputCls}>{rooms.map((r) => <option key={r.id} value={r.id}>{bi(`${r.ar} | ${r.de}`)}</option>)}</select></label>
+    <label className={lbl}>{bi("ملاحظات الزائر | Hinweise")}<textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} /></label>
+    <div className="grid grid-cols-2 gap-1.5">
+      <select value={status} onChange={(e) => setStatus(e.target.value as "new")} className={inputCls}><option value="new">{bi(statusLabels["new"]!)}</option><option value="confirmed">{bi(statusLabels["confirmed"]!)}</option></select>
+      <select value={pay} onChange={(e) => setPay(e.target.value as "unpaid")} className={inputCls}>{Object.entries(payLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
+      <label className={lbl}>{bi("مدفوع | Bezahlt")} €<input type="number" min={0} value={paid} onChange={(e) => setPaid(Number(e.target.value) || 0)} className={inputCls} /></label>
+      <label className={lbl}>{bi("المجموع | Gesamt")} €<input type="number" min={0} value={total} onChange={(e) => setTotal(Number(e.target.value) || 0)} className={inputCls} /></label>
+    </div>
+    {errs.length > 0 && <ul className="rounded-md bg-destructive/10 p-2 font-bold text-destructive">{errs.map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
+    <div className="flex gap-1.5"><Button className="flex-1" disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{bi("حفظ | Speichern")}</Button><Button variant="ghost" onClick={() => void onDone()}>✕</Button></div>
+  </div>;
+}
