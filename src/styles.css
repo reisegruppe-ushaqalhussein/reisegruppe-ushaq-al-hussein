@@ -327,12 +327,10 @@
 
 @keyframes screen-enter {
   from {
-    opacity: 0;
-    transform: translateY(8px);
+    transform: translate3d(0, 6px, 0);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -353,7 +351,6 @@
 
 @utility alert-glow {
   box-shadow: 0 0 0 1px var(--color-secondary), 0 0 18px color-mix(in oklab, var(--color-secondary) 55%, transparent);
-  animation: alert-glow 2.4s ease-in-out infinite;
   @media (prefers-reduced-motion: reduce) { animation: none; }
 }
 @keyframes alert-glow {
