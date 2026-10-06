@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,90 @@ function travelerErrors(t: Traveler, i: number): string[] {
   return e;
 }
 
-function L({ ar, de }: { ar: string; de: string }) { return <LangText ar={ar} de={de} />; }
+/** Form content for label overrides; null outside the registration form. */
+const RegCtx = createContext<SiteContent | null>(null);
+/** Every form label: shows the admin's renamed text (keyed by its Arabic default) and a pencil for the admin. */
+function L({ ar, de }: { ar: string; de: string }) {
+  const content = useContext(RegCtx);
+  const o = content ? regOf(content).labels?.[ar] : undefined;
+  const cur = { ar: o?.ar || ar, de: o?.de || de };
+  return <><LangText ar={cur.ar} de={cur.de} />{content && <LabelPen content={content} id={ar} cur={cur} renamed={!!o} />}</>;
+}
+
+/** Saves a patch of the registration settings (admin only). */
+function useRegSave(content: SiteContent) {
+  const adminS = useAdminSession();
+  const qc = useQueryClient();
+  if (adminS?.role !== "admin") return null;
+  return async (patch: (reg: RegCfg) => RegCfg) => {
+    const reg = regOf(content);
+    try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: patch(reg) } } as never, "التسجيل | Anmeldung", qc); return true; }
+    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); return false; }
+  };
+}
+
+/** Pencil right beside a field name: opens the editor for exactly that field, pre-filled with its current name. */
+function LabelPen({ content, id, cur, renamed }: { content: SiteContent; id: string; cur: Lbl; renamed: boolean }) {
+  const save = useRegSave(content);
+  const [open, setOpen] = useState(false);
+  const [ar, setAr] = useState(cur.ar); const [de, setDe] = useState(cur.de);
+  if (!save) return null;
+  const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
+  const commit = async (v: Lbl | null) => { if (await save((r) => { const labels = { ...(r.labels ?? {}) }; if (v) labels[id] = v; else delete labels[id]; return { ...r, labels }; })) setOpen(false); };
+  if (!open) return <span role="button" tabIndex={0} aria-label="تعديل اسم الخانة | Feldname bearbeiten" onClick={(e) => { stop(e); setAr(cur.ar); setDe(cur.de); setOpen(true); }} className="ms-1 inline-grid h-5 w-5 shrink-0 cursor-pointer place-items-center rounded-full bg-secondary align-middle text-secondary-foreground shadow-sm"><Pencil className="h-2.5 w-2.5" /></span>;
+  return <span className="my-1.5 block space-y-1.5 rounded-md border-2 border-secondary bg-card p-2 text-xs font-normal text-foreground" onClick={(e) => e.stopPropagation()}>
+    <span className="block font-bold text-primary">✏️ تعديل هذه الخانة | Dieses Feld umbenennen</span>
+    <input dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="الاسم بالعربي" className={inputCls + " mt-0"} />
+    <input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Name auf Deutsch" className={inputCls + " mt-0"} />
+    <span className="flex gap-1.5"><Button type="button" size="sm" className="flex-1" onClick={(e) => { stop(e); void commit({ ar: ar.trim(), de: de.trim() }); }}>حفظ | Speichern</Button>{renamed && <Button type="button" size="sm" variant="outline" onClick={(e) => { stop(e); void commit(null); }}>↩️ الأصلي</Button>}<Button type="button" size="sm" variant="ghost" onClick={(e) => { stop(e); setOpen(false); }}>✕</Button></span>
+  </span>;
+}
+
+/** City + admin-added fields for one form step, with add / delete / required controls for the admin. */
+function ExtraFields({ content, step, values, onChange }: { content: SiteContent; step: 1 | 3; values: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+  const reg = regOf(content);
+  const save = useRegSave(content);
+  const [adding, setAdding] = useState(false);
+  const [ar, setAr] = useState(""); const [de, setDe] = useState(""); const [req, setReq] = useState(false);
+  const list = extraFields(reg).filter((f) => f.step === step);
+  const add = async () => {
+    if (!ar.trim() && !de.trim()) return;
+    const f: ExtraField = { id: `f${Date.now()}`, ar: ar.trim() || de.trim(), de: de.trim() || ar.trim(), step, ...(req ? { required: true } : {}) };
+    if (save && await save((r) => ({ ...r, extra: [...(r.extra ?? []), f] }))) { setAdding(false); setAr(""); setDe(""); setReq(false); }
+  };
+  const remove = (f: ExtraField) => { if (!save || !window.confirm("حذف هذه الخانة من الاستمارة؟ | Feld entfernen?")) return; void save((r) => f.id === "city" ? { ...r, cityOff: true } : { ...r, extra: (r.extra ?? []).filter((x) => x.id !== f.id) }); };
+  const toggleReq = (f: ExtraField) => save && f.id !== "city" && void save((r) => ({ ...r, extra: (r.extra ?? []).map((x) => x.id === f.id ? { ...x, required: !x.required } : x) }));
+  return <>
+    {list.map((f) => <div key={f.id}>
+      <label className="block font-bold"><L ar={f.ar} de={f.de} />{f.required && <span className="text-destructive"> *</span>}<input value={values[f.id] ?? ""} onChange={(e) => onChange({ ...values, [f.id]: e.target.value })} maxLength={200} className={inputCls} /></label>
+      {save && <span className="mt-1 flex gap-3 text-[11px]">{f.id !== "city" && <button type="button" className="text-primary underline" onClick={() => toggleReq(f)}>{f.required ? "إجباري ✓ | Pflicht" : "اختياري | Optional"}</button>}<button type="button" className="text-destructive underline" onClick={() => remove(f)}>🗑 حذف الخانة | Feld löschen</button></span>}
+    </div>)}
+    {save && step === 1 && reg.cityOff && <button type="button" className="text-[11px] text-primary underline" onClick={() => void save((r) => ({ ...r, cityOff: false }))}>↩️ إرجاع خانة مدينة السكن | Wohnort-Feld zurück</button>}
+    {save && (adding
+      ? <div className="space-y-1.5 rounded-md border-2 border-dashed border-secondary p-2 text-xs">
+          <p className="font-bold text-primary">➕ خانة جديدة | Neues Feld</p>
+          <input dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="اسم الخانة بالعربي" className={inputCls + " mt-0"} />
+          <input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Feldname auf Deutsch" className={inputCls + " mt-0"} />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={req} onChange={(e) => setReq(e.target.checked)} className="h-4 w-4 accent-secondary" />إجباري | Pflichtfeld</label>
+          <div className="flex gap-1.5"><Button type="button" size="sm" className="flex-1" onClick={() => void add()}>حفظ | Speichern</Button><Button type="button" size="sm" variant="ghost" onClick={() => setAdding(false)}>✕</Button></div>
+        </div>
+      : <Button type="button" size="sm" variant="outline" className="w-full border-dashed border-secondary text-xs" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" />إضافة خانة جديدة هنا | Neues Feld hier</Button>)}
+  </>;
+}
+
+/** Admin enters the hotel name per city for this trip; names appear in the leader's rooming list. */
+function HotelNames({ content, trip }: { content: SiteContent; trip: string }) {
+  const save = useRegSave(content);
+  const map = regOf(content).hotels ?? {};
+  const cities = hotelsFor(trip);
+  const [edit, setEdit] = useState<Record<string, string> | null>(null);
+  if (!save) return cities.some((c) => map[c]) ? <p className="text-muted-foreground">🏨 {cities.filter((c) => map[c]).map((c) => `${c}: ${map[c]}`).join(" · ")}</p> : null;
+  if (!edit) return <button type="button" className="w-full rounded-md border border-dashed border-secondary p-1.5 text-start font-bold text-primary" onClick={() => setEdit(Object.fromEntries(cities.map((c) => [c, map[c] ?? ""])))}>🏨 أسماء الفنادق | Hotels: {cities.map((c) => `${c.split(" / ")[0]}: ${map[c] || "—"}`).join(" · ")} <Pencil className="inline h-3 w-3" /></button>;
+  return <div className="space-y-1 rounded-md border-2 border-secondary bg-card p-2">
+    {cities.map((c) => <label key={c} className="block font-bold">{c}<input value={edit[c] ?? ""} onChange={(e) => setEdit({ ...edit, [c]: e.target.value })} maxLength={80} className={inputCls + " mt-0.5 py-1.5"} /></label>)}
+    <div className="flex gap-1.5"><Button type="button" size="sm" className="flex-1" onClick={async () => { if (await save((r) => ({ ...r, hotels: { ...(r.hotels ?? {}), ...Object.fromEntries(Object.entries(edit).map(([k, v]) => [k, v.trim()])) } }))) setEdit(null); }}>حفظ | Speichern</Button><Button type="button" size="sm" variant="ghost" onClick={() => setEdit(null)}>✕</Button></div>
+  </div>;
+}
 
 /** Splits legacy "ar | de" strings and shows them per language mode (both lines in dual mode). */
 const biFor = (lang: Parameters<typeof display>[0]) => (t: string) => {
@@ -159,7 +242,12 @@ function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Tra
 }
 
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
-type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string };
+type Lbl = { ar: string; de: string };
+type ExtraField = { id: string; ar: string; de: string; step: 1 | 3; required?: boolean };
+type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string> };
+const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 1 };
+const extraFields = (reg: RegCfg) => [...(reg.cityOff ? [] : [CITY]), ...(reg.extra ?? [])];
+const labelOf = (reg: RegCfg, f: ExtraField): Lbl => { const o = reg.labels?.[f.ar]; return { ar: o?.ar || f.ar, de: o?.de || f.de }; };
 const DRAFT_KEY = "booking-draft";
 const HIST_KEY = "booking-history";
 type History = Partial<Record<"email" | "phone" | "firstName" | "lastName" | "nationality" | "passportNo" | "relation", string[]>>;
@@ -190,6 +278,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const [travelers, setTravelers] = useState<Traveler[]>([blank("adult", "صاحب الطلب | Antragsteller")]);
   const [roomPref, setRoomPref] = useState("");
   const [notes, setNotes] = useState("");
+  const [extras, setExtras] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -202,15 +291,15 @@ export function BookingForm({ content }: { content: SiteContent }) {
       setHist(JSON.parse(localStorage.getItem(HIST_KEY) ?? "{}"));
       const at = Number(localStorage.getItem(PICK_KEY) ?? 0);
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
-      if (d && at && Date.now() - at < 10 * 60e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); }
+      if (d && at && Date.now() - at < 10 * 60e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); setExtras(d.extras ?? {}); }
       localStorage.removeItem(PICK_KEY); localStorage.removeItem(DRAFT_KEY); localStorage.removeItem("booking-profile");
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
-    const save = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes })); } catch { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t), roomPref, notes })); } catch { /* quota */ } } };
+    const save = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes, extras })); } catch { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t), roomPref, notes, extras })); } catch { /* quota */ } } };
     window.addEventListener("booking-picking", save);
     return () => window.removeEventListener("booking-picking", save);
-  }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes]);
+  }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes, extras]);
 
   const chosen = trips.find((t) => t.id === trip);
   const tripName = trip === OTHER ? otherTrip.trim() : chosen ? `${chosen.ar} | ${chosen.de}` : "";
@@ -218,11 +307,13 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const airport = airportSel === OTHER ? otherAirport.trim() : airportSel;
   const setT = (i: number, patch: Partial<Traveler>) => setTravelers((l) => l.map((t, j) => (j === i ? { ...t, ...patch } : t)));
 
+  const fields = extraFields(reg);
+  const missingExtra = (st: number) => fields.filter((f) => f.step === st && f.required && !(extras[f.id] ?? "").trim()).map((f) => `${labelOf(reg, f).ar} | ${labelOf(reg, f).de}`);
   const validate = (s: number): string[] => {
     if (s === 0) { const e: string[] = []; if (!tripName) e.push("اختر الرحلة أو اكتب الوجهة | Bitte Reise wählen oder Reiseziel eingeben"); else if (trip === OTHER && !tripDate) e.push("اكتب التاريخ المطلوب | Bitte Wunschdatum angeben"); if (airport.length < 2) e.push("اختر مطار الانطلاق | Bitte Abflughafen wählen"); return e; }
-    if (s === 1) { const e: string[] = []; if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.push("البريد الإلكتروني | E-Mail"); if (!/^[+0-9 ()-]{6,30}$/.test(phone.trim())) e.push("رقم الواتساب | WhatsApp-Nummer"); return e; }
+    if (s === 1) { const e: string[] = []; if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.push("البريد الإلكتروني | E-Mail"); if (!/^[+0-9 ()-]{6,30}$/.test(phone.trim())) e.push("رقم الواتساب | WhatsApp-Nummer"); return [...e, ...missingExtra(1)]; }
     if (s === 2) { const e = travelers.flatMap(travelerErrors); if (!travelers.some((t) => t.category === "adult")) e.push("يجب وجود بالغ واحد على الأقل | Mindestens ein Erwachsener"); return e; }
-    if (s === 3) return consent ? [] : ["الرجاء تأكيد صحة البيانات | Bitte Richtigkeit bestätigen"];
+    if (s === 3) return [...missingExtra(3), ...(consent ? [] : ["الرجاء تأكيد صحة البيانات | Bitte Richtigkeit bestätigen"])];
     return [];
   };
   const next = () => { const e = validate(step); setErrors(e); if (!e.length) { setStep(step + 1); window.scrollTo({ top: 0, behavior: "smooth" }); } };
@@ -232,7 +323,10 @@ export function BookingForm({ content }: { content: SiteContent }) {
     if (all.length) return;
     setBusy(true);
     try {
-      const r = await submit({ data: { trip: tripName, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
+      // Extra answers (city + admin-added fields) travel inside the notes, so they reach emails, lists and exports.
+      const extraLines = fields.filter((f) => (extras[f.id] ?? "").trim()).map((f) => `${f.id === "city" ? "📍" : "•"} ${labelOf(reg, f).ar} / ${labelOf(reg, f).de}: ${extras[f.id]!.trim()}`);
+      const fullNotes = [...extraLines, notes.trim()].filter(Boolean).join("\n").slice(0, 2000);
+      const r = await submit({ data: { trip: tripName, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes: fullNotes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
       try { localStorage.setItem(HIST_KEY, JSON.stringify(remember(hist, { email: [email], phone: [phone], firstName: travelers.map((t) => t.firstName), lastName: travelers.map((t) => t.lastName), nationality: travelers.map((t) => t.nationality), passportNo: travelers.map((t) => t.passportNo), relation: travelers.map((t) => t.relation) }))); } catch { /* ignore */ }
       setDone(r.ref);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -254,7 +348,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   </section>;
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
-  return <>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
+  return <RegCtx.Provider value={content}>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
       <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span><EditPen content={content} k="title" label="عنوان الاستمارة" /></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
@@ -282,6 +376,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
       {step === 1 && <>
         <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" list="bk-emails" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /><Sugg id="bk-emails" items={hist.email} /></label>
         <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" list="bk-phones" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /><Sugg id="bk-phones" items={hist.phone} /></label>
+        <ExtraFields content={content} step={1} values={extras} onChange={setExtras} />
         <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground"><L ar="للاستفسار: ushaqalhussein.contact@gmail.com" de="Fragen: ushaqalhussein.contact@gmail.com" /></p>
       </>}
 
@@ -317,9 +412,10 @@ export function BookingForm({ content }: { content: SiteContent }) {
       </>}
 
       {step === 3 && <>
-        <div className="rounded-md bg-muted p-3"><p className="font-bold text-primary">{tripName}</p>{tripDate && <p dir="ltr" className="text-xs text-muted-foreground">{tripDate}</p>}<p className="mt-1 text-xs"><Users className="me-1 inline h-3.5 w-3.5" />{travelers.length} — <L ar={`بالغ ${travelers.filter((t) => t.category === "adult").length}، طفل ${travelers.filter((t) => t.category === "child").length}، رضيع ${travelers.filter((t) => t.category === "infant").length}`} de={`Erw. ${travelers.filter((t) => t.category === "adult").length}, Kind ${travelers.filter((t) => t.category === "child").length}, Kleinkind ${travelers.filter((t) => t.category === "infant").length}`} /></p></div>
+        <div className="rounded-md bg-muted p-3"><p className="font-bold text-primary">{tripName}</p>{tripDate && <p dir="ltr" className="text-xs text-muted-foreground">{tripDate}</p>}<p className="mt-1 text-xs"><Users className="me-1 inline h-3.5 w-3.5" />{travelers.length} — <LangText ar={`بالغ ${travelers.filter((t) => t.category === "adult").length}، طفل ${travelers.filter((t) => t.category === "child").length}، رضيع ${travelers.filter((t) => t.category === "infant").length}`} de={`Erw. ${travelers.filter((t) => t.category === "adult").length}, Kind ${travelers.filter((t) => t.category === "child").length}, Kleinkind ${travelers.filter((t) => t.category === "infant").length}`} /></p></div>
         <div><p className="mb-1 font-bold"><L ar="تفضيل الغرفة" de="Zimmerwunsch" /></p><div className="grid grid-cols-2 gap-1.5">{rooms.map((r) => <button key={r.id} type="button" onClick={() => setRoomPref(r.id)} className={`rounded-md border py-2 text-xs font-bold ${roomPref === r.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={r.ar} de={r.de} center /></button>)}</div></div>
-        <label className="block font-bold"><L ar="ملاحظات (حالة صحية، كرسي متحرك، طعام…)" de="Hinweise (Gesundheit, Rollstuhl, Essen …)" /><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} className={inputCls} /></label>
+        <label className="block font-bold"><L ar="ملاحظات (حالة صحية، كرسي متحرك، طعام…)" de="Hinweise (Gesundheit, Rollstuhl, Essen …)" /><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1500} className={inputCls} /></label>
+        <ExtraFields content={content} step={3} values={extras} onChange={setExtras} />
         <label className="flex items-start gap-2 rounded-md border border-border p-3"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-4 w-4 accent-secondary" /><span className="text-xs leading-relaxed"><L ar="أؤكد أن جميع البيانات مطابقة للجوازات، وأوافق على استخدامها لحجز الطيران والفندق وطلب التأشيرة فقط." de="Ich bestätige, dass alle Angaben den Reisepässen entsprechen, und stimme der Nutzung nur für Flug, Hotel und Visum zu." /></span></label>
       </>}
 
@@ -330,7 +426,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
           : <Button type="button" disabled={busy} className="h-12 flex-[2] bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={send}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}<L ar="تأكيد وإرسال الطلب" de="Anmeldung absenden" /></Button>}
       </div>
     </div>
-  </section></>;
+  </section></RegCtx.Provider>;
 }
 
 const statusLabels: Record<string, string> = { new: "جديد | Neu", confirmed: "مؤكد | Bestätigt", cancelled: "ملغى | Storniert" };
@@ -358,7 +454,7 @@ export const personKey = (t: Record<string, string | undefined>) => {
   return k[0] && k[1] && (k[2] || k[3]) ? k.join("|") : "";
 };
 const uniqTravelers = (rows: BookingRow[]) => { const seen = new Set<string>(); return rows.map((r) => ({ ...r, travelers: r.travelers.filter((t) => { const k = personKey(t); if (!k) return true; if (seen.has(k)) return false; seen.add(k); return true; }) })).filter((r) => r.travelers.length > 0); };
-function sheetOf(kind: Kind, rows: BookingRow[]): Sheet {
+function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string> = {}): Sheet {
   const lv = uniqTravelers(live(rows));
   const all = lv.flatMap((r) => r.travelers);
   const cnt = (p: string) => all.filter((t) => paxOf(t) === p).length;
@@ -386,9 +482,10 @@ function sheetOf(kind: Kind, rows: BookingRow[]): Sheet {
       body.push({ pax, cells: [++n, r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${t["relation"] ? ` (${t["relation"]})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", roomName(r.room_pref), r.notes ?? "", ...hotels.map(() => ""), ""] });
     });
   });
+  const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
   return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 30, 7, 16, 16, 12, 22, 28, ...hotels.map(() => 18), 26],
-    info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`],
-    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "الغرفة المطلوبة / Zimmerwunsch", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}\nفندق-غرفة / Hotel-Zi.`), "ملاحظات الحاج / Notizen"],
+    info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
+    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "الغرفة المطلوبة / Zimmerwunsch", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\nرقم الغرفة / Zimmer-Nr.`), "ملاحظات الحاج / Notizen"],
     body };
 }
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
@@ -462,13 +559,14 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   };
   const problems = shown.filter((r) => issuesOf(r).length > 0).length;
   const fname = (kind: Kind) => `${kind === "visa" ? "Visa" : kind === "flight" ? "Airline" : "Leiterliste"}-${fileSafe(filter)}`;
+  const hotelMap = regOf(content).hotels ?? {};
   const xls = (kind: Kind) => {
-    const blob = buildXlsx([sheetXlsx(sheetOf(kind, shown), filter)]);
+    const blob = buildXlsx([sheetXlsx(sheetOf(kind, shown, hotelMap), filter)]);
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${fname(kind)}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
   };
   const printList = (kind: Kind) => {
     const w = window.open("", "_blank"); if (!w) return;
-    w.document.write(printHtml(sheetOf(kind, shown), filter)); w.document.close();
+    w.document.write(printHtml(sheetOf(kind, shown, hotelMap), filter)); w.document.close();
   };
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
@@ -481,6 +579,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
     {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
     {filter !== "all" && !trashView && <div className="mt-2 space-y-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
+      <HotelNames content={content} trip={filter} />
       <p className="font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
       {([["flight", "✈️ قائمة شركة الطيران | Airline-Liste"], ["visa", "🛂 قائمة الفيز | Visum-Liste"], ["rooms", "🧭 قائمة الحاج: التجمّع والتسكين | Leiterliste"]] as const).map(([k, label]) => <div key={k} className="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
         <span className="font-bold">{bi(label)}</span>
