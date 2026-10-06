@@ -178,3 +178,52 @@ export const bookingFileUrl = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const, url: s.signedUrl };
   });
+
+/** Reads a passport page (MRZ first) with AI and returns fields for the form; the user always reviews them. */
+export const scanPassport = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ image: z.string().min(100).max(4_000_000), type: z.enum(["image/jpeg", "image/png", "image/webp"]) }).parse(d))
+  .handler(async ({ data }) => {
+    const key = process.env["LOVABLE_API_KEY"];
+    if (!key) return { ok: false as const, error: "AI not configured" };
+    const props = { firstName: "string", lastName: "string", gender: "string", birthDate: "string", nationality: "string", passportNo: "string", passportExpiry: "string", readable: "boolean" } as const;
+    const schema = { type: "object", additionalProperties: false, required: Object.keys(props), properties: Object.fromEntries(Object.entries(props).map(([k, t]) => [k, { type: t }])) };
+    const prompt = "Read this passport data page. Use the MRZ (machine readable zone, the two lines of <<< at the bottom) as the primary source and verify against the printed fields. Return: firstName = all given names exactly as in the MRZ (Latin capitals, '<' becomes space), lastName = surname(s) exactly as in the MRZ, gender = 'm' or 'f' or '', birthDate and passportExpiry as YYYY-MM-DD (resolve 2-digit years sensibly: expiry is in the future, birth in the past), nationality = country name in English (e.g. GERMANY, IRAQ), passportNo = document number without spaces or '<'. readable=false and empty strings if this is not a passport or not legible. Never guess.";
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Lovable-API-Key": key, Authorization: `Bearer ${key}`, "X-Lovable-AIG-SDK": "fetch" },
+      body: JSON.stringify({
+        model: "openai/gpt-6-astra", stream: true, store: false,
+        reasoning: { effort: "low" },
+        text: { format: { type: "json_schema", name: "passport", strict: true, schema } },
+        input: [{ role: "user", content: [{ type: "input_text", text: prompt }, { type: "input_image", image_url: `data:${data.type};base64,${data.image}` }] }],
+      }),
+    });
+    if (!res.ok || !res.body) {
+      console.error("scanPassport", res.status, await res.text().catch(() => ""));
+      return { ok: false as const, error: res.status === 402 ? "AI credits exhausted" : res.status === 429 ? "Busy, try again shortly" : `AI error ${res.status}` };
+    }
+    const reader = res.body.getReader(); const dec = new TextDecoder();
+    let buf = "", out = "";
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n"); buf = lines.pop() ?? "";
+      for (const l of lines) {
+        if (!l.startsWith("data:")) continue;
+        try { const ev = JSON.parse(l.slice(5).trim()) as { type?: string; delta?: string }; if (ev.type === "response.output_text.delta" && ev.delta) out += ev.delta; } catch { /* skip */ }
+      }
+    }
+    try {
+      const p = JSON.parse(out) as Record<string, string | boolean>;
+      if (!p["readable"]) return { ok: false as const, error: "unreadable" };
+      const s = (k: string) => String(p[k] ?? "").trim();
+      const date = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s(k)) ? s(k) : "");
+      return { ok: true as const, fields: {
+        firstName: s("firstName").toUpperCase().replace(/[^A-Z '\-]/g, " ").replace(/\s+/g, " ").trim(),
+        lastName: s("lastName").toUpperCase().replace(/[^A-Z '\-]/g, " ").replace(/\s+/g, " ").trim(),
+        gender: (s("gender") === "m" || s("gender") === "f" ? s("gender") : "") as "m" | "f" | "",
+        birthDate: date("birthDate"), passportExpiry: date("passportExpiry"),
+        nationality: s("nationality").slice(0, 60), passportNo: s("passportNo").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20),
+      } };
+    } catch { console.error("scanPassport parse", out.slice(0, 300)); return { ok: false as const, error: "unreadable" }; }
+  });
