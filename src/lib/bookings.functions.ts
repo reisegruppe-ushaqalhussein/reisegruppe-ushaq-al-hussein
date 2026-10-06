@@ -131,7 +131,9 @@ export const submitBooking = createServerFn({ method: "POST" })
 
     await Promise.allSettled([
       pushStaff(`🔔 حجز جديد ${ref}`, `${name} — ${data.trip} — ${travelers.length} مسافر — ${air}`),
-      sendMail(CAMPAIGN_EMAIL, `Neue Buchung | حجز جديد ${ref} — ${lead.lastName}`, `${sumDe}\n\nE-Mail: ${data.email}\nTelefon: ${data.phone}`, data.email),
+      sendMail(CAMPAIGN_EMAIL, `Neue Buchung | حجز جديد ${ref} — ${lead.lastName}`,
+        `حجز جديد — رقم الطلب: ${ref}\n\n${sumAr}\n\nالمسافرون:\n${travelers.map((t, i) => `${i + 1}. ${t.lastName}/${t.firstName} — ${t.category === "infant" ? "رضيع" : t.category === "child" ? "طفل" : "بالغ"} — الميلاد ${t.birthDate} — الجواز ${t.passportNo} (ينتهي ${t.passportExpiry}) — ${t.nationality}${t.relation ? ` — ${t.relation}` : ""}`).join("\n")}\n\nالإيميل: ${data.email}\nالهاتف: ${data.phone}`
+        + `${sep}Neue Buchung — Buchungsnummer: ${ref}\n\n${sumDe}\n\nE-Mail: ${data.email}\nTelefon: ${data.phone}`, data.email),
       sendMail(data.email, `Eingangsbestätigung ${ref} — Reisegruppe Ushaq al-Hussein DE`, `${de}${sep}${ar}`),
     ]);
     return { ok: true as const, ref };
@@ -157,6 +159,7 @@ export const updateBooking = createServerFn({ method: "POST" })
     paid_amount: z.number().min(0).max(1_000_000).optional(),
     total_amount: z.number().min(0).max(1_000_000).optional(),
     admin_notes: z.string().max(2000).optional(),
+    travelers: z.array(z.record(z.string(), z.string().max(500))).max(30).optional(),
     remove: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
