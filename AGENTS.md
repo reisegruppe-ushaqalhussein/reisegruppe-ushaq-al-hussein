@@ -33,7 +33,6 @@
 
 - Bookings live in the `bookings` table + private `booking-docs` bucket, service-role only, reached via password-checked server fns in `src/lib/bookings.functions.ts`; emails go through the linked Gmail connector and staff push uses `push_tokens.staff`, because pilgrims have no accounts.
 - Staff code checks live in `src/lib/roles.server.ts`, because exporting them from a client-imported module leaks node:crypto into the browser.
-- Luggage tags are drawn on canvas at 300 dpi in `src/components/luggage-tags.tsx` with fixed mm sheet grids; the Iraq tag draws only the visitor name over the leader-approved template image (classic drawn version and a device-stored uploaded design as backups), because the laminator cutter needs exact card sizes and the leader owns the design.
-- Passport OCR is the public `scanPassport` server fn (AI reads MRZ, returns fields only, stores nothing); it only pre-fills editable form fields and its toggle/hint live in `cms.registration`, because manual entry must always remain the source of truth.
-- Booking exports are real .xlsx built in `src/lib/xlsx.ts` (fflate + OpenXML, no heavy lib), one file per trip; airline/visa lists hold only officially required columns, because mobile Excel rejects HTML .xls and agencies want clean lists.
-- Staff add notebook bookings via `addManualBooking` (files optional, no emails) and edit any booking with the same form, because pre-app bookings must appear in every list.
+- Luggage tags are drawn on canvas at 300 dpi in `src/components/luggage-tags.tsx` with fixed mm sheet grids; the Iraq tag draws only the visitor name over the leader-approved template image, because the laminator cutter needs exact card sizes and the leader owns the design.
+- Passport OCR is the public `scanPassport` server fn; it only pre-fills editable form fields and its toggle/hint live in `cms.registration`, because manual entry must always remain the source of truth.
+- Booking exports are real .xlsx from `src/lib/xlsx.ts`, one per trip; staff add/edit bookings via `addManualBooking`/`updateBooking` (no files/emails), because mobile Excel rejects .xls and notebook bookings must reach every list.
