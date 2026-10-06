@@ -1,0 +1,1 @@
+- Luggage tags are drawn on canvas at 300 dpi in `src/components/luggage-tags.tsx` with fixed mm sheet grids; the Iraq tag draws only the visitor name over the leader-approved template image, because the laminator cutter needs exact card sizes and the leader owns the design.

@@ -7,7 +7,8 @@ import { useAdminSession, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
-import { bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
+import { addManualBooking, bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
+import { buildXlsx, type XSheet } from "@/lib/xlsx";
 import type { SiteContent } from "@/lib/site-content";
 
 type Cat = "adult" | "child" | "infant";
@@ -345,25 +346,61 @@ const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === i
 /** One group per trip + date so each journey gets its own list. */
 const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
-type Sheet = { title: string; head: string[]; body: Array<{ cells: unknown[]; pax: string }> };
-function sheetOf(kind: "flight" | "visa", rows: BookingRow[]): Sheet {
-  const live = rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
+type Kind = "flight" | "visa" | "rooms";
+type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; body: Array<{ cells: unknown[]; pax: string; band?: boolean }>; tall?: number };
+const live = (rows: BookingRow[]) => rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
+const hotelsFor = (trip: string) => { const d = destOf(trip); return d === "umrah" ? ["مكة / Mekka", "المدينة / Medina"] : d === "iran" ? ["مشهد / Mashhad", "قم / Qom"] : ["الكاظمية / Kadhimiya", "كربلاء / Karbala", "النجف / Najaf"]; };
+const groupOf = (r: BookingRow) => r.travelers.length > 1 ? 0 : r.travelers[0]?.["gender"] === "f" ? 2 : 1;
+const groupNames = ["👪 عائلات ومجموعات / Familien & Gruppen", "👨 شباب منفردون / Einzelreisende Männer", "🧕 نساء منفردات / Einzelreisende Frauen"];
+function sheetOf(kind: Kind, rows: BookingRow[]): Sheet {
+  const lv = live(rows);
+  const all = lv.flatMap((r) => r.travelers);
+  const cnt = (p: string) => all.filter((t) => paxOf(t) === p).length;
+  const total = `TOTAL ${all.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")}`;
   let n = 0;
-  if (kind === "visa") return { title: "VISA LIST", head: ["NO", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "VISA TYPE", "VISA STATUS", "BOOKING REF", "PHONE"],
-    body: live.flatMap((r) => r.travelers.map((t) => ({ pax: paxOf(t), cells: [++n, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[paxOf(t)], t["nationality"], t["passportNo"], t["passportExpiry"], destOf(r.trip) === "umrah" ? "UMRAH (NUSUK)" : destOf(r.trip) === "iran" ? "IRAN VISA" : "IRAQ E-VISA", visaEn[t["visa"] || "none"], r.ref, r.contact_phone] }))) };
-  return { title: "PASSENGER MANIFEST", head: ["NO", "TITLE", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX TYPE", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "DEP. AIRPORT", "BOOKING REF", "STATUS", "PHONE", "ROOM"],
-    body: live.flatMap((r) => r.travelers.map((t) => { const p = paxOf(t); return { pax: p, cells: [++n, p === "ADT" ? (t["gender"] === "f" ? "MRS" : "MR") : p === "CHD" ? (t["gender"] === "f" ? "MISS" : "MSTR") : "INF", t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[p], t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], r.ref, r.status.toUpperCase(), r.contact_phone, roomName(r.room_pref)] }; })) };
+  if (kind === "visa") return { title: "VISA APPLICATION LIST", info: [total], widths: [5, 32, 16, 14, 16, 14, 16, 16],
+    head: ["NO", "FULL NAME", "NATIONALITY", "DATE OF BIRTH", "PASSPORT NO", "PASSPORT TYPE", "PASSPORT EXPIRY", "PAX"],
+    body: lv.flatMap((r) => r.travelers.map((t) => ({ pax: paxOf(t), cells: [++n, `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.trim(), t["nationality"], t["birthDate"], t["passportNo"], "ORDINARY", t["passportExpiry"], paxMark[paxOf(t)]] }))) };
+  if (kind === "flight") return { title: "PASSENGER LIST", info: [total], widths: [5, 18, 22, 8, 14, 18, 16, 16, 16, 14],
+    head: ["NO", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX TYPE", "PASSPORT NO", "NATIONALITY", "PASSPORT EXPIRY", "DEP. AIRPORT"],
+    body: lv.flatMap((r) => r.travelers.map((t) => { const p = paxOf(t); return { pax: p, cells: [++n, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[p], t["passportNo"], t["nationality"], t["passportExpiry"], t["airport"]] }; })) };
+  // Leader's rooming / gathering sheet: one row per booking, grouped families / men / women.
+  const hotels = hotelsFor(lv[0]?.trip ?? "");
+  const air = new Map<string, number>();
+  all.forEach((t) => air.set(t["airport"] || "?", (air.get(t["airport"] || "?") ?? 0) + 1));
+  const body: Sheet["body"] = [];
+  [0, 1, 2].forEach((g) => {
+    const list = lv.filter((r) => groupOf(r) === g);
+    if (!list.length) return;
+    body.push({ band: true, pax: "", cells: [`${groupNames[g]} (${list.length})`] });
+    list.forEach((r) => {
+      const c = { ADT: 0, CHD: 0, INF: 0 } as Record<string, number>;
+      r.travelers.forEach((t) => c[paxOf(t)]!++);
+      const pax = c["INF"] ? "INF" : c["CHD"] ? "CHD" : "ADT";
+      body.push({ pax, cells: [++n, r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${t["relation"] ? ` (${t["relation"]})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", roomName(r.room_pref), r.notes ?? "", ...hotels.map(() => ""), ""] });
+    });
+  });
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 30, 7, 16, 16, 12, 22, 28, ...hotels.map(() => 18), 26],
+    info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`],
+    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "الغرفة المطلوبة / Zimmerwunsch", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}\nفندق-غرفة / Hotel-Zi.`), "ملاحظات الحاج / Notizen"],
+    body };
 }
-const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-function sheetHtml(s: Sheet, group: string, forPrint: boolean) {
-  const cnt = (p: string) => s.body.filter((b) => b.pax === p).length;
-  const tr = s.body.map((b) => `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"}">${b.cells.map((c, i) => `<td style="border:1px solid #888;padding:4px;mso-number-format:'\\@';${i === 6 || i === 5 ? "font-weight:bold" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("");
-  return `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><title>${esc(s.title)} – ${esc(group)}</title>${forPrint ? `<meta name="viewport" content="width=device-width,initial-scale=1"><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style>` : ""}</head><body style="font-family:Arial">
-${forPrint ? `<button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>` : ""}
-<table style="border-collapse:collapse"><tr><td colspan="${s.head.length}" style="font-size:16px;font-weight:bold">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</td></tr>
-<tr><td colspan="${s.head.length}" style="font-weight:bold">${esc(group)}</td></tr>
-<tr><td colspan="${s.head.length}">TOTAL ${s.body.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")} — ${new Date().toISOString().slice(0, 10)}</td></tr>
-<tr>${s.head.map((h) => `<th style="border:1px solid #333;background:#1f2a44;color:#fff;padding:5px">${h}</th>`).join("")}</tr>${tr}</table></body></html>`;
+const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+function printHtml(s: Sheet, group: string) {
+  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>@page{size:A4 landscape;margin:8mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:4px;vertical-align:top}th{background:#1f2a44;color:#fff}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style></head><body>
+<button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>
+<h2 style="margin:4px 0">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</h2><p style="margin:2px 0"><b>${esc(group)}</b></p>${s.info.map((i) => `<p style="margin:2px 0">${esc(i)}</p>`).join("")}
+<table><tr>${s.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
+}
+function sheetXlsx(s: Sheet, group: string): XSheet {
+  const rows: XSheet["rows"] = [
+    [{ v: `${s.title} — Reisegruppe Ushaq al-Hussein DE`, s: 2 }], [{ v: group, s: 2 }],
+    ...s.info.map((i) => [{ v: i }]), [{ v: `${new Date().toISOString().slice(0, 10)}` }],
+    s.head.map((h) => ({ v: h, s: 1 })),
+    ...s.body.map((b) => b.band ? [{ v: b.cells[0], s: 6 }] : b.cells.map((c) => ({ v: c, s: b.pax === "INF" ? 4 : b.pax === "CHD" ? 3 : 5 }))),
+  ];
+  return { name: s.title.includes("VISA") ? "Visa" : s.title.includes("PASSENGER") ? "Airline" : "Leader", widths: s.widths, rows, tall: s.tall };
 }
 /** Mismatch / missing-data warnings shown to staff on each booking. */
 function issuesOf(r: BookingRow): string[] {
@@ -404,6 +441,13 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
   const trips = useMemo(() => [...new Set((rows ?? []).filter((r) => r.status !== "deleted").map(groupKey))], [rows]);
   const [trashView, setTrashView] = useState(false);
+  const [editing, setEditing] = useState<BookingRow | "new" | null>(null);
+  const tripOptions = useMemo(() => {
+    const m = new Map<string, { trip: string; date: string }>();
+    content.trips.filter((t) => !t.hidden).forEach((t) => m.set(`${t.ar} | ${t.de}`, { trip: `${t.ar} | ${t.de}`, date: t.date ?? "" }));
+    (rows ?? []).forEach((r) => { if (!m.has(r.trip)) m.set(r.trip, { trip: r.trip, date: r.trip_date ?? "" }); });
+    return [...m.values()];
+  }, [rows, content.trips]);
   if (!s) return null;
   const trashed = (rows ?? []).filter((r) => r.status === "deleted");
   const shown = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && (filter === "all" || groupKey(r) === filter));
@@ -411,14 +455,14 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     try { await update({ data: { password: s.password, id: r.id, ...p } as never }); await load(); } catch (e) { window.alert(String(e)); }
   };
   const problems = shown.filter((r) => issuesOf(r).length > 0).length;
-  const xls = (kind: "flight" | "visa") => {
-    const html = sheetHtml(sheetOf(kind, shown), filter, false);
-    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${kind === "visa" ? "Visa" : "Airline"}-${fileSafe(filter)}.xls`; a.click();
+  const fname = (kind: Kind) => `${kind === "visa" ? "Visa" : kind === "flight" ? "Airline" : "Leiterliste"}-${fileSafe(filter)}`;
+  const xls = (kind: Kind) => {
+    const blob = buildXlsx([sheetXlsx(sheetOf(kind, shown), filter)]);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${fname(kind)}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
   };
-  const printList = (kind: "flight" | "visa") => {
+  const printList = (kind: Kind) => {
     const w = window.open("", "_blank"); if (!w) return;
-    w.document.write(sheetHtml(sheetOf(kind, shown), filter, true)); w.document.close();
+    w.document.write(printHtml(sheetOf(kind, shown), filter)); w.document.close();
   };
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
@@ -428,15 +472,18 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-    {filter !== "all" && !trashView && <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
-      <p className="col-span-2 font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
-      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => xls("flight")}>{bi("✈️ إكسل الطيران | Excel Airline")}</Button>
-      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => xls("visa")}>{bi("🛂 إكسل الفيز | Excel Visum")}</Button>
-      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => printList("flight")}>{bi("🖨 طباعة/PDF الطيران | Druck Airline")}</Button>
-      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => printList("visa")}>{bi("🖨 طباعة/PDF الفيز | Druck Visum")}</Button>
-      <p className="col-span-2 text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر | Kinder gelb, Kleinkinder rot markiert")}</p>
+    {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
+    {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
+    {filter !== "all" && !trashView && <div className="mt-2 space-y-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
+      <p className="font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
+      {([["flight", "✈️ قائمة شركة الطيران | Airline-Liste"], ["visa", "🛂 قائمة الفيز | Visum-Liste"], ["rooms", "🧭 قائمة الحاج: التجمّع والتسكين | Leiterliste"]] as const).map(([k, label]) => <div key={k} className="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
+        <span className="font-bold">{bi(label)}</span>
+        <Button size="sm" variant="outline" onClick={() => xls(k)}><Download className="h-3.5 w-3.5" />Excel</Button>
+        <Button size="sm" variant="outline" onClick={() => printList(k)}>🖨 PDF</Button>
+      </div>)}
+      <p className="text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر | Kinder gelb, Kleinkinder rot markiert")}</p>
     </div>}
-    {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
+    {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز وقائمة الحاج الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
@@ -464,6 +511,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           </div>
           <p>{bi("المتبقي | Rest: ")}<b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
           <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder={bi("ملاحظات الإدارة | Interne Notiz")} onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
+          {!trashView && <Button size="sm" variant="outline" className="w-full" onClick={() => setEditing(r)}><Pencil className="h-3.5 w-3.5" />{bi("تعديل بيانات الحجز والمسافرين | Buchung bearbeiten")}</Button>}
           {trashView
             ? <div className="flex gap-3"><button type="button" className="font-bold text-primary underline" onClick={() => void patch(r, { status: "new" })}>{bi("↩️ استرجاع | Wiederherstellen")}</button><button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف نهائي بلا رجعة؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف نهائي | Endgültig löschen")}</button></div>
             : <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("نقل الحجز إلى سلة المحذوفات؟ | In den Papierkorb?")) void patch(r, { status: "deleted" }); }}>{bi("🗑 نقل للسلة | In den Papierkorb")}</button>}
@@ -515,5 +563,86 @@ function RegSettings({ content }: { content: SiteContent }) {
     {!reg.ocrOff && <Button size="sm" variant={reg.ocrPublic ? "default" : "outline"} className="mt-1.5 w-full whitespace-normal" onClick={() => void saveReg({ ocrPublic: !reg.ocrPublic })}>{bi(reg.ocrPublic ? "👥 المسح متاح للزوار — اضغط لحصره بالإدارة والحاج | Scan für alle – nur Leitung" : "🔐 المسح للإدارة والحاج فقط — اضغط لإتاحته للزوار | Scan nur Leitung – für alle öffnen")}</Button>}
     <p className="mt-2 flex items-center gap-1 text-muted-foreground"><Pencil className="h-3 w-3" />{bi("لتعديل أي نص اضغط القلم الذهبي بجانبه | Zum Bearbeiten den goldenen Stift neben dem Text tippen")}</p>
     <div className="mt-1 flex items-center gap-1">{bi("ملاحظة أعلى الاستمارة | Hinweis oben")}<EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /> · {bi("نص تعريفي | Einleitung")}<EditPen content={content} k="intro" label="النص التعريفي" /></div>
+  </div>;
+}
+
+type MT = Record<string, string>;
+const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
+
+/** Staff form to add a notebook booking (or edit any booking). Files optional, no emails sent. */
+function ManualBooking({ row, trips, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string }>; password: string; onDone: () => Promise<void> }) {
+  const { lang } = useLang();
+  const bi = biFor(lang);
+  const add = useServerFn(addManualBooking);
+  const update = useServerFn(updateBooking);
+  const [trip, setTrip] = useState(row?.trip ?? trips[0]?.trip ?? "");
+  const [tripDate, setTripDate] = useState(row?.trip_date ?? trips[0]?.date ?? "");
+  const [phone, setPhone] = useState(row?.contact_phone ?? "");
+  const [email, setEmail] = useState(row?.contact_email ?? "");
+  const [room, setRoom] = useState(row?.room_pref ?? "leader");
+  const [notes, setNotes] = useState(row?.notes ?? "");
+  const [status, setStatus] = useState<"new" | "confirmed">(row ? (row.status === "confirmed" ? "confirmed" : "new") : "confirmed");
+  const [pay, setPay] = useState<"unpaid" | "partial" | "paid">((row?.payment_status as "unpaid") ?? "unpaid");
+  const [paid, setPaid] = useState(row?.paid_amount ?? 0);
+  const [total, setTotal] = useState(row?.total_amount ?? 0);
+  const [tr, setTr] = useState<MT[]>(row ? row.travelers.map((t) => ({ ...blankMT(), ...t })) : [blankMT()]);
+  const [busy, setBusy] = useState(false);
+  const [errs, setErrs] = useState<string[]>([]);
+  const setT = (i: number, k: string, v: string) => setTr((a) => a.map((t, j) => j !== i ? t : { ...t, [k]: v, ...(k === "birthDate" && v ? { category: catOf(v) } : {}) }));
+  const save = async () => {
+    const e: string[] = [];
+    if (!trip.trim()) e.push("اختر الرحلة | Reise wählen");
+    tr.forEach((t, i) => {
+      if (!/^[A-Za-z][A-Za-z '\-]*$/.test(t["firstName"]!.trim()) || !/^[A-Za-z][A-Za-z '\-]*$/.test(t["lastName"]!.trim())) e.push(`#${i + 1}: الاسم واللقب بأحرف لاتينية كما في الجواز | Name lateinisch wie im Pass`);
+      if (!t["gender"]) e.push(`#${i + 1}: الجنس | Geschlecht`);
+      if (t["passportNo"] && !/^[A-Za-z0-9]{5,20}$/.test(t["passportNo"].trim())) e.push(`#${i + 1}: رقم الجواز غير صحيح | Passnummer ungültig`);
+    });
+    setErrs(e); if (e.length) return;
+    const travelers = tr.map((t) => Object.fromEntries(Object.entries({ ...t, firstName: t["firstName"]!.trim().toUpperCase(), lastName: t["lastName"]!.trim().toUpperCase(), passportNo: (t["passportNo"] ?? "").trim().toUpperCase() }).filter(([, v]) => typeof v === "string")) as MT);
+    setBusy(true);
+    try {
+      const common = { trip: trip.trim(), trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), room_pref: room, notes, travelers };
+      if (row) await update({ data: { password, id: row.id, ...common, ...(row.status === "new" || row.status === "confirmed" ? { status } : {}), payment_status: pay, paid_amount: paid, total_amount: total } });
+      else { const r = await add({ data: { password, ...common, status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
+      await onDone();
+    } catch (x) { window.alert(`تعذّر الحفظ | Fehler\n${x instanceof Error ? x.message : x}`); } finally { setBusy(false); }
+  };
+  const lbl = "block text-[11px] font-bold text-muted-foreground";
+  return <div className="mt-2 space-y-2 rounded-md border-2 border-secondary bg-card p-2 text-xs">
+    <p className="text-sm font-bold text-primary">{bi(row ? `✏️ تعديل الحجز ${row.ref} | Buchung bearbeiten` : "➕ حجز يدوي من الدفتر | Manuelle Buchung")}</p>
+    <p className="text-muted-foreground">{bi("الصور غير إلزامية ولا يُرسل أي إيميل. الحجز يدخل كل القوائم تلقائياً. | Fotos optional, keine E-Mail. Erscheint automatisch in allen Listen.")}</p>
+    <label className={lbl}>{bi("الرحلة | Reise")}<input list="mb-trips" value={trip} onChange={(e) => { setTrip(e.target.value); const m = trips.find((t) => t.trip === e.target.value); if (m) setTripDate(m.date); }} className={inputCls} /></label>
+    <datalist id="mb-trips">{trips.map((t) => <option key={t.trip} value={t.trip} />)}</datalist>
+    <div className="grid grid-cols-2 gap-1.5">
+      <label className={lbl}>{bi("التاريخ | Datum")}<input value={tripDate} onChange={(e) => setTripDate(e.target.value)} className={inputCls} /></label>
+      <label className={lbl}>{bi("الهاتف / واتساب | Telefon")}<input dir="ltr" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} /></label>
+    </div>
+    <label className={lbl}>{bi("الإيميل (اختياري) | E-Mail (optional)")}<input dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} /></label>
+    {tr.map((t, i) => <div key={i} className="space-y-1.5 rounded-md border border-border bg-muted/50 p-2">
+      <div className="flex items-center justify-between"><b className="text-primary">{bi(i === 0 ? "👤 صاحب الحجز | Hauptperson" : `👥 مرافق ${i} | Begleitung ${i}`)} · {paxOf(t)}</b>{tr.length > 1 && <button type="button" className="text-destructive" onClick={() => { if (window.confirm("حذف هذا المسافر؟ | Entfernen?")) setTr(tr.filter((_, j) => j !== i)); }}><Trash2 className="h-4 w-4" /></button>}</div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <label className={lbl}>{bi("الاسم الأول (لاتيني) | Vorname")}<input dir="ltr" value={t["firstName"]} onChange={(e) => setT(i, "firstName", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("اللقب (لاتيني) | Nachname")}<input dir="ltr" value={t["lastName"]} onChange={(e) => setT(i, "lastName", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("الجنس | Geschlecht")}<select value={t["gender"]} onChange={(e) => setT(i, "gender", e.target.value)} className={inputCls}><option value="">—</option><option value="m">{bi("ذكر | männlich")}</option><option value="f">{bi("أنثى | weiblich")}</option></select></label>
+        <label className={lbl}>{bi("تاريخ الميلاد | Geburtsdatum")}<input type="date" value={t["birthDate"]} onChange={(e) => setT(i, "birthDate", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("الجنسية | Nationalität")}<input value={t["nationality"]} onChange={(e) => setT(i, "nationality", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("رقم الجواز | Passnummer")}<input dir="ltr" value={t["passportNo"]} onChange={(e) => setT(i, "passportNo", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("انتهاء الجواز | Pass gültig bis")}<input type="date" value={t["passportExpiry"]} onChange={(e) => setT(i, "passportExpiry", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>{bi("المطار | Flughafen")}<input value={t["airport"]} onChange={(e) => setT(i, "airport", e.target.value)} className={inputCls} /></label>
+        {!t["birthDate"] && <label className={lbl}>{bi("الفئة | Kategorie")}<select value={t["category"]} onChange={(e) => setT(i, "category", e.target.value)} className={inputCls}>{cats.map((c) => <option key={c.id} value={c.id}>{bi(`${c.ar} | ${c.de}`)}</option>)}</select></label>}
+        {i > 0 && <label className={lbl}>{bi("صلة القرابة | Beziehung")}<input value={t["relation"]} onChange={(e) => setT(i, "relation", e.target.value)} className={inputCls} /></label>}
+      </div>
+    </div>)}
+    <Button size="sm" variant="outline" className="w-full" onClick={() => setTr([...tr, blankMT(tr[0]?.["airport"] ?? "")])}><Plus className="h-3.5 w-3.5" />{bi("إضافة مرافق | Begleitperson hinzufügen")}</Button>
+    <label className={lbl}>{bi("الغرفة المطلوبة | Zimmerwunsch")}<select value={room} onChange={(e) => setRoom(e.target.value)} className={inputCls}>{rooms.map((r) => <option key={r.id} value={r.id}>{bi(`${r.ar} | ${r.de}`)}</option>)}</select></label>
+    <label className={lbl}>{bi("ملاحظات الزائر | Hinweise")}<textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} /></label>
+    <div className="grid grid-cols-2 gap-1.5">
+      <select value={status} onChange={(e) => setStatus(e.target.value as "new")} className={inputCls}><option value="new">{bi(statusLabels["new"]!)}</option><option value="confirmed">{bi(statusLabels["confirmed"]!)}</option></select>
+      <select value={pay} onChange={(e) => setPay(e.target.value as "unpaid")} className={inputCls}>{Object.entries(payLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
+      <label className={lbl}>{bi("مدفوع | Bezahlt")} €<input type="number" min={0} value={paid} onChange={(e) => setPaid(Number(e.target.value) || 0)} className={inputCls} /></label>
+      <label className={lbl}>{bi("المجموع | Gesamt")} €<input type="number" min={0} value={total} onChange={(e) => setTotal(Number(e.target.value) || 0)} className={inputCls} /></label>
+    </div>
+    {errs.length > 0 && <ul className="rounded-md bg-destructive/10 p-2 font-bold text-destructive">{errs.map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
+    <div className="flex gap-1.5"><Button className="flex-1" disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{bi("حفظ | Speichern")}</Button><Button variant="ghost" onClick={() => void onDone()}>✕</Button></div>
   </div>;
 }
