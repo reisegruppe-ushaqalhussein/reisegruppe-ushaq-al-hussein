@@ -7,7 +7,8 @@ import { useAdminSession, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
-import { bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
+import { addManualBooking, bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
+import { buildXlsx, type XSheet } from "@/lib/xlsx";
 import type { SiteContent } from "@/lib/site-content";
 
 type Cat = "adult" | "child" | "infant";
@@ -440,6 +441,13 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
   const trips = useMemo(() => [...new Set((rows ?? []).filter((r) => r.status !== "deleted").map(groupKey))], [rows]);
   const [trashView, setTrashView] = useState(false);
+  const [editing, setEditing] = useState<BookingRow | "new" | null>(null);
+  const tripOptions = useMemo(() => {
+    const m = new Map<string, { trip: string; date: string }>();
+    content.trips.filter((t) => !t.hidden).forEach((t) => m.set(`${t.ar} | ${t.de}`, { trip: `${t.ar} | ${t.de}`, date: t.date ?? "" }));
+    (rows ?? []).forEach((r) => { if (!m.has(r.trip)) m.set(r.trip, { trip: r.trip, date: r.trip_date ?? "" }); });
+    return [...m.values()];
+  }, [rows, content.trips]);
   if (!s) return null;
   const trashed = (rows ?? []).filter((r) => r.status === "deleted");
   const shown = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && (filter === "all" || groupKey(r) === filter));
