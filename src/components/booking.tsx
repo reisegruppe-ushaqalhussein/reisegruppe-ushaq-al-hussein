@@ -78,21 +78,42 @@ const biFor = (lang: Parameters<typeof display>[0]) => (t: string) => {
   return d.sub ? `${d.main} | ${d.sub}` : d.main;
 };
 
-function FileField({ label, value, onChange }: { label: { ar: string; de: string }; value?: FileData | undefined; onChange: (f: FileData | undefined) => void }) {
+/** Marks that a file/camera picker is open so the app's back-button handler ignores the return from the camera. */
+export const markPicking = () => { (window as unknown as { __picking?: number }).__picking = Date.now(); };
+async function checkFile(f: File, photo: boolean) {
+  const head = new Uint8Array(await f.slice(0, 12).arrayBuffer());
+  const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
+  const isJpg = head[0] === 0xff && head[1] === 0xd8;
+  const isPng = head[0] === 0x89 && head[1] === 0x50;
+  const isHeic = String.fromCharCode(...head.slice(4, 12)).startsWith("ftyp");
+  const isWebp = String.fromCharCode(...head.slice(8, 12)) === "WEBP";
+  if (!isPdf && !isJpg && !isPng && !isHeic && !isWebp) throw new Error("هذا الملف ليس صورة أو PDF صالحاً — اختر صورة الجواز أو ملف PDF | Keine gültige Bild- oder PDF-Datei");
+  if (f.size < 15000) throw new Error("الملف صغير جداً وغير واضح — أعد التصوير | Datei zu klein / unscharf – bitte neu aufnehmen");
+  if (photo && isPdf) throw new Error("الصورة البيومترية يجب أن تكون صورة (JPG/PNG) وليس PDF | Biometrisches Foto bitte als Bild (JPG/PNG)");
+  if (!isPdf && (isJpg || isPng || isWebp)) {
+    const dim = await new Promise<{ w: number; h: number } | null>((ok) => { const u = URL.createObjectURL(f); const im = new Image(); im.onload = () => { ok({ w: im.naturalWidth, h: im.naturalHeight }); URL.revokeObjectURL(u); }; im.onerror = () => ok(null); im.src = u; });
+    if (dim && Math.min(dim.w, dim.h) < 400) throw new Error("دقة الصورة منخفضة جداً — أعد التصوير بوضوح | Auflösung zu niedrig – bitte schärfer aufnehmen");
+    if (photo && dim && dim.w > dim.h * 1.15) throw new Error("الصورة البيومترية يجب أن تكون طولية (وجه فقط) — يبدو أنها صورة جواز | Passfoto muss Hochformat sein – das sieht nach der Passseite aus");
+  }
+}
+
+function FileField({ label, value, onChange, photo = false }: { label: { ar: string; de: string }; value?: FileData | undefined; onChange: (f: FileData | undefined) => void; photo?: boolean }) {
+  const { lang } = useLang();
   const [busy, setBusy] = useState(false);
   return <label className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-secondary">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : value ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}</span>
-    <span className="min-w-0 flex-1"><span className="block font-bold"><L {...label} /></span><span className="block truncate text-xs text-muted-foreground">{value ? value.name : "JPG / PNG / PDF — max 10 MB"}</span></span>
-    <input type="file" accept="image/*,application/pdf" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setBusy(true); try { onChange(await readFile(f)); } catch (err) { window.alert(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); } }} />
+    <span className="min-w-0 flex-1"><span className="block font-bold"><L {...label} /></span><span className="block truncate text-xs text-muted-foreground">{value ? value.name : photo ? "JPG / PNG — max 10 MB" : "JPG / PNG / PDF — max 10 MB"}</span></span>
+    <input type="file" accept={photo ? "image/*" : "image/*,application/pdf,.pdf"} className="hidden" onClick={markPicking} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); try { await checkFile(f, photo); onChange(await readFile(f)); } catch (err) { window.alert(biFor(lang)(err instanceof Error ? err.message : String(err))); } finally { setBusy(false); } }} />
   </label>;
 }
 
 /** Camera/photo passport scan: fills the fields, attaches the page as passport copy; user reviews everything. */
 function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler>) => void }) {
+  const staff = useStaffSession();
   const scan = useServerFn(scanPassport);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; ar: string; de: string } | null>(null);
-  if (reg.ocrOff) return null;
+  if (reg.ocrOff || (!staff && !reg.ocrPublic)) return null;
   const run = async (f: File) => {
     setBusy(true); setMsg(null);
     try {
@@ -114,14 +135,16 @@ function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler
     <label className={`flex cursor-pointer items-center gap-3 rounded-md border-2 border-secondary bg-primary p-3 text-primary-foreground ${busy ? "opacity-70" : ""}`}>
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}</span>
       <span className="min-w-0 flex-1 text-sm font-bold"><LangText ar="مسح الجواز وتعبئة البيانات تلقائياً" de="Pass scannen & automatisch ausfüllen" inverse /><span className="block text-[11px] font-normal opacity-80"><LangText ar={reg.ocrNoteAr || "صوّر صفحة البيانات كاملة مع السطرين السفليين، بدون فلاش ولمعان."} de={reg.ocrNoteDe || "Ganze Datenseite inkl. der zwei unteren Zeilen, ohne Blitz und Spiegelung."} inverse /></span></span>
-      <input type="file" accept="image/*" capture="environment" className="hidden" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void run(f); }} />
+      <input type="file" accept="image/*" className="hidden" disabled={busy} onClick={markPicking} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void run(f); }} />
     </label>
     {msg && <p className={`rounded-md p-2 text-xs ${msg.ok ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}><L ar={msg.ar} de={msg.de} /></p>}
   </div>;
 }
 
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
-type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrNoteAr?: string; ocrNoteDe?: string };
+type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string };
+const DRAFT_KEY = "booking-draft";
+const PROFILE_KEY = "booking-profile";
 const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } | undefined)?.registration ?? {});
 
 /** Bilingual multi-step registration form replacing the external form. */
@@ -146,6 +169,20 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
+  const rtl = lang === "ar" || lang === "both";
+  const [profile, setProfile] = useState<{ email?: string; phone?: string; travelers?: Traveler[] } | null>(null);
+  useEffect(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
+      if (d && Date.now() - d.at < 6 * 3600e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); }
+      setProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null"));
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    if (done) { localStorage.removeItem(DRAFT_KEY); return; }
+    const strip = travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t);
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: strip, roomPref, notes })); } catch { /* quota */ }
+  }, [done, step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes]);
 
   const chosen = trips.find((t) => t.id === trip);
   const tripName = trip === OTHER ? otherTrip.trim() : chosen ? `${chosen.ar} | ${chosen.de}` : "";
@@ -168,6 +205,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
     setBusy(true);
     try {
       const r = await submit({ data: { trip: tripName, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
+      try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ email: email.trim(), phone: phone.trim(), travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t) })); } catch { /* ignore */ }
       setDone(r.ref);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
@@ -175,8 +213,9 @@ export function BookingForm({ content }: { content: SiteContent }) {
     } finally { setBusy(false); }
   };
 
+  const settings = <RegSettings content={content} />;
   const note = (reg.noteAr || reg.noteDe) && <div className="mb-3 rounded-md border border-secondary bg-accent p-3 text-sm"><LangText ar={reg.noteAr ?? ""} de={reg.noteDe ?? ""} /></div>;
-  if (reg.closed) return <>{note}<section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><h2 className="text-lg"><LangText ar="التسجيل مغلق حالياً" de="Anmeldung vorübergehend geschlossen" inverse center /></h2></section></>;
+  if (reg.closed) return <>{settings}{note}<section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><h2 className="text-lg"><LangText ar="التسجيل مغلق حالياً" de="Anmeldung vorübergehend geschlossen" inverse center /></h2></section></>;
 
   if (done) return <section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md">
     <CheckCircle2 className="mx-auto h-12 w-12 text-secondary" />
@@ -187,12 +226,15 @@ export function BookingForm({ content }: { content: SiteContent }) {
   </section>;
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
-  return <>{note}<section className="overflow-hidden rounded-lg border border-secondary/60 bg-card shadow-md">
+  const fillProfile = () => { if (!profile) return; if (profile.email) setEmail(profile.email); if (profile.phone) setPhone(profile.phone); if (profile.travelers?.length) setTravelers(profile.travelers.map((t) => ({ ...blank(), ...t, passportFile: undefined, photoFile: undefined }))); };
+  return <>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md">
     <div className="bg-primary px-4 py-4 text-primary-foreground">
-      <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar="استمارة التسجيل" de="Anmeldeformular" inverse /></span></div>
+      <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
     </div>
     <div className="space-y-4 p-4 text-sm">
+      {(reg.introAr || reg.introDe) && <p className="rounded-md bg-muted p-3 text-xs"><LangText ar={reg.introAr ?? ""} de={reg.introDe ?? ""} /></p>}
+      {profile && step <= 2 && <button type="button" onClick={fillProfile} className="w-full rounded-md border border-secondary bg-accent p-2.5 text-xs font-bold text-primary"><L ar="↺ تعبئة بياناتي من تسجيلي السابق على هذا الهاتف" de="↺ Meine Daten der letzten Anmeldung auf diesem Handy übernehmen" /></button>}
       {step === 0 && <>
         <p className="font-bold text-primary"><L ar="اختر الرحلة" de="Reise auswählen" /></p>
         <div className="space-y-2">
@@ -212,8 +254,8 @@ export function BookingForm({ content }: { content: SiteContent }) {
       </>}
 
       {step === 1 && <>
-        <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /></label>
-        <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /></label>
+        <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" list="bk-emails" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /><datalist id="bk-emails">{profile?.email && <option value={profile.email} />}</datalist></label>
+        <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" list="bk-phones" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /><datalist id="bk-phones">{profile?.phone && <option value={profile.phone} />}</datalist></label>
         <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground"><L ar="للاستفسار: ushaqalhussein.contact@gmail.com" de="Fragen: ushaqalhussein.contact@gmail.com" /></p>
       </>}
 
@@ -229,8 +271,8 @@ export function BookingForm({ content }: { content: SiteContent }) {
           <ScanButton reg={reg} onFill={(p) => setT(i, p)} />
           {i > 0 && <label className="block font-bold"><L ar="صلة القرابة" de="Verwandtschaft" /><input value={t.relation} onChange={(e) => setT(i, { relation: e.target.value })} maxLength={60} className={inputCls} /></label>}
           <div className="grid grid-cols-2 gap-2">
-            <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
-            <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
+            <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="given-name" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
+            <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="family-name" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {(["m", "f"] as const).map((g) => <button key={g} type="button" onClick={() => setT(i, { gender: g })} className={`rounded-md border py-2 font-bold ${t.gender === g ? "border-secondary bg-accent text-primary" : "border-border"}`}>{g === "m" ? <L ar="ذكر" de="Männlich" /> : <L ar="أنثى" de="Weiblich" />}</button>)}
@@ -242,7 +284,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
             <label className="block font-bold"><L ar="انتهاء الجواز" de="Pass gültig bis" /><input dir="ltr" type="date" value={t.passportExpiry} onChange={(e) => setT(i, { passportExpiry: e.target.value })} className={inputCls} /></label>
           </div>
           <FileField label={{ ar: "صورة صفحة الجواز", de: "Kopie der Passseite" }} value={t.passportFile} onChange={(f) => setT(i, { passportFile: f })} />
-          <FileField label={{ ar: "صورة شخصية بيومترية للفيزا", de: "Biometrisches Passfoto (Visum)" }} value={t.photoFile} onChange={(f) => setT(i, { photoFile: f })} />
+          <FileField label={{ ar: "صورة شخصية بيومترية للفيزا", de: "Biometrisches Passfoto (Visum)" }} value={t.photoFile} onChange={(f) => setT(i, { photoFile: f })} photo />
         </article>)}
         {travelers.length < 15 && <Button type="button" variant="outline" className="h-11 w-full border-dashed border-secondary" onClick={() => setTravelers((l) => [...l, blank()])}><Plus /><L ar="إضافة مرافق" de="Begleitperson hinzufügen" /></Button>}
       </>}
@@ -285,15 +327,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const qc = useQueryClient();
   const { lang } = useLang();
   const bi = biFor(lang);
-  const reg = regOf(content);
-  const [regOpen, setRegOpen] = useState(false);
-  const [noteAr, setNoteAr] = useState(reg.noteAr ?? "");
-  const [noteDe, setNoteDe] = useState(reg.noteDe ?? "");
-  const saveReg = async (patch: RegCfg) => {
-    if (!adminS) return;
-    try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
-    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
-  };
   const list = useServerFn(listBookings);
   const update = useServerFn(updateBooking);
   const fileUrl = useServerFn(bookingFileUrl);
@@ -318,17 +351,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
       <button type="button" aria-label="تصدير | Export" onClick={download} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><Download className="h-4 w-4" /></button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
-    {adminS?.role === "admin" && <div className="mt-2 rounded-md border border-border p-2 text-xs">
-      <button type="button" className="flex w-full items-center gap-2 font-bold text-primary" onClick={() => setRegOpen(!regOpen)}><Settings className="h-4 w-4" />{bi("إعدادات الاستمارة | Formular-Einstellungen")} {reg.closed && <span className="rounded-full bg-destructive/15 px-2 text-destructive">{bi("مغلق | Geschlossen")}</span>}</button>
-      {regOpen && <div className="mt-2 space-y-2">
-        <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} className="w-full" onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>{bi(reg.ocrOff ? "📷 تفعيل مسح الجوازات | Pass-Scan aktivieren" : "📷 إيقاف مسح الجوازات | Pass-Scan deaktivieren")}</Button>
-        <OcrNote reg={reg} save={saveReg} bi={bi} />
-        <Button size="sm" variant={reg.closed ? "default" : "outline"} className="w-full" onClick={() => void saveReg({ closed: !reg.closed })}>{bi(reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen")}</Button>
-        <label className="block">{bi("ملاحظة أعلى الاستمارة (عربي) | Hinweis über dem Formular (Arabisch)")}<textarea rows={2} value={noteAr} onChange={(e) => setNoteAr(e.target.value)} maxLength={1000} className={inputCls} /></label>
-        <label className="block">{bi("ملاحظة أعلى الاستمارة (ألماني) | Hinweis über dem Formular (Deutsch)")}<textarea dir="ltr" rows={2} value={noteDe} onChange={(e) => setNoteDe(e.target.value)} maxLength={1000} className={inputCls} /></label>
-        <Button size="sm" className="w-full" onClick={() => void saveReg({ noteAr: noteAr.trim(), noteDe: noteDe.trim() })}>{bi("حفظ الملاحظة | Hinweis speichern")}</Button>
-      </div>}
-    </div>}
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
@@ -366,5 +388,37 @@ function OcrNote({ reg, save, bi }: { reg: RegCfg; save: (p: RegCfg) => Promise<
     <textarea rows={2} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
     <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void save({ ocrNoteAr: ar.trim(), ocrNoteDe: de.trim() })}>{bi("حفظ | Speichern")}</Button>
     <Button size="sm" variant="outline" onClick={() => { setAr(""); setDe(""); void save({ ocrNoteAr: "", ocrNoteDe: "" }); }}>{bi("افتراضي | Standard")}</Button></div>
+  </div>;
+}
+
+/** Admin controls placed directly above the registration form. */
+function RegSettings({ content }: { content: SiteContent }) {
+  const adminS = useAdminSession();
+  const qc = useQueryClient();
+  const { lang } = useLang();
+  const bi = biFor(lang);
+  const reg = regOf(content);
+  const [open, setOpen] = useState(false);
+  const [t, setT] = useState({ noteAr: reg.noteAr ?? "", noteDe: reg.noteDe ?? "", titleAr: reg.titleAr ?? "", titleDe: reg.titleDe ?? "", introAr: reg.introAr ?? "", introDe: reg.introDe ?? "" });
+  if (adminS?.role !== "admin") return null;
+  const saveReg = async (patch: RegCfg) => {
+    try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
+    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
+  };
+  const txt = (k: keyof typeof t, label: string, ltr = false) => <label className="block">{bi(label)}<textarea dir={ltr ? "ltr" : "rtl"} rows={2} value={t[k]} onChange={(e) => setT({ ...t, [k]: e.target.value })} maxLength={1000} className={inputCls} /></label>;
+  return <div className="mb-3 rounded-md border-2 border-secondary bg-card p-2 text-xs">
+    <div className="grid grid-cols-2 gap-1.5">
+      <Button size="sm" variant={reg.closed ? "default" : "outline"} onClick={() => void saveReg({ closed: !reg.closed })}>{bi(reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen")}</Button>
+      <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>{bi(reg.ocrOff ? "📷 تفعيل المسح | Scan an" : "📷 إيقاف المسح | Scan aus")}</Button>
+    </div>
+    {!reg.ocrOff && <Button size="sm" variant={reg.ocrPublic ? "default" : "outline"} className="mt-1.5 w-full whitespace-normal" onClick={() => void saveReg({ ocrPublic: !reg.ocrPublic })}>{bi(reg.ocrPublic ? "👥 المسح متاح للزوار — اضغط لحصره بالإدارة والحاج | Scan für alle – nur Leitung" : "🔐 المسح للإدارة والحاج فقط — اضغط لإتاحته للزوار | Scan nur Leitung – für alle öffnen")}</Button>}
+    <button type="button" className="mt-2 flex w-full items-center gap-2 font-bold text-primary" onClick={() => setOpen(!open)}><Settings className="h-4 w-4" />{bi("تعديل نصوص الاستمارة | Formulartexte bearbeiten")}</button>
+    {open && <div className="mt-2 space-y-2">
+      {txt("titleAr", "عنوان الاستمارة (عربي) | Titel (Arabisch)")}{txt("titleDe", "عنوان الاستمارة (ألماني) | Titel (Deutsch)", true)}
+      {txt("introAr", "نص تعريفي داخل الاستمارة (عربي) | Einleitung (Arabisch)")}{txt("introDe", "نص تعريفي (ألماني) | Einleitung (Deutsch)", true)}
+      {txt("noteAr", "ملاحظة أعلى الاستمارة (عربي) | Hinweis (Arabisch)")}{txt("noteDe", "ملاحظة أعلى الاستمارة (ألماني) | Hinweis (Deutsch)", true)}
+      <Button size="sm" className="w-full" onClick={() => void saveReg(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v.trim()])) as RegCfg)}>{bi("حفظ النصوص | Texte speichern")}</Button>
+      <OcrNote reg={reg} save={saveReg} bi={bi} />
+    </div>}
   </div>;
 }

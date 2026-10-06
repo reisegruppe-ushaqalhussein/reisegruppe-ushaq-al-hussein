@@ -895,6 +895,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => {
     if (!window.history.state?.view) window.history.replaceState({ ...(window.history.state ?? {}), view: "home" }, "");
     const onPop = (e: PopStateEvent) => {
+      const w = window as unknown as { __picking?: number };
+      if (w.__picking && Date.now() - w.__picking < 120000) { w.__picking = 0; window.history.pushState({ ...(e.state ?? {}), view: window.history.state?.view ?? sessionStorage.getItem("view") ?? "home" }, ""); return; }
       const dlg = document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
       if (dlg) {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
