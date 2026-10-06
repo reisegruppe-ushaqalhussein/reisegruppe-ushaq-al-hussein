@@ -380,12 +380,15 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const patch = async (r: BookingRow, p: Partial<BookingRow> & { remove?: boolean }) => {
     try { await update({ data: { password: s.password, id: r.id, ...p } as never }); await load(); } catch (e) { window.alert(String(e)); }
   };
-  const download = () => { const blob = new Blob([csv(shown)], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `flight-list-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
+  const save = (text: string, name: string) => { const blob = new Blob([text], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
+  const download = () => save(csv(shown), "flight-manifest");
+  const downloadVisa = () => save(visaCsv(shown), "visa-manifest");
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
     <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
       <button type="button" aria-label="تصدير | Export" onClick={download} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><Download className="h-4 w-4" /></button>
+      <button type="button" aria-label="منافيست الفيز | Visa-Liste" title="منافيست الفيز | Visa-Liste" onClick={downloadVisa} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary">🛂</button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
