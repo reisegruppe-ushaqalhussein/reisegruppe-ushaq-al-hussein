@@ -16,5 +16,6 @@ export async function registerAppServiceWorker() {
     return;
   }
   const { registerSW } = await import("virtual:pwa-register");
-  registerSW({ immediate: true });
+  // No forced reload: a new version applies silently on the next app launch.
+  registerSW({ immediate: true, onNeedRefresh: () => {} });
 }
