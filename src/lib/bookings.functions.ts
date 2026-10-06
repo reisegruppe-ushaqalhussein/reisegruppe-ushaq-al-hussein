@@ -160,6 +160,12 @@ export const updateBooking = createServerFn({ method: "POST" })
     total_amount: z.number().min(0).max(1_000_000).optional(),
     admin_notes: z.string().max(2000).optional(),
     travelers: z.array(z.record(z.string(), z.string().max(500))).max(30).optional(),
+    trip: z.string().trim().min(1).max(200).optional(),
+    trip_date: z.string().max(100).optional(),
+    contact_phone: z.string().max(40).optional(),
+    contact_email: z.string().max(255).optional(),
+    room_pref: z.string().max(40).optional(),
+    notes: z.string().max(2000).optional(),
     remove: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ data }) => {
@@ -170,6 +176,27 @@ export const updateBooking = createServerFn({ method: "POST" })
     const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+/** Staff-only: enter bookings taken before the app (from the leader's notebook). No files or emails required. */
+export const addManualBooking = createServerFn({ method: "POST" })
+  .validator((d) => z.object({
+    password: z.string().max(200),
+    trip: z.string().trim().min(1).max(200), trip_date: z.string().max(100),
+    contact_phone: z.string().max(40), contact_email: z.string().max(255),
+    room_pref: z.string().max(40), notes: z.string().max(2000), admin_notes: z.string().max(2000),
+    status: z.enum(["new", "confirmed"]), payment_status: z.enum(["unpaid", "partial", "paid"]),
+    paid_amount: z.number().min(0).max(1_000_000), total_amount: z.number().min(0).max(1_000_000),
+    travelers: z.array(z.record(z.string(), z.string().max(500))).min(1).max(30),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    if (!(await isStaff(data.password))) return { ok: false as const, ref: "" };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ref = `UH-${new Date().getFullYear()}-M${Math.floor(100 + Math.random() * 900)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
+    const { password: _p, ...row } = data;
+    const { error } = await supabaseAdmin.from("bookings").insert({ ...row, ref, travelers: row.travelers as never, admin_notes: `[يدوي | manuell] ${row.admin_notes}`.trim() });
+    if (error) throw new Error(error.message);
+    return { ok: true as const, ref };
   });
 
 export const bookingFileUrl = createServerFn({ method: "POST" })
