@@ -154,7 +154,7 @@ export const listBookings = createServerFn({ method: "POST" })
 export const updateBooking = createServerFn({ method: "POST" })
   .validator((d) => z.object({
     password: z.string().max(200), id: z.string().uuid(),
-    status: z.enum(["new", "confirmed", "cancelled"]).optional(),
+    status: z.enum(["new", "confirmed", "cancelled", "deleted"]).optional(),
     payment_status: z.enum(["unpaid", "partial", "paid"]).optional(),
     paid_amount: z.number().min(0).max(1_000_000).optional(),
     total_amount: z.number().min(0).max(1_000_000).optional(),
