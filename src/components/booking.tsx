@@ -333,6 +333,18 @@ export function BookingForm({ content }: { content: SiteContent }) {
 
 const statusLabels: Record<string, string> = { new: "جديد | Neu", confirmed: "مؤكد | Bestätigt", cancelled: "ملغى | Storniert" };
 const payLabels: Record<string, string> = { unpaid: "غير مدفوع | Offen", partial: "دفعة جزئية | Teilweise", paid: "مدفوع | Bezahlt" };
+const visaLabels: Record<string, string> = { none: "⏳ لم يُقدَّم بعد | Noch nicht eingereicht", processing: "🔄 قيد المعاملة | In Bearbeitung", approved: "✅ صدرت الفيزا | Visum erteilt", rejected: "❌ مرفوضة / تحتاج تعديل | Abgelehnt / Korrektur" };
+const visaCls: Record<string, string> = { none: "bg-muted text-muted-foreground", processing: "bg-accent text-accent-foreground", approved: "bg-primary text-primary-foreground", rejected: "bg-destructive text-destructive-foreground" };
+const visaEn: Record<string, string> = { none: "NOT SUBMITTED", processing: "IN PROCESS", approved: "APPROVED", rejected: "REJECTED" };
+function destOf(trip: string) { const s = trip.toLowerCase(); return /عمر|umrah|umra|mekka|mecca|مكة/.test(s) ? "umrah" : /ايران|إيران|iran|مشهد|mashhad|قم|qom/.test(s) ? "iran" : "iraq"; }
+function visaType(trip: string) { const d = destOf(trip); return d === "umrah" ? "🕋 العمرة: تأشيرة عبر منصة نسك | Umrah: Visum über Nusuk" : d === "iran" ? "🇮🇷 إيران: تأشيرة إيرانية | Iran: Iranisches Visum" : "🇮🇶 العراق: فيزا إلكترونية | Irak: E-Visum"; }
+function visaCsv(rows: BookingRow[]) {
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const head = ["NO", "REF", "TRIP", "DESTINATION", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "VISA_STATUS", "PHONE"];
+  let n = 0;
+  const lines = rows.flatMap((r) => r.travelers.map((t) => [++n, r.ref, r.trip, destOf(r.trip).toUpperCase(), t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], t["nationality"], t["passportNo"], t["passportExpiry"], visaEn[t["visa"] || "none"], r.contact_phone].map(esc).join(",")));
+  return "\uFEFF" + [head.join(","), ...lines].join("\r\n");
+}
 
 function csv(rows: BookingRow[]) {
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -387,7 +399,12 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
         {open === r.id && <div className="mt-2 space-y-2 border-t border-border pt-2">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
           {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
-            <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span></div>)}
+            <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span>
+            <label className="mt-1.5 flex items-center gap-1.5" dir={lang === "ar" || lang === "both" ? "rtl" : "ltr"}>
+              <span className={`rounded-full px-2 py-0.5 font-bold ${visaCls[t["visa"] || "none"]}`}>🛂</span>
+              <select value={t["visa"] || "none"} onChange={(e) => void patch(r, { travelers: r.travelers.map((x, j) => j === i ? { ...x, visa: e.target.value } : x) })} className={inputCls + " mt-0 flex-1 py-1 text-xs"}>{Object.entries(visaLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
+            </label></div>)}
+          <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
           {(r.room_pref || r.notes) && <p>🛏 {r.room_pref} · {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
