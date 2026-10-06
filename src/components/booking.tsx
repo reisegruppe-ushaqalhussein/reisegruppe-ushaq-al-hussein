@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, Bell, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
+import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LangText, display, useLang } from "@/lib/i18n";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
-import { bookingFileUrl, listBookings, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
+import { bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
 import type { SiteContent } from "@/lib/site-content";
 
 type Cat = "adult" | "child" | "infant";
@@ -87,8 +87,41 @@ function FileField({ label, value, onChange }: { label: { ar: string; de: string
   </label>;
 }
 
+/** Camera/photo passport scan: fills the fields, attaches the page as passport copy; user reviews everything. */
+function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler>) => void }) {
+  const scan = useServerFn(scanPassport);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; ar: string; de: string } | null>(null);
+  if (reg.ocrOff) return null;
+  const run = async (f: File) => {
+    setBusy(true); setMsg(null);
+    try {
+      if (!f.type.startsWith("image/")) throw new Error("img");
+      const file = await readFile(f);
+      onFill({ passportFile: file });
+      const r = await scan({ data: { image: file.data, type: "image/jpeg" } });
+      if (!r.ok) { setMsg({ ok: false, ar: "تعذّرت قراءة الجواز بوضوح — أُرفقت الصورة، أدخل البيانات يدوياً أو أعد التصوير بإضاءة جيدة.", de: "Pass nicht lesbar – Foto angehängt, bitte Daten manuell eintragen oder neu fotografieren." }); return; }
+      const v = r.fields; const patch: Partial<Traveler> = {};
+      (["firstName", "lastName", "birthDate", "nationality", "passportNo", "passportExpiry"] as const).forEach((k) => { if (v[k]) patch[k] = v[k]; });
+      if (v.gender) patch.gender = v.gender;
+      if (v.birthDate) patch.category = catOf(v.birthDate);
+      onFill(patch);
+      setMsg({ ok: true, ar: "تمت التعبئة ✓ — راجع كل حرف مقابل الجواز قبل الإرسال.", de: "Ausgefüllt ✓ – bitte jeden Buchstaben mit dem Pass vergleichen." });
+    } catch { setMsg({ ok: false, ar: "يرجى اختيار صورة (JPG/PNG).", de: "Bitte ein Foto (JPG/PNG) wählen." }); }
+    finally { setBusy(false); }
+  };
+  return <div className="space-y-1.5">
+    <label className={`flex cursor-pointer items-center gap-3 rounded-md border-2 border-secondary bg-primary p-3 text-primary-foreground ${busy ? "opacity-70" : ""}`}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}</span>
+      <span className="min-w-0 flex-1 text-sm font-bold"><LangText ar="مسح الجواز وتعبئة البيانات تلقائياً" de="Pass scannen & automatisch ausfüllen" inverse /><span className="block text-[11px] font-normal opacity-80"><LangText ar={reg.ocrNoteAr || "صوّر صفحة البيانات كاملة مع السطرين السفليين، بدون فلاش ولمعان."} de={reg.ocrNoteDe || "Ganze Datenseite inkl. der zwei unteren Zeilen, ohne Blitz und Spiegelung."} inverse /></span></span>
+      <input type="file" accept="image/*" capture="environment" className="hidden" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void run(f); }} />
+    </label>
+    {msg && <p className={`rounded-md p-2 text-xs ${msg.ok ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}><L ar={msg.ar} de={msg.de} /></p>}
+  </div>;
+}
+
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
-type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string };
+type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrNoteAr?: string; ocrNoteDe?: string };
 const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } | undefined)?.registration ?? {});
 
 /** Bilingual multi-step registration form replacing the external form. */
@@ -193,6 +226,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
             {i > 0 && <button type="button" aria-label="حذف | Entfernen" onClick={() => setTravelers((l) => l.filter((_, j) => j !== i))} className="grid h-8 w-8 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-4 w-4" /></button>}
           </div>
           <div className="grid grid-cols-3 gap-1.5">{cats.map((c) => <button key={c.id} type="button" onClick={() => setT(i, { category: c.id })} className={`rounded-md border px-1 py-2 text-[11px] font-bold ${t.category === c.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={c.ar} de={c.de} center /></button>)}</div>
+          <ScanButton reg={reg} onFill={(p) => setT(i, p)} />
           {i > 0 && <label className="block font-bold"><L ar="صلة القرابة" de="Verwandtschaft" /><input value={t.relation} onChange={(e) => setT(i, { relation: e.target.value })} maxLength={60} className={inputCls} /></label>}
           <div className="grid grid-cols-2 gap-2">
             <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
@@ -287,6 +321,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     {adminS?.role === "admin" && <div className="mt-2 rounded-md border border-border p-2 text-xs">
       <button type="button" className="flex w-full items-center gap-2 font-bold text-primary" onClick={() => setRegOpen(!regOpen)}><Settings className="h-4 w-4" />{bi("إعدادات الاستمارة | Formular-Einstellungen")} {reg.closed && <span className="rounded-full bg-destructive/15 px-2 text-destructive">{bi("مغلق | Geschlossen")}</span>}</button>
       {regOpen && <div className="mt-2 space-y-2">
+        <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} className="w-full" onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>{bi(reg.ocrOff ? "📷 تفعيل مسح الجوازات | Pass-Scan aktivieren" : "📷 إيقاف مسح الجوازات | Pass-Scan deaktivieren")}</Button>
+        <OcrNote reg={reg} save={saveReg} bi={bi} />
         <Button size="sm" variant={reg.closed ? "default" : "outline"} className="w-full" onClick={() => void saveReg({ closed: !reg.closed })}>{bi(reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen")}</Button>
         <label className="block">{bi("ملاحظة أعلى الاستمارة (عربي) | Hinweis über dem Formular (Arabisch)")}<textarea rows={2} value={noteAr} onChange={(e) => setNoteAr(e.target.value)} maxLength={1000} className={inputCls} /></label>
         <label className="block">{bi("ملاحظة أعلى الاستمارة (ألماني) | Hinweis über dem Formular (Deutsch)")}<textarea dir="ltr" rows={2} value={noteDe} onChange={(e) => setNoteDe(e.target.value)} maxLength={1000} className={inputCls} /></label>
@@ -319,4 +355,16 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
       </li>;
     })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi("لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
   </section>;
+}
+
+function OcrNote({ reg, save, bi }: { reg: RegCfg; save: (p: RegCfg) => Promise<void>; bi: (t: string) => string }) {
+  const [ar, setAr] = useState(reg.ocrNoteAr ?? "");
+  const [de, setDe] = useState(reg.ocrNoteDe ?? "");
+  return <div className="space-y-1 rounded-md bg-muted p-2">
+    <p className="font-bold">{bi("إرشاد تصوير الجواز | Hinweis zum Pass-Foto")}</p>
+    <textarea rows={2} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="عربي" className={inputCls} />
+    <textarea rows={2} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
+    <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void save({ ocrNoteAr: ar.trim(), ocrNoteDe: de.trim() })}>{bi("حفظ | Speichern")}</Button>
+    <Button size="sm" variant="outline" onClick={() => { setAr(""); setDe(""); void save({ ocrNoteAr: "", ocrNoteDe: "" }); }}>{bi("افتراضي | Standard")}</Button></div>
+  </div>;
 }
