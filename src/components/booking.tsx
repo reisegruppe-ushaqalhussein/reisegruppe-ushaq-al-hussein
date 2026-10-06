@@ -78,8 +78,13 @@ const biFor = (lang: Parameters<typeof display>[0]) => (t: string) => {
   return d.sub ? `${d.main} | ${d.sub}` : d.main;
 };
 
-/** Marks that a file/camera picker is open so the app's back-button handler ignores the return from the camera. */
-export const markPicking = () => { (window as unknown as { __picking?: number }).__picking = Date.now(); };
+const PICK_KEY = "booking-picking-at";
+/** Marks that a file/camera picker is open: the back handler ignores the camera return, and the form is saved in case the phone reloads the page. */
+export const markPicking = () => {
+  (window as unknown as { __picking?: number }).__picking = Date.now();
+  try { localStorage.setItem(PICK_KEY, String(Date.now())); localStorage.setItem("picking-view", sessionStorage.getItem("view") ?? "registration"); } catch { /* ignore */ }
+  window.dispatchEvent(new Event("booking-picking"));
+};
 async function checkFile(f: File, photo: boolean) {
   const head = new Uint8Array(await f.slice(0, 12).arrayBuffer());
   const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
@@ -144,7 +149,15 @@ function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
 type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string };
 const DRAFT_KEY = "booking-draft";
-const PROFILE_KEY = "booking-profile";
+const HIST_KEY = "booking-history";
+type History = Partial<Record<"email" | "phone" | "firstName" | "lastName" | "nationality" | "passportNo" | "relation", string[]>>;
+/** Remembers previously typed values so they appear as suggestions under the field while typing. */
+function remember(h: History, add: History): History {
+  const out: History = { ...h };
+  (Object.keys(add) as Array<keyof History>).forEach((k) => { const vals = (add[k] ?? []).map((v) => v.trim()).filter(Boolean); out[k] = [...new Set([...vals, ...(h[k] ?? [])])].slice(0, 12); });
+  return out;
+}
+const Sugg = ({ id, items }: { id: string; items?: string[] | undefined }) => <datalist id={id}>{(items ?? []).map((v) => <option key={v} value={v} />)}</datalist>;
 const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } | undefined)?.registration ?? {});
 
 /** Bilingual multi-step registration form replacing the external form. */
@@ -170,19 +183,22 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const [errors, setErrors] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
   const rtl = lang === "ar" || lang === "both";
-  const [profile, setProfile] = useState<{ email?: string; phone?: string; travelers?: Traveler[] } | null>(null);
+  const [hist, setHist] = useState<History>({});
+  // Restore typed data ONLY when the phone reloaded the page while the camera/file picker was open.
   useEffect(() => {
     try {
+      setHist(JSON.parse(localStorage.getItem(HIST_KEY) ?? "{}"));
+      const at = Number(localStorage.getItem(PICK_KEY) ?? 0);
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
-      if (d && Date.now() - d.at < 6 * 3600e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); }
-      setProfile(JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null"));
+      if (d && at && Date.now() - at < 10 * 60e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); }
+      localStorage.removeItem(PICK_KEY); localStorage.removeItem(DRAFT_KEY); localStorage.removeItem("booking-profile");
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
-    if (done) { localStorage.removeItem(DRAFT_KEY); return; }
-    const strip = travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t);
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: strip, roomPref, notes })); } catch { /* quota */ }
-  }, [done, step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes]);
+    const save = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes })); } catch { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t), roomPref, notes })); } catch { /* quota */ } } };
+    window.addEventListener("booking-picking", save);
+    return () => window.removeEventListener("booking-picking", save);
+  }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes]);
 
   const chosen = trips.find((t) => t.id === trip);
   const tripName = trip === OTHER ? otherTrip.trim() : chosen ? `${chosen.ar} | ${chosen.de}` : "";
