@@ -365,6 +365,24 @@ ${forPrint ? `<button onclick="window.print()">🖨 طباعة / PDF – Drucken
 <tr><td colspan="${s.head.length}">TOTAL ${s.body.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")} — ${new Date().toISOString().slice(0, 10)}</td></tr>
 <tr>${s.head.map((h) => `<th style="border:1px solid #333;background:#1f2a44;color:#fff;padding:5px">${h}</th>`).join("")}</tr>${tr}</table></body></html>`;
 }
+/** Mismatch / missing-data warnings shown to staff on each booking. */
+function issuesOf(r: BookingRow): string[] {
+  if (r.status === "deleted" || r.status === "cancelled") return [];
+  const out: string[] = [];
+  const ref = r.trip_date && !Number.isNaN(Date.parse(r.trip_date)) ? new Date(r.trip_date) : new Date();
+  const limit = new Date(ref); limit.setMonth(limit.getMonth() + 6);
+  r.travelers.forEach((t, i) => {
+    const who = `${i + 1}. ${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim();
+    const v = t["visa"] || "none";
+    if (r.status === "confirmed" && v === "none") out.push(`${who}: الحجز مؤكد لكن الفيزا لم تُقدَّم | Bestätigt, aber Visum nicht eingereicht`);
+    if (v === "rejected") out.push(`${who}: الفيزا مرفوضة / تحتاج تعديل | Visum abgelehnt`);
+    if (r.status === "confirmed" && v === "approved" && r.payment_status === "unpaid") out.push(`${who}: الفيزا صدرت والحجز غير مدفوع | Visum erteilt, aber unbezahlt`);
+    if (!t["passportNo"] || !t["birthDate"] || !t["lastName"] || !t["firstName"]) out.push(`${who}: بيانات الجواز ناقصة | Passdaten unvollständig`);
+    if (t["passportExpiry"] && new Date(t["passportExpiry"]) < limit) out.push(`${who}: الجواز ينتهي قبل 6 أشهر من السفر | Pass läuft < 6 Monate ab`);
+    if (!t["passportFile"]) out.push(`${who}: صورة الجواز غير مرفوعة | Passkopie fehlt`);
+  });
+  return out;
+}
 const fileSafe = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
 
 /** Staff-only list of incoming registrations with status, payment and flight-list export. */
