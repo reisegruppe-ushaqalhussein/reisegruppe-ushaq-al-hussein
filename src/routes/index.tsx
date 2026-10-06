@@ -108,7 +108,7 @@ export const Route = createFileRoute("/")({
 
 if (typeof window !== "undefined") window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); (window as unknown as { __installEvt?: Event }).__installEvt = e; });
 
-const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: fetchContentOfflineFirst, networkMode: "offlineFirst", retry: 1 });
+const contentQuery = queryOptions({ queryKey: ["site-content"], queryFn: fetchContentOfflineFirst, networkMode: "offlineFirst", retry: 1, staleTime: 5 * 60_000, gcTime: Infinity, refetchOnWindowFocus: false });
 
 const officialEmail = "ushaqalhussein.contact@gmail.com";
 const socialLinks = [
