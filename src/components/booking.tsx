@@ -70,6 +70,14 @@ function travelerErrors(t: Traveler, i: number): string[] {
 
 function L({ ar, de }: { ar: string; de: string }) { return <LangText ar={ar} de={de} />; }
 
+/** Splits legacy "ar | de" strings and shows them per language mode (both lines in dual mode). */
+const biFor = (lang: Parameters<typeof display>[0]) => (t: string) => {
+  const k = t.indexOf(" | ");
+  if (k < 0) return t;
+  const d = display(lang, t.slice(0, k), t.slice(k + 3));
+  return d.sub ? `${d.main} | ${d.sub}` : d.main;
+};
+
 function FileField({ label, value, onChange }: { label: { ar: string; de: string }; value?: FileData | undefined; onChange: (f: FileData | undefined) => void }) {
   const [busy, setBusy] = useState(false);
   return <label className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
@@ -86,6 +94,8 @@ const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } |
 /** Bilingual multi-step registration form replacing the external form. */
 export function BookingForm({ content }: { content: SiteContent }) {
   const submit = useServerFn(submitBooking);
+  const { lang } = useLang();
+  const bi = biFor(lang);
   const trips = content.trips.filter((t) => t.visible !== false && !t.hidden);
   const reg = regOf(content);
   const [step, setStep] = useState(0);
@@ -210,7 +220,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
         <label className="flex items-start gap-2 rounded-md border border-border p-3"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-4 w-4 accent-secondary" /><span className="text-xs leading-relaxed"><L ar="أؤكد أن جميع البيانات مطابقة للجوازات، وأوافق على استخدامها لحجز الطيران والفندق وطلب التأشيرة فقط." de="Ich bestätige, dass alle Angaben den Reisepässen entsprechen, und stimme der Nutzung nur für Flug, Hotel und Visum zu." /></span></label>
       </>}
 
-      {errors.length > 0 && <ul role="alert" className="space-y-1 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">{errors.map((e, i) => <li key={i}>• {e}</li>)}</ul>}
+      {errors.length > 0 && <ul role="alert" className="space-y-1 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">{errors.map((e, i) => <li key={i}>• {bi(e)}</li>)}</ul>}
       <div className="flex gap-2">
         {step > 0 && <Button type="button" variant="outline" className="h-12 flex-1" onClick={() => { setErrors([]); setStep(step - 1); }}><ChevronRight className="rtl:rotate-0 ltr:rotate-180" /><L ar="السابق" de="Zurück" /></Button>}
         {step < 3 ? <Button type="button" className="h-12 flex-[2]" onClick={next}><L ar="التالي" de="Weiter" /><ChevronLeft className="ltr:rotate-180" /></Button>
@@ -240,7 +250,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const adminS = useAdminSession();
   const qc = useQueryClient();
   const { lang } = useLang();
-  const bi = (t: string) => { const k = t.indexOf(" | "); return k < 0 ? t : display(lang, t.slice(0, k), t.slice(k + 3)).main; };
+  const bi = biFor(lang);
   const reg = regOf(content);
   const [regOpen, setRegOpen] = useState(false);
   const [noteAr, setNoteAr] = useState(reg.noteAr ?? "");

@@ -123,8 +123,25 @@ async function flush(t: Target) {
   } catch { batch.forEach((s) => failed[t].add(s)); }
   if (pending[t].size) timers[t] = setTimeout(() => flush(t), 50);
 }
-function translate(text: string, t: Target) {
+function translate(text: string, t: Target): string {
   if (!text || !text.trim() || NON_TEXT.test(text)) return text;
+  // Long texts (ziyarat/dua bodies) exceed the server limit (1500 chars) — split into
+  // line-based chunks, translate each (cached individually), and rejoin.
+  if (text.length > 1200) {
+    const parts: string[] = [];
+    let cur = "";
+    for (const line of text.split("\n")) {
+      if (cur && (cur + "\n" + line).length > 1100) { parts.push(cur); cur = line; }
+      else cur = cur ? cur + "\n" + line : line;
+    }
+    if (cur) parts.push(cur);
+    return parts.flatMap((p) => {
+      if (p.length <= 1200) return [p];
+      const hard: string[] = [];
+      for (let i = 0; i < p.length; i += 1100) hard.push(p.slice(i, i + 1100));
+      return hard;
+    }).map((p) => translate(p, t)).join("\n");
+  }
   loadCache(t);
   const hit = caches[t][text];
   if (hit) return hit;
