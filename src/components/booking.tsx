@@ -70,6 +70,14 @@ function travelerErrors(t: Traveler, i: number): string[] {
 
 function L({ ar, de }: { ar: string; de: string }) { return <LangText ar={ar} de={de} />; }
 
+/** Splits legacy "ar | de" strings and shows them per language mode (both lines in dual mode). */
+const biFor = (lang: Parameters<typeof display>[0]) => (t: string) => {
+  const k = t.indexOf(" | ");
+  if (k < 0) return t;
+  const d = display(lang, t.slice(0, k), t.slice(k + 3));
+  return d.sub ? `${d.main} | ${d.sub}` : d.main;
+};
+
 function FileField({ label, value, onChange }: { label: { ar: string; de: string }; value?: FileData | undefined; onChange: (f: FileData | undefined) => void }) {
   const [busy, setBusy] = useState(false);
   return <label className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
