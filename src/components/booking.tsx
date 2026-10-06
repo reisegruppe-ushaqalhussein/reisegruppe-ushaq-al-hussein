@@ -352,8 +352,14 @@ const live = (rows: BookingRow[]) => rows.filter((r) => r.status !== "cancelled"
 const hotelsFor = (trip: string) => { const d = destOf(trip); return d === "umrah" ? ["مكة / Mekka", "المدينة / Medina"] : d === "iran" ? ["مشهد / Mashhad", "قم / Qom"] : ["الكاظمية / Kadhimiya", "كربلاء / Karbala", "النجف / Najaf"]; };
 const groupOf = (r: BookingRow) => r.travelers.length > 1 ? 0 : r.travelers[0]?.["gender"] === "f" ? 2 : 1;
 const groupNames = ["👪 عائلات ومجموعات / Familien & Gruppen", "👨 شباب منفردون / Einzelreisende Männer", "🧕 نساء منفردات / Einzelreisende Frauen"];
+/** Same person = same names + birth date + passport no. (name alone is not enough). */
+export const personKey = (t: Record<string, string | undefined>) => {
+  const k = [t["lastName"], t["firstName"], t["birthDate"], t["passportNo"]].map((v) => (v ?? "").trim().toUpperCase().replace(/\s+/g, " "));
+  return k[0] && k[1] && (k[2] || k[3]) ? k.join("|") : "";
+};
+const uniqTravelers = (rows: BookingRow[]) => { const seen = new Set<string>(); return rows.map((r) => ({ ...r, travelers: r.travelers.filter((t) => { const k = personKey(t); if (!k) return true; if (seen.has(k)) return false; seen.add(k); return true; }) })).filter((r) => r.travelers.length > 0); };
 function sheetOf(kind: Kind, rows: BookingRow[]): Sheet {
-  const lv = live(rows);
+  const lv = uniqTravelers(live(rows));
   const all = lv.flatMap((r) => r.travelers);
   const cnt = (p: string) => all.filter((t) => paxOf(t) === p).length;
   const total = `TOTAL ${all.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")}`;
@@ -416,7 +422,7 @@ function issuesOf(r: BookingRow): string[] {
     if (r.status === "confirmed" && v === "approved" && r.payment_status === "unpaid") out.push(`${who}: الفيزا صدرت والحجز غير مدفوع | Visum erteilt, aber unbezahlt`);
     if (!t["passportNo"] || !t["birthDate"] || !t["lastName"] || !t["firstName"]) out.push(`${who}: بيانات الجواز ناقصة | Passdaten unvollständig`);
     if (t["passportExpiry"] && new Date(t["passportExpiry"]) < limit) out.push(`${who}: الجواز ينتهي قبل 6 أشهر من السفر | Pass läuft < 6 Monate ab`);
-    if (!t["passportFile"]) out.push(`${who}: صورة الجواز غير مرفوعة | Passkopie fehlt`);
+    if (!t["passportFile"] && !(r.admin_notes ?? "").startsWith("[يدوي")) out.push(`${who}: صورة الجواز غير مرفوعة | Passkopie fehlt`);
   });
   return out;
 }
@@ -473,7 +479,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
     {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
-    {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
+    {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
     {filter !== "all" && !trashView && <div className="mt-2 space-y-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
       <p className="font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
       {([["flight", "✈️ قائمة شركة الطيران | Airline-Liste"], ["visa", "🛂 قائمة الفيز | Visum-Liste"], ["rooms", "🧭 قائمة الحاج: التجمّع والتسكين | Leiterliste"]] as const).map(([k, label]) => <div key={k} className="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
@@ -570,7 +576,7 @@ type MT = Record<string, string>;
 const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
 
 /** Staff form to add a notebook booking (or edit any booking). Files optional, no emails sent. */
-function ManualBooking({ row, trips, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string }>; password: string; onDone: () => Promise<void> }) {
+function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string }>; rows: BookingRow[]; password: string; onDone: () => Promise<void> }) {
   const { lang } = useLang();
   const bi = biFor(lang);
   const add = useServerFn(addManualBooking);
@@ -596,6 +602,10 @@ function ManualBooking({ row, trips, password, onDone }: { row: BookingRow | nul
       if (!/^[A-Za-z][A-Za-z '\-]*$/.test(t["firstName"]!.trim()) || !/^[A-Za-z][A-Za-z '\-]*$/.test(t["lastName"]!.trim())) e.push(`#${i + 1}: الاسم واللقب بأحرف لاتينية كما في الجواز | Name lateinisch wie im Pass`);
       if (!t["gender"]) e.push(`#${i + 1}: الجنس | Geschlecht`);
       if (t["passportNo"] && !/^[A-Za-z0-9]{5,20}$/.test(t["passportNo"].trim())) e.push(`#${i + 1}: رقم الجواز غير صحيح | Passnummer ungültig`);
+      const k = personKey(t);
+      if (k && tr.some((o, j) => j < i && personKey(o) === k)) e.push(`#${i + 1}: هذا المسافر مكرر بنفس البيانات | Doppelte Person`);
+      const dup = k && rows.find((b) => b.id !== row?.id && b.status !== "deleted" && b.status !== "cancelled" && b.trip === trip.trim() && b.travelers.some((o) => personKey(o) === k));
+      if (dup) e.push(`#${i + 1}: مسجّل مسبقاً بنفس البيانات في الحجز ${dup.ref} | Bereits gebucht (${dup.ref})`);
     });
     setErrs(e); if (e.length) return;
     const travelers = tr.map((t) => Object.fromEntries(Object.entries({ ...t, firstName: t["firstName"]!.trim().toUpperCase(), lastName: t["lastName"]!.trim().toUpperCase(), passportNo: (t["passportNo"] ?? "").trim().toUpperCase() }).filter(([, v]) => typeof v === "string")) as MT);
@@ -608,11 +618,12 @@ function ManualBooking({ row, trips, password, onDone }: { row: BookingRow | nul
     } catch (x) { window.alert(`تعذّر الحفظ | Fehler\n${x instanceof Error ? x.message : x}`); } finally { setBusy(false); }
   };
   const lbl = "block text-[11px] font-bold text-muted-foreground";
-  return <div className="mt-2 space-y-2 rounded-md border-2 border-secondary bg-card p-2 text-xs">
+  const rtl = lang === "ar" || lang === "both";
+  const tripList = trip && !trips.some((t) => t.trip === trip) ? [{ trip, date: tripDate }, ...trips] : trips;
+  return <div dir={rtl ? "rtl" : "ltr"} className={`mt-2 space-y-2 rounded-md border-2 border-secondary bg-card p-2 text-xs ${rtl ? "text-right" : "text-left"}`}>
     <p className="text-sm font-bold text-primary">{bi(row ? `✏️ تعديل الحجز ${row.ref} | Buchung bearbeiten` : "➕ حجز يدوي من الدفتر | Manuelle Buchung")}</p>
     <p className="text-muted-foreground">{bi("الصور غير إلزامية ولا يُرسل أي إيميل. الحجز يدخل كل القوائم تلقائياً. | Fotos optional, keine E-Mail. Erscheint automatisch in allen Listen.")}</p>
-    <label className={lbl}>{bi("الرحلة | Reise")}<input list="mb-trips" value={trip} onChange={(e) => { setTrip(e.target.value); const m = trips.find((t) => t.trip === e.target.value); if (m) setTripDate(m.date); }} className={inputCls} /></label>
-    <datalist id="mb-trips">{trips.map((t) => <option key={t.trip} value={t.trip} />)}</datalist>
+    <label className={lbl}>{bi("الرحلة | Reise")}<select value={trip} onChange={(e) => { setTrip(e.target.value); const m = trips.find((t) => t.trip === e.target.value); if (m) setTripDate(m.date); }} className={inputCls}><option value="">—</option>{tripList.map((t) => <option key={t.trip} value={t.trip}>{t.trip.includes(" | ") ? bi(t.trip) : t.trip}</option>)}</select></label>
     <div className="grid grid-cols-2 gap-1.5">
       <label className={lbl}>{bi("التاريخ | Datum")}<input value={tripDate} onChange={(e) => setTripDate(e.target.value)} className={inputCls} /></label>
       <label className={lbl}>{bi("الهاتف / واتساب | Telefon")}<input dir="ltr" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} /></label>

@@ -192,6 +192,11 @@ export const addManualBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!(await isStaff(data.password))) return { ok: false as const, ref: "" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const key = (t: Record<string, string>) => { const k = [t["lastName"], t["firstName"], t["birthDate"], t["passportNo"]].map((v) => (v ?? "").trim().toUpperCase()); return k[0] && k[1] && (k[2] || k[3]) ? k.join("|") : ""; };
+    const { data: same } = await supabaseAdmin.from("bookings").select("ref, travelers, status").eq("trip", data.trip);
+    const taken = new Set((same ?? []).filter((b) => b.status !== "deleted" && b.status !== "cancelled").flatMap((b) => ((b.travelers ?? []) as Record<string, string>[]).map(key)).filter(Boolean));
+    const clash = data.travelers.find((t) => key(t) && taken.has(key(t)));
+    if (clash) throw new Error(`مسجّل مسبقاً بنفس البيانات | Bereits gebucht: ${clash["lastName"]} ${clash["firstName"]}`);
     const ref = `UH-${new Date().getFullYear()}-M${Math.floor(100 + Math.random() * 900)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
     const { password: _p, ...row } = data;
     const { error } = await supabaseAdmin.from("bookings").insert({ ...row, ref, travelers: row.travelers as never, admin_notes: `[يدوي | manuell] ${row.admin_notes}`.trim() });
