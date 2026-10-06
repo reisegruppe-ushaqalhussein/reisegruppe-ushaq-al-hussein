@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
+import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LangText, display, useLang } from "@/lib/i18n";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
@@ -122,7 +122,7 @@ function FileField({ label, value, onChange, photo = false }: { label: { ar: str
 }
 
 /** Camera/photo passport scan: fills the fields, attaches the page as passport copy; user reviews everything. */
-function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler>) => void }) {
+function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Traveler>) => void; pen?: React.ReactNode }) {
   const staff = useStaffSession();
   const scan = useServerFn(scanPassport);
   const [busy, setBusy] = useState(false);
@@ -151,6 +151,7 @@ function ScanButton({ reg, onFill }: { reg: RegCfg; onFill: (p: Partial<Traveler
       <span className="min-w-0 flex-1 text-sm font-bold"><LangText ar="مسح الجواز وتعبئة البيانات تلقائياً" de="Pass scannen & automatisch ausfüllen" inverse /><span className="block text-[11px] font-normal opacity-80"><LangText ar={reg.ocrNoteAr || "صوّر صفحة البيانات كاملة مع السطرين السفليين، بدون فلاش ولمعان."} de={reg.ocrNoteDe || "Ganze Datenseite inkl. der zwei unteren Zeilen, ohne Blitz und Spiegelung."} inverse /></span></span>
       <input type="file" accept="image/*" className="hidden" disabled={busy} onClick={markPicking} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; donePicking(); if (f) void run(f); }} />
     </label>
+    {pen}
     {msg && <p className={`rounded-md p-2 text-xs ${msg.ok ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}><L ar={msg.ar} de={msg.de} /></p>}
   </div>;
 }
@@ -253,7 +254,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
   return <>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
-      <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span></div>
+      <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span><EditPen content={content} k="title" label="عنوان الاستمارة" /></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
     </div>
     <div className="space-y-4 p-4 text-sm">
@@ -291,7 +292,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
             {i > 0 && <button type="button" aria-label="حذف | Entfernen" onClick={() => setTravelers((l) => l.filter((_, j) => j !== i))} className="grid h-8 w-8 place-items-center rounded-full border border-border text-destructive"><Trash2 className="h-4 w-4" /></button>}
           </div>
           <div className="grid grid-cols-3 gap-1.5">{cats.map((c) => <button key={c.id} type="button" onClick={() => setT(i, { category: c.id })} className={`rounded-md border px-1 py-2 text-[11px] font-bold ${t.category === c.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={c.ar} de={c.de} center /></button>)}</div>
-          <ScanButton reg={reg} onFill={(p) => setT(i, p)} />
+          <ScanButton reg={reg} onFill={(p) => setT(i, p)} pen={i === 0 ? <EditPen content={content} k="ocrNote" label="إرشاد تصوير الجواز" /> : null} />
           {i > 0 && <label className="block font-bold"><L ar="صلة القرابة" de="Verwandtschaft" /><input list="bk-rel" autoComplete="off" value={t.relation} onChange={(e) => setT(i, { relation: e.target.value })} maxLength={60} className={inputCls} /></label>}
           <div className="grid grid-cols-2 gap-2">
             <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="off" list="bk-first" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
@@ -403,46 +404,47 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   </section>;
 }
 
-function OcrNote({ reg, save, bi }: { reg: RegCfg; save: (p: RegCfg) => Promise<void>; bi: (t: string) => string }) {
-  const [ar, setAr] = useState(reg.ocrNoteAr ?? "");
-  const [de, setDe] = useState(reg.ocrNoteDe ?? "");
-  return <div className="space-y-1 rounded-md bg-muted p-2">
-    <p className="font-bold">{bi("إرشاد تصوير الجواز | Hinweis zum Pass-Foto")}</p>
-    <textarea rows={2} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="عربي" className={inputCls} />
-    <textarea rows={2} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
-    <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void save({ ocrNoteAr: ar.trim(), ocrNoteDe: de.trim() })}>{bi("حفظ | Speichern")}</Button>
-    <Button size="sm" variant="outline" onClick={() => { setAr(""); setDe(""); void save({ ocrNoteAr: "", ocrNoteDe: "" }); }}>{bi("افتراضي | Standard")}</Button></div>
+/** Admin-only pencil next to a text: tap to edit that exact text (Arabic + German) in place. */
+function EditPen({ content, k, label }: { content: SiteContent; k: "title" | "intro" | "note" | "ocrNote"; label: string }) {
+  const adminS = useAdminSession();
+  const qc = useQueryClient();
+  const reg = regOf(content);
+  const [open, setOpen] = useState(false);
+  const [ar, setAr] = useState(""); const [de, setDe] = useState("");
+  if (adminS?.role !== "admin") return null;
+  const kA = `${k}Ar` as keyof RegCfg, kD = `${k}De` as keyof RegCfg;
+  const save = async (a: string, d: string) => {
+    try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, [kA]: a.trim(), [kD]: d.trim() } } as never }, "التسجيل | Anmeldung", qc); setOpen(false); }
+    catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
+  };
+  if (!open) return <button type="button" aria-label={`تعديل ${label}`} title={`تعديل ${label}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAr(String(reg[kA] ?? "")); setDe(String(reg[kD] ?? "")); setOpen(true); }} className="ms-1 inline-grid h-6 w-6 shrink-0 place-items-center rounded-full bg-secondary align-middle text-secondary-foreground shadow-sm"><Pencil className="h-3 w-3" /></button>;
+  return <div className="my-2 space-y-1.5 rounded-md border-2 border-secondary bg-card p-2 text-xs text-foreground" onClick={(e) => e.stopPropagation()}>
+    <p className="font-bold text-primary">✏️ {label}</p>
+    <textarea dir="rtl" rows={2} value={ar} onChange={(e) => setAr(e.target.value)} placeholder="عربي" className={inputCls} />
+    <textarea dir="ltr" rows={2} value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
+    <div className="flex gap-1.5"><Button size="sm" className="flex-1" onClick={() => void save(ar, de)}>حفظ | Speichern</Button><Button size="sm" variant="outline" onClick={() => void save("", "")}>افتراضي</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>✕</Button></div>
   </div>;
 }
 
-/** Admin controls placed directly above the registration form. */
+/** Admin quick switches placed directly above the registration form; texts are edited with the pencils in place. */
 function RegSettings({ content }: { content: SiteContent }) {
   const adminS = useAdminSession();
   const qc = useQueryClient();
   const { lang } = useLang();
   const bi = biFor(lang);
   const reg = regOf(content);
-  const [open, setOpen] = useState(false);
-  const [t, setT] = useState({ noteAr: reg.noteAr ?? "", noteDe: reg.noteDe ?? "", titleAr: reg.titleAr ?? "", titleDe: reg.titleDe ?? "", introAr: reg.introAr ?? "", introDe: reg.introDe ?? "" });
   if (adminS?.role !== "admin") return null;
   const saveReg = async (patch: RegCfg) => {
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
     catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
   };
-  const txt = (k: keyof typeof t, label: string, ltr = false) => <label className="block">{bi(label)}<textarea dir={ltr ? "ltr" : "rtl"} rows={2} value={t[k]} onChange={(e) => setT({ ...t, [k]: e.target.value })} maxLength={1000} className={inputCls} /></label>;
   return <div className="mb-3 rounded-md border-2 border-secondary bg-card p-2 text-xs">
     <div className="grid grid-cols-2 gap-1.5">
       <Button size="sm" variant={reg.closed ? "default" : "outline"} onClick={() => void saveReg({ closed: !reg.closed })}>{bi(reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen")}</Button>
       <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>{bi(reg.ocrOff ? "📷 تفعيل المسح | Scan an" : "📷 إيقاف المسح | Scan aus")}</Button>
     </div>
     {!reg.ocrOff && <Button size="sm" variant={reg.ocrPublic ? "default" : "outline"} className="mt-1.5 w-full whitespace-normal" onClick={() => void saveReg({ ocrPublic: !reg.ocrPublic })}>{bi(reg.ocrPublic ? "👥 المسح متاح للزوار — اضغط لحصره بالإدارة والحاج | Scan für alle – nur Leitung" : "🔐 المسح للإدارة والحاج فقط — اضغط لإتاحته للزوار | Scan nur Leitung – für alle öffnen")}</Button>}
-    <button type="button" className="mt-2 flex w-full items-center gap-2 font-bold text-primary" onClick={() => setOpen(!open)}><Settings className="h-4 w-4" />{bi("تعديل نصوص الاستمارة | Formulartexte bearbeiten")}</button>
-    {open && <div className="mt-2 space-y-2">
-      {txt("titleAr", "عنوان الاستمارة (عربي) | Titel (Arabisch)")}{txt("titleDe", "عنوان الاستمارة (ألماني) | Titel (Deutsch)", true)}
-      {txt("introAr", "نص تعريفي داخل الاستمارة (عربي) | Einleitung (Arabisch)")}{txt("introDe", "نص تعريفي (ألماني) | Einleitung (Deutsch)", true)}
-      {txt("noteAr", "ملاحظة أعلى الاستمارة (عربي) | Hinweis (Arabisch)")}{txt("noteDe", "ملاحظة أعلى الاستمارة (ألماني) | Hinweis (Deutsch)", true)}
-      <Button size="sm" className="w-full" onClick={() => void saveReg(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v.trim()])) as RegCfg)}>{bi("حفظ النصوص | Texte speichern")}</Button>
-      <OcrNote reg={reg} save={saveReg} bi={bi} />
-    </div>}
+    <p className="mt-2 flex items-center gap-1 text-muted-foreground"><Pencil className="h-3 w-3" />{bi("لتعديل أي نص اضغط القلم الذهبي بجانبه | Zum Bearbeiten den goldenen Stift neben dem Text tippen")}</p>
+    <div className="mt-1 flex items-center gap-1">{bi("ملاحظة أعلى الاستمارة | Hinweis oben")}<EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /> · {bi("نص تعريفي | Einleitung")}<EditPen content={content} k="intro" label="النص التعريفي" /></div>
   </div>;
 }

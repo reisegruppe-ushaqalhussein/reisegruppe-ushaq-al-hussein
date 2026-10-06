@@ -866,7 +866,9 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => { document.documentElement.dataset["theme"] = content.cms?.theme ?? ""; }, [content.cms?.theme]);
   useLayoutEffect(() => {
     setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
-    const v = sessionStorage.getItem("view") as View | null;
+    const pickAt = Number(localStorage.getItem("booking-picking-at") ?? 0);
+    const v = (pickAt && Date.now() - pickAt < 600000 ? localStorage.getItem("picking-view") : null) as View | null ?? sessionStorage.getItem("view") as View | null;
+    if (pickAt) setWelcomed(true);
     if (v && v in viewTitles) setView(v);
     setCustomId(sessionStorage.getItem("custom-id"));
   }, []);
@@ -896,7 +898,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     if (!window.history.state?.view) window.history.replaceState({ ...(window.history.state ?? {}), view: "home" }, "");
     const onPop = (e: PopStateEvent) => {
       const w = window as unknown as { __picking?: number };
-      if (w.__picking && Date.now() - w.__picking < 120000) { w.__picking = 0; window.history.pushState({ ...(e.state ?? {}), view: window.history.state?.view ?? sessionStorage.getItem("view") ?? "home" }, ""); return; }
+      if (w.__picking && Date.now() - w.__picking < 300000) { w.__picking = 0; const cur = sessionStorage.getItem("view") ?? "registration"; window.history.pushState({ view: cur }, ""); return; }
       const dlg = document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
       if (dlg) {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
