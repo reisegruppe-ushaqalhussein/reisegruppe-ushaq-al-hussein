@@ -24,6 +24,7 @@ const cats: Array<{ id: Cat; ar: string; de: string }> = [
 const rooms = [
   { id: "double", ar: "ثنائية", de: "Doppelzimmer" }, { id: "triple", ar: "ثلاثية", de: "Dreibettzimmer" },
   { id: "quad", ar: "رباعية", de: "Vierbettzimmer" }, { id: "family", ar: "عائلية", de: "Familienzimmer" },
+  { id: "leader", ar: "حسب ما يراه الحاج مناسباً", de: "Nach Ermessen der Reiseleitung" },
 ];
 
 function age(birth: string) {
@@ -338,24 +339,51 @@ const visaCls: Record<string, string> = { none: "bg-muted text-muted-foreground"
 const visaEn: Record<string, string> = { none: "NOT SUBMITTED", processing: "IN PROCESS", approved: "APPROVED", rejected: "REJECTED" };
 function destOf(trip: string) { const s = trip.toLowerCase(); return /عمر|umrah|umra|mekka|mecca|مكة/.test(s) ? "umrah" : /ايران|إيران|iran|مشهد|mashhad|قم|qom/.test(s) ? "iran" : "iraq"; }
 function visaType(trip: string) { const d = destOf(trip); return d === "umrah" ? "🕋 العمرة: تأشيرة عبر منصة نسك | Umrah: Visum über Nusuk" : d === "iran" ? "🇮🇷 إيران: تأشيرة إيرانية | Iran: Iranisches Visum" : "🇮🇶 العراق: فيزا إلكترونية | Irak: E-Visum"; }
-function visaCsv(rows: BookingRow[]) {
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["NO", "REF", "TRIP", "DESTINATION", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "VISA_STATUS", "PHONE"];
-  let n = 0;
-  const lines = rows.flatMap((r) => r.travelers.map((t) => [++n, r.ref, r.trip, destOf(r.trip).toUpperCase(), t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], t["nationality"], t["passportNo"], t["passportExpiry"], visaEn[t["visa"] || "none"], r.contact_phone].map(esc).join(",")));
-  return "\uFEFF" + [head.join(","), ...lines].join("\r\n");
-}
+const paxOf = (t: Record<string, string>) => t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
+const paxMark: Record<string, string> = { ADT: "ADT", CHD: "CHD ⚠ CHILD", INF: "INF ⚠ INFANT (lap)" };
+const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === id); return r ? `${r.de} / ${r.ar}` : id ?? ""; };
+/** One group per trip + date so each journey gets its own list. */
+const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
-function csv(rows: BookingRow[]) {
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const head = ["REF", "TRIP", "TRIP_DATE", "STATUS", "PAYMENT", "PAID", "TOTAL", "NO", "TITLE", "LAST_NAME", "FIRST_NAME", "GENDER", "DOB", "PAX_TYPE", "NATIONALITY", "PASSPORT", "PASSPORT_EXPIRY", "DEP_AIRPORT", "RELATION", "EMAIL", "PHONE", "ROOM", "NOTES"];
-  const lines = rows.flatMap((r) => r.travelers.map((t, i) => {
-    const title = t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : t["gender"] === "f" ? "MRS" : "MR";
-    const pax = t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
-    return [r.ref, r.trip, r.trip_date, r.status, r.payment_status, r.paid_amount, r.total_amount, i + 1, title, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], pax, t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], t["relation"], r.contact_email, r.contact_phone, r.room_pref, r.notes].map(esc).join(",");
-  }));
-  return "\uFEFF" + [head.join(","), ...lines].join("\r\n");
+type Sheet = { title: string; head: string[]; body: Array<{ cells: unknown[]; pax: string }> };
+function sheetOf(kind: "flight" | "visa", rows: BookingRow[]): Sheet {
+  const live = rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
+  let n = 0;
+  if (kind === "visa") return { title: "VISA LIST", head: ["NO", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "VISA TYPE", "VISA STATUS", "BOOKING REF", "PHONE"],
+    body: live.flatMap((r) => r.travelers.map((t) => ({ pax: paxOf(t), cells: [++n, t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[paxOf(t)], t["nationality"], t["passportNo"], t["passportExpiry"], destOf(r.trip) === "umrah" ? "UMRAH (NUSUK)" : destOf(r.trip) === "iran" ? "IRAN VISA" : "IRAQ E-VISA", visaEn[t["visa"] || "none"], r.ref, r.contact_phone] }))) };
+  return { title: "PASSENGER MANIFEST", head: ["NO", "TITLE", "SURNAME", "GIVEN NAMES", "GENDER", "DATE OF BIRTH", "PAX TYPE", "NATIONALITY", "PASSPORT NO", "PASSPORT EXPIRY", "DEP. AIRPORT", "BOOKING REF", "STATUS", "PHONE", "ROOM"],
+    body: live.flatMap((r) => r.travelers.map((t) => { const p = paxOf(t); return { pax: p, cells: [++n, p === "ADT" ? (t["gender"] === "f" ? "MRS" : "MR") : p === "CHD" ? (t["gender"] === "f" ? "MISS" : "MSTR") : "INF", t["lastName"], t["firstName"], (t["gender"] ?? "").toUpperCase(), t["birthDate"], paxMark[p], t["nationality"], t["passportNo"], t["passportExpiry"], t["airport"], r.ref, r.status.toUpperCase(), r.contact_phone, roomName(r.room_pref)] }; })) };
 }
+const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function sheetHtml(s: Sheet, group: string, forPrint: boolean) {
+  const cnt = (p: string) => s.body.filter((b) => b.pax === p).length;
+  const tr = s.body.map((b) => `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"}">${b.cells.map((c, i) => `<td style="border:1px solid #888;padding:4px;mso-number-format:'\\@';${i === 6 || i === 5 ? "font-weight:bold" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("");
+  return `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><title>${esc(s.title)} – ${esc(group)}</title>${forPrint ? `<meta name="viewport" content="width=device-width,initial-scale=1"><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style>` : ""}</head><body style="font-family:Arial">
+${forPrint ? `<button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>` : ""}
+<table style="border-collapse:collapse"><tr><td colspan="${s.head.length}" style="font-size:16px;font-weight:bold">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</td></tr>
+<tr><td colspan="${s.head.length}" style="font-weight:bold">${esc(group)}</td></tr>
+<tr><td colspan="${s.head.length}">TOTAL ${s.body.length} PAX — ADT ${cnt("ADT")} · CHD ${cnt("CHD")} · INF ${cnt("INF")} — ${new Date().toISOString().slice(0, 10)}</td></tr>
+<tr>${s.head.map((h) => `<th style="border:1px solid #333;background:#1f2a44;color:#fff;padding:5px">${h}</th>`).join("")}</tr>${tr}</table></body></html>`;
+}
+/** Mismatch / missing-data warnings shown to staff on each booking. */
+function issuesOf(r: BookingRow): string[] {
+  if (r.status === "deleted" || r.status === "cancelled") return [];
+  const out: string[] = [];
+  const ref = r.trip_date && !Number.isNaN(Date.parse(r.trip_date)) ? new Date(r.trip_date) : new Date();
+  const limit = new Date(ref); limit.setMonth(limit.getMonth() + 6);
+  r.travelers.forEach((t, i) => {
+    const who = `${i + 1}. ${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim();
+    const v = t["visa"] || "none";
+    if (r.status === "confirmed" && v === "none") out.push(`${who}: الحجز مؤكد لكن الفيزا لم تُقدَّم | Bestätigt, aber Visum nicht eingereicht`);
+    if (v === "rejected") out.push(`${who}: الفيزا مرفوضة / تحتاج تعديل | Visum abgelehnt`);
+    if (r.status === "confirmed" && v === "approved" && r.payment_status === "unpaid") out.push(`${who}: الفيزا صدرت والحجز غير مدفوع | Visum erteilt, aber unbezahlt`);
+    if (!t["passportNo"] || !t["birthDate"] || !t["lastName"] || !t["firstName"]) out.push(`${who}: بيانات الجواز ناقصة | Passdaten unvollständig`);
+    if (t["passportExpiry"] && new Date(t["passportExpiry"]) < limit) out.push(`${who}: الجواز ينتهي قبل 6 أشهر من السفر | Pass läuft < 6 Monate ab`);
+    if (!t["passportFile"]) out.push(`${who}: صورة الجواز غير مرفوعة | Passkopie fehlt`);
+  });
+  return out;
+}
+const fileSafe = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
 
 /** Staff-only list of incoming registrations with status, payment and flight-list export. */
 export function BookingsPanel({ content }: { content: SiteContent }) {
@@ -374,24 +402,42 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
-  const trips = useMemo(() => [...new Set((rows ?? []).map((r) => r.trip))], [rows]);
+  const trips = useMemo(() => [...new Set((rows ?? []).filter((r) => r.status !== "deleted").map(groupKey))], [rows]);
+  const [trashView, setTrashView] = useState(false);
   if (!s) return null;
-  const shown = (rows ?? []).filter((r) => filter === "all" || r.trip === filter);
+  const trashed = (rows ?? []).filter((r) => r.status === "deleted");
+  const shown = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && (filter === "all" || groupKey(r) === filter));
   const patch = async (r: BookingRow, p: Partial<BookingRow> & { remove?: boolean }) => {
     try { await update({ data: { password: s.password, id: r.id, ...p } as never }); await load(); } catch (e) { window.alert(String(e)); }
   };
-  const save = (text: string, name: string) => { const blob = new Blob([text], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
-  const download = () => save(csv(shown), "flight-manifest");
-  const downloadVisa = () => save(visaCsv(shown), "visa-manifest");
+  const problems = shown.filter((r) => issuesOf(r).length > 0).length;
+  const xls = (kind: "flight" | "visa") => {
+    const html = sheetHtml(sheetOf(kind, shown), filter, false);
+    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${kind === "visa" ? "Visa" : "Airline"}-${fileSafe(filter)}.xls`; a.click();
+  };
+  const printList = (kind: "flight" | "visa") => {
+    const w = window.open("", "_blank"); if (!w) return;
+    w.document.write(sheetHtml(sheetOf(kind, shown), filter, true)); w.document.close();
+  };
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
-    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
-      <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
-      <button type="button" aria-label="تصدير | Export" onClick={download} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><Download className="h-4 w-4" /></button>
-      <button type="button" aria-label="منافيست الفيز | Visa-Liste" title="منافيست الفيز | Visa-Liste" onClick={downloadVisa} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary">🛂</button>
+    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi(trashView ? "🗑 سلة الحجوزات | Papierkorb " : "📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
+      <button type="button" aria-label="تحديث | Aktualisieren" title="تحديث القائمة | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
+      <button type="button" aria-label="سلة المحذوفات | Papierkorb" title="سلة المحذوفات | Papierkorb" onClick={() => setTrashView(!trashView)} className={`relative grid h-8 w-8 place-items-center rounded-full border border-border ${trashView ? "bg-primary text-primary-foreground" : "text-primary"}`}><Trash2 className="h-4 w-4" />{trashed.length > 0 && <span className="absolute -end-1 -top-1 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{trashed.length}</span>}</button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    {filter !== "all" && !trashView && <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
+      <p className="col-span-2 font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => xls("flight")}>{bi("✈️ إكسل الطيران | Excel Airline")}</Button>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => xls("visa")}>{bi("🛂 إكسل الفيز | Excel Visum")}</Button>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => printList("flight")}>{bi("🖨 طباعة/PDF الطيران | Druck Airline")}</Button>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => printList("visa")}>{bi("🖨 طباعة/PDF الفيز | Druck Visum")}</Button>
+      <p className="col-span-2 text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر | Kinder gelb, Kleinkinder rot markiert")}</p>
+    </div>}
+    {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
+    {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
       return <li key={r.id} className="rounded-md border border-border p-2 text-xs">
@@ -408,7 +454,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
               <select value={t["visa"] || "none"} onChange={(e) => void patch(r, { travelers: r.travelers.map((x, j) => j === i ? { ...x, visa: e.target.value } : x) })} className={inputCls + " mt-0 flex-1 py-1 text-xs"}>{Object.entries(visaLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
             </label></div>)}
           <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
-          {(r.room_pref || r.notes) && <p>🛏 {r.room_pref} · {r.notes}</p>}
+          {issuesOf(r).length > 0 && <ul className="rounded-md border-2 border-destructive bg-destructive/10 p-2 font-bold text-destructive">{issuesOf(r).map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
+          {(r.room_pref || r.notes) && <p>🛏 {roomName(r.room_pref)} · {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
             <select value={r.payment_status} onChange={(e) => void patch(r, { payment_status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(payLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
@@ -417,10 +464,12 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           </div>
           <p>{bi("المتبقي | Rest: ")}<b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
           <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder={bi("ملاحظات الإدارة | Interne Notiz")} onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
-          <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف الحجز نهائياً؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف | Löschen")}</button>
+          {trashView
+            ? <div className="flex gap-3"><button type="button" className="font-bold text-primary underline" onClick={() => void patch(r, { status: "new" })}>{bi("↩️ استرجاع | Wiederherstellen")}</button><button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف نهائي بلا رجعة؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف نهائي | Endgültig löschen")}</button></div>
+            : <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("نقل الحجز إلى سلة المحذوفات؟ | In den Papierkorb?")) void patch(r, { status: "deleted" }); }}>{bi("🗑 نقل للسلة | In den Papierkorb")}</button>}
         </div>}
       </li>;
-    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi("لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
+    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
   </section>;
 }
 
