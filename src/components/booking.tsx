@@ -384,24 +384,42 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
-  const trips = useMemo(() => [...new Set((rows ?? []).map((r) => r.trip))], [rows]);
+  const trips = useMemo(() => [...new Set((rows ?? []).filter((r) => r.status !== "deleted").map(groupKey))], [rows]);
+  const [trashView, setTrashView] = useState(false);
   if (!s) return null;
-  const shown = (rows ?? []).filter((r) => filter === "all" || r.trip === filter);
+  const trashed = (rows ?? []).filter((r) => r.status === "deleted");
+  const shown = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && (filter === "all" || groupKey(r) === filter));
   const patch = async (r: BookingRow, p: Partial<BookingRow> & { remove?: boolean }) => {
     try { await update({ data: { password: s.password, id: r.id, ...p } as never }); await load(); } catch (e) { window.alert(String(e)); }
   };
-  const save = (text: string, name: string) => { const blob = new Blob([text], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
-  const download = () => save(csv(shown), "flight-manifest");
-  const downloadVisa = () => save(visaCsv(shown), "visa-manifest");
+  const problems = shown.filter((r) => issuesOf(r).length > 0).length;
+  const xls = (kind: "flight" | "visa") => {
+    const html = sheetHtml(sheetOf(kind, shown), filter, false);
+    const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${kind === "visa" ? "Visa" : "Airline"}-${fileSafe(filter)}.xls`; a.click();
+  };
+  const printList = (kind: "flight" | "visa") => {
+    const w = window.open("", "_blank"); if (!w) return;
+    w.document.write(sheetHtml(sheetOf(kind, shown), filter, true)); w.document.close();
+  };
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
-    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
-      <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
-      <button type="button" aria-label="تصدير | Export" onClick={download} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><Download className="h-4 w-4" /></button>
-      <button type="button" aria-label="منافيست الفيز | Visa-Liste" title="منافيست الفيز | Visa-Liste" onClick={downloadVisa} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary">🛂</button>
+    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi(trashView ? "🗑 سلة الحجوزات | Papierkorb " : "📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
+      <button type="button" aria-label="تحديث | Aktualisieren" title="تحديث القائمة | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
+      <button type="button" aria-label="سلة المحذوفات | Papierkorb" title="سلة المحذوفات | Papierkorb" onClick={() => setTrashView(!trashView)} className={`relative grid h-8 w-8 place-items-center rounded-full border border-border ${trashView ? "bg-primary text-primary-foreground" : "text-primary"}`}><Trash2 className="h-4 w-4" />{trashed.length > 0 && <span className="absolute -end-1 -top-1 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{trashed.length}</span>}</button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    {filter !== "all" && !trashView && <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
+      <p className="col-span-2 font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => xls("flight")}>{bi("✈️ إكسل الطيران | Excel Airline")}</Button>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => xls("visa")}>{bi("🛂 إكسل الفيز | Excel Visum")}</Button>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => printList("flight")}>{bi("🖨 طباعة/PDF الطيران | Druck Airline")}</Button>
+      <Button size="sm" variant="outline" className="whitespace-normal" onClick={() => printList("visa")}>{bi("🖨 طباعة/PDF الفيز | Druck Visum")}</Button>
+      <p className="col-span-2 text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر | Kinder gelb, Kleinkinder rot markiert")}</p>
+    </div>}
+    {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
+    {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
       return <li key={r.id} className="rounded-md border border-border p-2 text-xs">
@@ -418,6 +436,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
               <select value={t["visa"] || "none"} onChange={(e) => void patch(r, { travelers: r.travelers.map((x, j) => j === i ? { ...x, visa: e.target.value } : x) })} className={inputCls + " mt-0 flex-1 py-1 text-xs"}>{Object.entries(visaLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
             </label></div>)}
           <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
+          {issuesOf(r).length > 0 && <ul className="rounded-md border-2 border-destructive bg-destructive/10 p-2 font-bold text-destructive">{issuesOf(r).map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
           {(r.room_pref || r.notes) && <p>🛏 {r.room_pref} · {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
@@ -427,10 +446,12 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           </div>
           <p>{bi("المتبقي | Rest: ")}<b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
           <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder={bi("ملاحظات الإدارة | Interne Notiz")} onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
-          <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف الحجز نهائياً؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف | Löschen")}</button>
+          {trashView
+            ? <div className="flex gap-3"><button type="button" className="font-bold text-primary underline" onClick={() => void patch(r, { status: "new" })}>{bi("↩️ استرجاع | Wiederherstellen")}</button><button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف نهائي بلا رجعة؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف نهائي | Endgültig löschen")}</button></div>
+            : <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("نقل الحجز إلى سلة المحذوفات؟ | In den Papierkorb?")) void patch(r, { status: "deleted" }); }}>{bi("🗑 نقل للسلة | In den Papierkorb")}</button>}
         </div>}
       </li>;
-    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi("لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
+    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
   </section>;
 }
 
