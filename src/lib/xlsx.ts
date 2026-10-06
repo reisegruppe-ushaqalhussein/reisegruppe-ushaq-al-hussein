@@ -2,7 +2,7 @@ import { strToU8, zipSync } from "fflate";
 
 /** Style ids: 0 plain, 1 header, 2 title, 3 child (yellow), 4 infant (red), 5 bordered cell, 6 section band. */
 export type XCell = { v: unknown; s?: number };
-export type XSheet = { name: string; widths: number[]; rows: XCell[][]; tall?: number };
+export type XSheet = { name: string; widths: number[]; rows: XCell[][]; tall?: number | undefined };
 
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
 const col = (i: number) => { let s = ""; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
