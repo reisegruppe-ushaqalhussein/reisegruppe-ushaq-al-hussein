@@ -1,1 +1,2 @@
 - Luggage tags are drawn on canvas at 300 dpi in `src/components/luggage-tags.tsx` with fixed mm sheet grids; the Iraq tag draws only the visitor name over the leader-approved template image, because the laminator cutter needs exact card sizes and the leader owns the design.
+- Registration labels are renamed via `cms.registration.labels` (keyed by Arabic default) in `booking.tsx`; admin-added fields and city are appended to booking notes, because notes already reach emails, lists and exports.

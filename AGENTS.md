@@ -35,4 +35,3 @@
 - Staff code checks live in `src/lib/roles.server.ts`, because exporting them from a client-imported module leaks node:crypto into the browser.
 - Passport OCR is the public `scanPassport` server fn; it only pre-fills editable form fields and its toggle/hint live in `cms.registration`, because manual entry must always remain the source of truth.
 - Booking exports are real .xlsx from `src/lib/xlsx.ts`, one per trip; staff add/edit bookings via `addManualBooking`/`updateBooking` (no files/emails), because mobile Excel rejects .xls and notebook bookings must reach every list.
-- Registration form labels are renamed via `cms.registration.labels` keyed by the Arabic default, and admin-added fields (`extra`, plus built-in city) are appended to booking notes, because notes already reach emails, lists and exports without schema changes.
