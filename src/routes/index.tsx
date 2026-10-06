@@ -913,7 +913,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("open-view", onOpen); };
   }, []);
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
-  if (welcomed === null) return <div className="min-h-screen bg-muted" />;
+  if (welcomed === null) return <div className="min-h-screen bg-muted"><div className="mx-auto min-h-screen w-full max-w-[420px] bg-background shadow-xl" /></div>;
   return (
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}

@@ -152,10 +152,12 @@ function drawName(p: ReturnType<typeof pen>, who: Person, st: Style, left: numbe
     p.text(who.ar, right, base, sz, { align: "right", color, weight: w, maxW: half });
     p.text(who.de, left, base, sz * 0.85, { align: "left", color, weight: w, maxW: half });
   } else if (who.ar && who.de) {
-    p.text(who.ar, cx, base - sz * 0.95, sz, { color, weight: w, maxW: full });
-    p.text(who.de, cx, base, sz * 0.78, { color, weight: w, maxW: full });
+    p.text(who.ar, right, base - sz * 0.95, sz, { align: "right", color, weight: w, maxW: full });
+    p.text(who.de, left, base, sz * 0.78, { align: "left", color, weight: w, maxW: full });
   } else if (who.ar || who.de) {
-    p.text(who.ar || who.de, cx, base, sz, { color, weight: w, maxW: full });
+    const t = (who.ar || who.de).trim();
+    const rtl = /[\u0600-\u06FF]/.test(t);
+    p.text(t, rtl ? right : left, base, sz, { align: rtl ? "right" : "left", color, weight: w, maxW: full });
   }
 }
 
