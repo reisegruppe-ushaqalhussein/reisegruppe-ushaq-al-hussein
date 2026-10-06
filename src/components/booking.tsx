@@ -85,6 +85,8 @@ export const markPicking = () => {
   try { localStorage.setItem(PICK_KEY, String(Date.now())); localStorage.setItem("picking-view", sessionStorage.getItem("view") ?? "registration"); } catch { /* ignore */ }
   window.dispatchEvent(new Event("booking-picking"));
 };
+/** Picker returned normally: no reload happened, so nothing should be restored later. */
+const donePicking = () => { window.setTimeout(() => { try { localStorage.removeItem(PICK_KEY); localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }, 1500); };
 async function checkFile(f: File, photo: boolean) {
   const head = new Uint8Array(await f.slice(0, 12).arrayBuffer());
   const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
@@ -105,11 +107,18 @@ async function checkFile(f: File, photo: boolean) {
 function FileField({ label, value, onChange, photo = false }: { label: { ar: string; de: string }; value?: FileData | undefined; onChange: (f: FileData | undefined) => void; photo?: boolean }) {
   const { lang } = useLang();
   const [busy, setBusy] = useState(false);
-  return <label className={`flex cursor-pointer items-center gap-3 rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-secondary">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : value ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}</span>
-    <span className="min-w-0 flex-1"><span className="block font-bold"><L {...label} /></span><span className="block truncate text-xs text-muted-foreground">{value ? value.name : photo ? "JPG / PNG — max 10 MB" : "JPG / PNG / PDF — max 10 MB"}</span></span>
-    <input type="file" accept={photo ? "image/*" : "image/*,application/pdf,.pdf"} className="hidden" onClick={markPicking} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); try { await checkFile(f, photo); onChange(await readFile(f)); } catch (err) { window.alert(biFor(lang)(err instanceof Error ? err.message : String(err))); } finally { setBusy(false); } }} />
-  </label>;
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; e.target.value = ""; donePicking(); if (!f) return; setBusy(true); try { await checkFile(f, photo); onChange(await readFile(f)); } catch (err) { window.alert(biFor(lang)(err instanceof Error ? err.message : String(err))); } finally { setBusy(false); } };
+  const btn = "flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-secondary bg-card px-2 py-2 text-xs font-bold text-primary";
+  return <div className={`rounded-md border border-dashed p-3 text-sm ${value ? "border-secondary bg-accent" : "border-input bg-card"}`}>
+    <div className="flex items-center gap-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-secondary">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : value ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}</span>
+      <span className="min-w-0 flex-1"><span className="block font-bold"><L {...label} /></span><span className="block truncate text-xs text-muted-foreground">{value ? value.name : photo ? "JPG / PNG — max 10 MB" : "JPG / PNG / PDF — max 10 MB"}</span></span>
+    </div>
+    <div className={`mt-2 grid gap-1.5 ${photo ? "grid-cols-1" : "grid-cols-2"}`}>
+      <label className={btn}><Camera className="h-3.5 w-3.5" /><L ar="صورة / كاميرا" de="Foto / Kamera" /><input type="file" accept="image/*" className="hidden" onClick={markPicking} onChange={pick} /></label>
+      {!photo && <label className={btn}><FileText className="h-3.5 w-3.5" /><L ar="ملف PDF" de="PDF-Datei" /><input type="file" accept="application/pdf,.pdf" className="hidden" onClick={markPicking} onChange={pick} /></label>}
+    </div>
+  </div>;
 }
 
 /** Camera/photo passport scan: fills the fields, attaches the page as passport copy; user reviews everything. */
