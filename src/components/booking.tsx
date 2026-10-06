@@ -94,6 +94,8 @@ const regOf = (c: SiteContent): RegCfg => ((c.cms as { registration?: RegCfg } |
 /** Bilingual multi-step registration form replacing the external form. */
 export function BookingForm({ content }: { content: SiteContent }) {
   const submit = useServerFn(submitBooking);
+  const { lang } = useLang();
+  const bi = biFor(lang);
   const trips = content.trips.filter((t) => t.visible !== false && !t.hidden);
   const reg = regOf(content);
   const [step, setStep] = useState(0);
@@ -248,7 +250,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const adminS = useAdminSession();
   const qc = useQueryClient();
   const { lang } = useLang();
-  const bi = (t: string) => { const k = t.indexOf(" | "); return k < 0 ? t : display(lang, t.slice(0, k), t.slice(k + 3)).main; };
+  const bi = biFor(lang);
   const reg = regOf(content);
   const [regOpen, setRegOpen] = useState(false);
   const [noteAr, setNoteAr] = useState(reg.noteAr ?? "");
