@@ -227,7 +227,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
   const fillProfile = () => { if (!profile) return; if (profile.email) setEmail(profile.email); if (profile.phone) setPhone(profile.phone); if (profile.travelers?.length) setTravelers(profile.travelers.map((t) => ({ ...blank(), ...t, passportFile: undefined, photoFile: undefined }))); };
-  return <>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md">
+  return <>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
       <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
