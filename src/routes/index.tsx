@@ -243,7 +243,17 @@ function AppHeader({ view, onHome, title, crumbs, onCrumb }: { view: View; onHom
           <div className="gold-line mx-auto my-3 h-px w-24" />
           <LangText ar={t.ar} de={t.de} inverse center />
         </div>
-        <DarkModeToggle />
+                <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("open-campaign-qr"))}
+            aria-label="باركود التطبيق | App QR"
+            className="grid h-9 w-9 place-items-center rounded-md border border-secondary/50 text-secondary transition-colors hover:bg-secondary/15"
+          >
+            <QrCode className="h-5 w-5" />
+          </button>
+          <DarkModeToggle />
+        </div>
       </div>
       <LanguageSwitcher />
       {view !== "home" && crumbs.length > 0 && <nav aria-label="المسار | Pfad" className="mt-3 flex flex-wrap items-center justify-center gap-1 text-[11px]">
@@ -966,6 +976,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {bottomItems.map(({ view: itemView, ar, de, icon: Icon }) => <Button key={itemView} variant="ghost" onClick={() => go(itemView)} aria-current={view === itemView ? "page" : undefined} className={`h-full min-w-0 flex-col gap-1 rounded-none px-0.5 ${view === itemView ? "bg-accent text-primary" : "text-muted-foreground"}`}><Icon className="h-5 w-5" aria-hidden="true" /><NavLabel ar={ar} de={de} /></Button>)}
       </nav>
       <AccessGateway />
+            <CampaignQrDialog open={qrOpen} onOpenChange={setQrOpen} />
     </div>
   );
 }
