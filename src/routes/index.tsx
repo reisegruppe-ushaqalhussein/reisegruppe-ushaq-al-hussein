@@ -736,7 +736,7 @@ function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBac
       <div className="px-4 pt-6">
         <div className="flex items-start justify-between gap-2">
           <ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" />
-          {admin && <DuaAddButton category={shrine.id as DuaCategory} password={admin.password} content={admin.content} />}
+         {admin && <SectionAdminBar><DuaAddButton category={shrine.id as DuaCategory} password={admin.password} content={admin.content} /></SectionAdminBar>}
         </div>
         <div className="space-y-3">
           {shrine.entries.map((entry) => (
@@ -835,8 +835,7 @@ function VisaView({ content, admin }: { content: SiteContent; admin: AdminProps 
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={IdCard} ar="الفيزا والمطارات" de="Visum & Flughäfen" />
-      {admin && <AddButton label={{ ar: "إضافة معلومة", de: "Hinweis hinzufügen" }} fields={noteFields} blank={{ ar: "", de: "" }} onAdd={(row) => saveContent({ ...content, visaNotes: [...content.visaNotes, { ...(row as NoteEntry), id: `v${Date.now()}` }] })} />}
-      {admin && <div className="mb-3"><ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} /></div>}
+            {admin && <SectionAdminBar addLabel={{ ar: "إضافة معلومة", de: "Hinweis hinzufügen" }} addFields={noteFields} addBlank={{ ar: "", de: "" }} onAdd={(row) => saveContent({ ...content, visaNotes: [...content.visaNotes, { ...(row as NoteEntry), id: `v${Date.now()}` }] })} onRestore={() => saveContent({ ...content, visaNotes: defaultContent.visaNotes, visa: defaultContent.visa })}>{<ItemActions fields={visaFields} item={{ ...visa }} onSave={(row) => saveContent({ ...content, visa: row as SiteContent["visa"] })} onDelete={() => saveContent({ ...content, visa: { eu: "", nonEu: "" } })} />}</SectionAdminBar>}
       <section className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm">
         <Pair ar="الفيزا حسب نوع جواز السفر:" de="Visum je nach Reisepass:" />
         <Pair ar={`• جواز أوروبي — ${visa.eu ? `رسوم الفيزا: ${visa.eu}` : "سيتم تحديد رسوم الفيزا لاحقاً."}`} de={`• EU-Reisepass — ${visa.eu ? `Visumgebühr: ${visa.eu}` : "Visumgebühr wird noch bekannt gegeben."}`} />
