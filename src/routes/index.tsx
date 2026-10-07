@@ -474,8 +474,17 @@ function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar
   return <div dir={ltr ? "ltr" : "rtl"} className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div className="min-w-0 flex-1 text-start"><Pair ar={ar} de={de} /><div className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></div></div></div>;
 }
 
-function RegistrationView({ content }: { content: SiteContent }) {
-  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" /><BookingsPanel content={content} /><BookingForm content={content} /></div>;
+function RegistrationView({ content, admin }: { content: SiteContent; admin?: AdminCtx }) {
+  return (
+    <div className="screen-enter px-4 py-7">
+      <div className="flex items-start justify-between gap-2">
+        <ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" />
+        {admin && <SectionAdminBar />}
+      </div>
+      <BookingsPanel content={content} />
+      <BookingForm content={content} />
+    </div>
+  );
 }
 
 function ContactsView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
