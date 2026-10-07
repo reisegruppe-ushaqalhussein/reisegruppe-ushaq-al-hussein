@@ -136,10 +136,12 @@ export function CampaignQrDialog({ open, onOpenChange }: { open: boolean; onOpen
           </Button>
         </div>
 
-        <Button size="sm" variant="ghost" onClick={copyLink} className="mt-1 w-full gap-1.5 text-xs text-muted-foreground">
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-          <span>{copied ? "تم نسخ الرابط بنجاح ✓" : "نسخ الرابط المباشر"}</span>
-        </Button>
+                {isAdmin && (
+          <Button size="sm" variant="ghost" onClick={copyLink} className="mt-1 w-full gap-1.5 text-xs text-muted-foreground">
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            <span>{copied ? "تم نسخ الرابط بنجاح ✓" : "نسخ الرابط المباشر"}</span>
+          </Button>
+        )}
 
         {/* قسم تعديل الرابط خاص بالإدارة فقط */}
         {isAdmin && (
