@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Pencil, Plus, Settings, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, RotateCcw, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { saveOrQueue } from "@/lib/offline";
@@ -12,7 +12,7 @@ type Row = Record<string, unknown>;
 
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
-/** Saves a new version of site content; the server re-verifies the admin password. */
+/** حفظ المحتوى مع التحقق التلقائي */
 export function useSaveContent(password: string) {
   const qc = useQueryClient();
   return async (next: SiteContent) => {
@@ -21,6 +21,7 @@ export function useSaveContent(password: string) {
   };
 }
 
+/** نافذة التعديل لجميع الحقول والكلمات دون استثناء */
 export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void> }) {
   const [draft, setDraft] = useState<Row>(initial);
   const [busy, setBusy] = useState(false);
@@ -51,12 +52,12 @@ export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmi
   );
 }
 
-/** Compact icon-only control button used by every admin action. */
+/** زر أيقونة مدمج */
 export function IconBtn({ label, onClick, danger = false, children }: { label: string; onClick: () => void; danger?: boolean; children: React.ReactNode }) {
-  return <button type="button" aria-label={label} title={label} onClick={onClick} className={`pointer-events-auto grid h-7 w-7 place-items-center rounded-full border border-border bg-background/90 shadow-sm backdrop-blur ${danger ? "text-destructive" : "text-primary"}`}>{children}</button>;
+  return <button type="button" aria-label={label} title={label} onClick={onClick} className={`pointer-events-auto grid h-7 w-7 place-items-center rounded-full border border-border bg-background/90 shadow-sm backdrop-blur transition-transform active:scale-95 ${danger ? "text-destructive" : "text-primary"}`}>{children}</button>;
 }
 
-/** One gear button that reveals a small icon-only menu. Children stay mounted so their dialogs survive closing. */
+/** قائمة الترس المصغرة */
 export function GearMenu({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -68,17 +69,18 @@ export function GearMenu({ children, className = "" }: { children: React.ReactNo
   }, [open]);
   return (
     <div ref={ref} className={`pointer-events-auto relative ${className}`} onClick={(e) => e.stopPropagation()}>
-      <button type="button" aria-label="إعدادات | Einstellungen" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="grid h-7 w-7 place-items-center rounded-full bg-primary text-secondary shadow-sm"><Settings className="h-3.5 w-3.5" /></button>
+      <button type="button" aria-label="إعدادات | Einstellungen" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/40 bg-card/95 text-secondary shadow-sm hover:bg-card"><Settings className="h-3.5 w-3.5" /></button>
       <div onClick={() => setOpen(false)} className={`absolute left-0 top-8 z-30 flex gap-1 rounded-full border border-border bg-card p-1 shadow-md ${open ? "" : "hidden"}`}>{children}</div>
     </div>
   );
 }
 
+/** أزرار تحكم كل بطاقة (أصبحت هادئة ومريحة للعين وتظهر بوضوح عند اللمس) */
 export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const showHidden = useShowHidden();
   return (
-    <div className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end p-1">
+    <div className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end p-1 opacity-80 transition-opacity hover:opacity-100">
       <GearMenu>
         <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         {onVisibilityChange && showHidden && <IconBtn label={hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
@@ -89,7 +91,7 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
   );
 }
 
-/** A list row for management dialogs with explicit edit / hide (admin-mode only) / delete buttons. */
+/** سطر الإدارة التفصيلي */
 export function ManageRow({ title, subtitle, fields, item, onSave, onDelete, hidden = false, onVisibilityChange, onOpen }: { title: React.ReactNode; subtitle: React.ReactNode; onOpen?: () => void; fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const showHidden = useShowHidden();
@@ -105,12 +107,67 @@ export function ManageRow({ title, subtitle, fields, item, onSave, onDelete, hid
   );
 }
 
+/** زر إضافة عنصر جديد ➕ */
 export function AddButton({ label, fields, blank, onAdd, inline = false }: { label: { ar: string; de: string }; fields: FieldDef[]; blank: Row; onAdd: (row: Row) => Promise<void>; inline?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={inline ? "contents" : "mb-2 flex justify-end"}>
-      <button type="button" onClick={() => setOpen(true)} aria-label={`${label.ar} | ${label.de}`} title={`${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm"><Plus className="h-4 w-4" /></button>
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${label.ar} | ${label.de}`} title={`${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} />}
+    </div>
+  );
+}
+
+/** ميزة زر استرجاع المحتوى الافتراضي للقسم 🔄 مع رسالة تأكيد تحذيرية */
+export function RestoreButton({ onRestore, label = "استرجاع البيانات الأصلية لهذا القسم | Standard wiederherstellen" }: { onRestore: () => Promise<void> | void; label?: string }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        if (!window.confirm("هل أنتِ متأكدة من استرجاع البيانات الأصلية لهذا القسم؟\nMöchten Sie die Originaldaten dieses Bereichs wirklich wiederherstellen?")) return;
+        setBusy(true);
+        try {
+          await onRestore();
+        } catch {
+          window.alert("تعذّر الاسترجاع | Wiederherstellung fehlgeschlagen");
+        } finally {
+          setBusy(false);
+        }
+      }}
+      aria-label={label}
+      title={label}
+      className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"
+    >
+      <RotateCcw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+    </button>
+  );
+}
+
+/** شريط الإدارة الموحد في رأس القسم: يجمع (الإضافة ➕ والاسترجاع 🔄) في مكان واحد منظم */
+export function SectionAdminBar({
+  addLabel,
+  addFields,
+  addBlank,
+  onAdd,
+  onRestore,
+  children,
+}: {
+  addLabel?: { ar: string; de: string };
+  addFields?: FieldDef[];
+  addBlank?: Row;
+  onAdd?: (row: Row) => Promise<void>;
+  onRestore?: () => Promise<void> | void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-end gap-1.5">
+      {children}
+      {onRestore && <RestoreButton onRestore={onRestore} />}
+      {addLabel && addFields && addBlank && onAdd && (
+        <AddButton label={addLabel} fields={addFields} blank={addBlank} onAdd={onAdd} inline />
+      )}
     </div>
   );
 }
