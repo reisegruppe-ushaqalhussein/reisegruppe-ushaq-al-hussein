@@ -689,10 +689,6 @@ function RegSettings({ content }: { content: SiteContent }) {
   const bi = biFor(lang);
   const reg = regOf(content);
   if (adminS?.role !== "admin" || !isEditing) return null;
-  const { lang } = useLang();
-  const bi = biFor(lang);
-  const reg = regOf(content);
-  if (adminS?.role !== "admin") return null;
   const saveReg = async (patch: RegCfg) => {
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
     catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
