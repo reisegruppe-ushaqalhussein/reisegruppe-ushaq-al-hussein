@@ -21,6 +21,7 @@ import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
 import { BookingForm, BookingsPanel } from "@/components/booking";
+import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, GearMenu, IconBtn, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
@@ -32,7 +33,7 @@ import {
   AlignRight,
   BookOpen,
   Check,
-  Clock,
+  Clock, QrCode,
   Copy,
   CreditCard,
   Download,
@@ -863,6 +864,12 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const [view, setView] = useState<View>("home");
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
   const [customId, setCustomId] = useState<string | null>(null);
+    const [qrOpen, setQrOpen] = useState(false);
+  useEffect(() => {
+    const h = () => setQrOpen(true);
+    window.addEventListener("open-campaign-qr", h);
+    return () => window.removeEventListener("open-campaign-qr", h);
+  }, []);
   useEffect(() => { if (customId) sessionStorage.setItem("custom-id", customId); }, [customId]);
   useEffect(() => { document.documentElement.dataset["theme"] = content.cms?.theme ?? ""; }, [content.cms?.theme]);
   useLayoutEffect(() => {
