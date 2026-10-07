@@ -27,6 +27,13 @@ const rooms = [
   { id: "quad", ar: "رباعية", de: "Vierbettzimmer" }, { id: "family", ar: "عائلية", de: "Familienzimmer" },
   { id: "leader", ar: "حسب ما يراه الحاج ياسر مناسباً", de: "Nach Ermessen der Reiseleitung" },
 ];
+function waLink(raw: string) {
+  let d = (raw || "").replace(/[^0-9]/g, "");
+  if (!d) return "";
+  if (d.startsWith("00")) d = d.slice(2);
+  else if (d.startsWith("0")) d = "49" + d.slice(1);
+  return `https://wa.me/${d}`;
+}
 
 function age(birth: string) {
   const b = new Date(birth), n = new Date();
