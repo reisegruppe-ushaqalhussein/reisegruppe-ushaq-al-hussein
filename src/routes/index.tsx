@@ -24,7 +24,7 @@ import { BookingForm, BookingsPanel } from "@/components/booking";
 import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, CalendarClock, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Vibrate } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
-import { AddButton, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import { Trash2 as TrashIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
@@ -363,6 +363,7 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
   const saveContent = useSaveContent(admin?.password ?? "");
   const showHidden = useShowHidden();
   const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => showHidden || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; const sAr = t.statusAr || m.statusAr; return { ...t, ...m, image: t.imageUrl || m.image, statusAr: sAr, statusDe: statusDeMap[sAr.trim()] ?? (t.statusDe || m.statusDe) }; });
+  const isEditing = useSectionEditMode();
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(null);
@@ -400,13 +401,13 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
           const list = content.tripTypes;
           const actions = admin && <ItemActions fields={tripTypeFields} item={trip} hidden={trip.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...(row as TripTypeEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, tripTypes: list.filter((x) => x.id !== trip.id) })} />;
           const body = <><span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-secondary/50 bg-accent text-primary"><Icon className="h-8 w-8" aria-hidden="true" /></span><span className="flex min-h-12 w-full items-center justify-center text-sm"><Pair ar={trip.ar} de={trip.de} align="center" /></span><span className="mt-auto rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span></>;
-          return <div key={trip.id} className={`min-w-0 ${trip.hidden ? "opacity-55" : ""}`}>{actions}{(() => { const cls = "flex h-48 w-full flex-col items-center gap-2 whitespace-normal rounded-lg border border-border bg-card p-3 pt-4 text-center shadow-sm transition-colors"; return trip.id === "iraq" ? <button type="button" onClick={() => setIraqOpen(true)} className={`${cls} hover:border-secondary`}>{body}</button> : <article className={cls}>{body}</article>; })()}</div>;
-        })}
+         return <div key={trip.id} className={`relative ${raw.hidden ? "opacity-55" : ""}`}>{admin && isEditing && <label className="absolute bottom-2 left-14 z-10 grid h-9 w-9 cursor-pointer place-items-center rounded-full border border-secondary bg-card text-sm shadow" title="رفع صورة الدعوة | Einladungsbild hochladen">📷<input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const url = await uploadImage(f, admin.password); await saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, imageUrl: url } : t))); } catch (err) { window.alert(String(err)); } }} /></label>}{admin && isEditing && Boolean(raw.imageUrl) && <button type="button" onClick={() => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, imageUrl: "" } : t)))} className="absolute bottom-2 left-24 z-10 grid h-9 w-9 place-items-center rounded-full border border-secondary bg-card text-sm shadow hover:bg-muted" title="استرجاع البوستر الأصلي | Originalposter wiederherstellen">↩️</button>}
       </div>
 
       <div className="my-7 border-t border-border" />
       {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={() => setUpcomingOpen(true)} menu={upMenu} /></div>}
-      {upcomingOpen && <FullPage title={upTitle} onBack={() => setUpcomingOpen(false)} menu={upMenu}>
+            {upcomingOpen && <FullPage title={upTitle} onBack={() => setUpcomingOpen(false)} menu={upMenu}>
+      {admin && <SectionAdminBar addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />}
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? (/عمر|umrah/i.test(trip.ar + trip.de) ? KaabaIcon : /حج|hadsch/i.test(trip.ar + trip.de) ? HajjIcon : /إيران|iran/i.test(trip.ar + trip.de) ? IranIcon : /عراق|حسين|irak|hussein/i.test(trip.ar + trip.de) ? IraqIcon : trip.icon);
@@ -418,8 +419,8 @@ function TripsView({ content, admin }: { content: SiteContent; admin: AdminProps
       </div>
       </FullPage>}
 
-
-      {iraqOpen && <FullPage title={iraqTitle} onBack={() => setIraqOpen(false)} menu={iraqMenu}>
+            {iraqOpen && <FullPage title={iraqTitle} onBack={() => setIraqOpen(false)} menu={iraqMenu}>
+        {admin && <SectionAdminBar onRestore={() => saveIraq(defaultIraqItems)} />}
         {(!iraqHidden || showHidden) && <div className={`space-y-5 ${iraqHidden ? "opacity-60" : ""}`}>
           {iraqVisible.filter((x) => x.kind === "intro").map((x) => <div key={x.id} className={x.hidden ? "opacity-55" : ""}>{iraqActions(x)}<div className="rounded-lg bg-accent p-4 pe-10 text-sm"><Pair ar={x.ar} de={x.de} /></div></div>)}
           <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
