@@ -3,7 +3,8 @@ import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, RotateCc
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, ItemActions, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, ItemActions, ManageRow, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import { defaultContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
 import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
@@ -96,6 +97,7 @@ const mapsHref = (l: LocationEntry) => l.mapsUrl || `https://www.google.com/maps
 export function GuideView({ content, admin }: { content: SiteContent; admin: Admin }) {
   const save = useSaveContent(admin?.password ?? "");
   const showHidden = useShowHidden();
+  const isEditing = useSectionEditMode();
   const all = content.locations;
   const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: LocationEntry[]) => save({ ...content, locations: next });
@@ -103,12 +105,23 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   const emergency = content.emergency.filter((e) => showHidden || !e.hidden);
   const [manage, setManage] = useState(false);
   return (
-    <div className="screen-enter px-4 py-7">
-      <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
+        <div className="screen-enter px-4 py-7">
+      <div className="flex items-start justify-between gap-2">
+        <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
+        {admin && (
+          <SectionAdminBar
+            addLabel={{ ar: "إضافة موقع جديد", de: "Ort hinzufügen" }}
+            addFields={locationFields}
+            addBlank={{ id: "", kind: "hotel", ar: "", de: "", address: "", mapsUrl: "", hidden: false }}
+            onAdd={(row) => commit([...all, { ...(row as LocationEntry), id: `l${Date.now()}` }])}
+            onRestore={() => commit(defaultContent.locations)}
+          />
+        )}
+      </div>
       {(emergencyContacts.length > 0 || emergency.length > 0 || admin) && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="min-w-0 text-sm font-extrabold text-secondary"><P ar="أرقام الطوارئ للحملة" de="Notfallnummern der Reisegruppe" inverse /></h3>
-          {admin && <button type="button" onClick={() => setManage(true)} aria-label="إدارة الأرقام | Nummern verwalten" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-secondary/60 text-secondary hover:bg-secondary/15"><Settings className="h-4 w-4" /></button>}
+      {admin && isEditing && <button type="button" onClick={() => setManage(true)} aria-label="إدارة الأرقام | Nummern verwalten" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-secondary/60 text-secondary hover:bg-secondary/15"><Settings className="h-4 w-4" /></button>}
         </div>
         <div className="space-y-2">
           {[...emergencyContacts.map((c) => ({ id: c.id, ar: c.ar, de: c.de, phone: c.phone, hidden: c.hidden })), ...emergency.map((c) => ({ id: c.id, ar: c.ar || "رقم طوارئ الحملة", de: c.de || "Notfallnummer der Reisegruppe", phone: c.phone, hidden: c.hidden }))].map((c) => (
