@@ -615,7 +615,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           </button>
           {r.contact_phone && (
             <a
-              href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`}
+                            href={waLink(r.contact_phone)}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -628,7 +628,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           )}
         </div>
         {open === r.id && <div className="mt-2 space-y-2 border-t border-border pt-2">
-          <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
+          <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={waLink(r.contact_phone)} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
           {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
             <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span>
             <label className="mt-1.5 flex items-center gap-1.5" dir={lang === "ar" || lang === "both" ? "rtl" : "ltr"}>
