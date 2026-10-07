@@ -721,7 +721,31 @@ function ReaderListButton({ item, onRead, admin }: { item: ReaderItem; onRead: (
 }
 
 function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBack: () => void; onRead: (item: ReaderItem) => void; admin: AdminCtx }) {
-  return <div className="screen-enter pb-7"><div className="relative h-56 overflow-hidden"><img src={shrine.image} alt={`${shrine.ar} | ${shrine.de}`} loading="lazy" width={768} height={1024} className="h-full w-full object-cover" /><span className="shrine-card-shade absolute inset-0" /><Button variant="secondary" size="icon" onClick={onBack} aria-label="العودة | Zurück" className="absolute right-4 top-4"><ArrowLeft className="rotate-180" /></Button><h2 className="absolute inset-x-5 bottom-5 text-xl text-primary-foreground"><Pair ar={shrine.ar} de={shrine.de} inverse /></h2></div><div className="px-4 pt-6"><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" />{admin && <DuaAddButton category={shrine.id as DuaCategory} password={admin.password} content={admin.content} />}</div><div className="space-y-3">{shrine.entries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={onRead} admin={admin} />)}</div></div></div>;
+  return (
+    <div className="screen-enter pb-7">
+      <div className="relative h-56 overflow-hidden">
+        <img src={shrine.image} alt={`${shrine.ar} | ${shrine.de}`} loading="lazy" width={768} height={1024} className="h-full w-full object-cover" />
+        <span className="shrine-card-shade absolute inset-0" />
+        <Button variant="secondary" size="icon" onClick={onBack} aria-label="العودة | Zurück" className="absolute right-4 top-4">
+          <ArrowLeft className="rotate-180" />
+        </Button>
+        <h2 className="absolute inset-x-5 bottom-5 text-xl text-primary-foreground">
+          <Pair ar={shrine.ar} de={shrine.de} inverse />
+        </h2>
+      </div>
+      <div className="px-4 pt-6">
+        <div className="flex items-start justify-between gap-2">
+          <ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" />
+          {admin && <DuaAddButton category={shrine.id as DuaCategory} password={admin.password} content={admin.content} />}
+        </div>
+        <div className="space-y-3">
+          {shrine.entries.map((entry) => (
+            <ReaderListButton key={entry.id} item={entry} onRead={onRead} admin={admin} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ZiyaratReader({ item, onBack, admin }: { item: ReaderItem; onBack: () => void; admin?: AdminCtx }) {
