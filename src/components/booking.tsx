@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, MessageCircle, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LangText, display, useLang } from "@/lib/i18n";
+import { useSectionEditMode } from "@/components/inline-admin";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
@@ -663,7 +664,8 @@ function EditPen({ content, k, label }: { content: SiteContent; k: "title" | "in
   const reg = regOf(content);
   const [open, setOpen] = useState(false);
   const [ar, setAr] = useState(""); const [de, setDe] = useState("");
-  if (adminS?.role !== "admin") return null;
+  const isEditing = useSectionEditMode();
+  if (adminS?.role !== "admin" || !isEditing) return null;
   const kA = `${k}Ar` as keyof RegCfg, kD = `${k}De` as keyof RegCfg;
   const save = async (a: string, d: string) => {
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, [kA]: a.trim(), [kD]: d.trim() } } as never }, "التسجيل | Anmeldung", qc); setOpen(false); }
@@ -681,7 +683,12 @@ function EditPen({ content, k, label }: { content: SiteContent; k: "title" | "in
 /** Admin quick switches placed directly above the registration form; texts are edited with the pencils in place. */
 function RegSettings({ content }: { content: SiteContent }) {
   const adminS = useAdminSession();
+  const isEditing = useSectionEditMode();
   const qc = useQueryClient();
+  const { lang } = useLang();
+  const bi = biFor(lang);
+  const reg = regOf(content);
+  if (adminS?.role !== "admin" || !isEditing) return null;
   const { lang } = useLang();
   const bi = biFor(lang);
   const reg = regOf(content);
