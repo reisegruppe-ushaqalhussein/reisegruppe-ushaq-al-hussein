@@ -114,3 +114,57 @@ export function DuaAdminActions({ id, password, content }: { id: string; passwor
     </div>
   );
 }
+export function DuaAudioQuickButton({ id, password, content }: { id: string; password: string; content: SiteContent }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const entry = content.duas.find((d) => d.id === id);
+  const [reciters, setReciters] = useState<Reciter[]>(entry?.reciters ?? []);
+  const saveDuas = useSaveDuas(password, content);
+
+  if (!entry) return null;
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => { setReciters(entry.reciters ?? []); setOpen(true); }}
+        className="h-8 gap-1.5 border-secondary/60 bg-card px-2.5 text-xs font-bold text-primary shadow-sm"
+        title="إدارة أصوات القراء | Rezitatoren verwalten"
+      >
+        <span>🎙️</span>
+        <span>صوت MP3</span>
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[380px] overflow-y-auto" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle>إدارة أصوات القراء (MP3) <span className="text-xs italic text-muted-foreground">| Rezitatoren</span></DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2 text-sm">
+            <p className="text-xs text-muted-foreground">أضف اسم القارئ ورابط ملف الصوت MP3 ليتمكن الزوار من الاستماع مباشرة.</p>
+            <RecitersEditor value={reciters} onChange={setReciters} />
+            <Button
+              disabled={busy}
+              className="h-11 w-full"
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const cleaned = reciters.filter((r) => r.name.trim() && r.url.trim());
+                  await saveDuas(content.duas.map((d) => d.id === id ? { ...d, reciters: cleaned } : d));
+                  setOpen(false);
+                } catch {
+                  window.alert("تعذّر الحفظ | Speichern fehlgeschlagen");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              حفظ الأصوات <span className="text-xs italic opacity-75">| Speichern</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
