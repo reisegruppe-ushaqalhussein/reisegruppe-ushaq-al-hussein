@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
+MessageCircle, import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LangText, display, useLang } from "@/lib/i18n";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
@@ -592,11 +592,34 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
       const lead = r.travelers[0] ?? {};
-      return <li key={r.id} className="rounded-md border border-border p-2 text-xs">
-        <button type="button" className="w-full text-start" onClick={() => setOpen(open === r.id ? null : r.id)}>
-          <span dir="ltr" className="font-mono font-bold text-primary">{r.ref}</span> · <span className="font-bold">{lead["lastName"]} {lead["firstName"]}</span> · {r.travelers.length} pax
-          <span className="mt-1 flex flex-wrap gap-1"><span className="rounded-full bg-accent px-2">{bi(statusLabels[r.status] ?? "")}</span><span className="rounded-full bg-muted px-2">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span><span className="text-muted-foreground">{r.trip} {r.trip_date}</span></span>
-        </button>
+      return <li key={r.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setOpen(open === r.id ? null : r.id)}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-extrabold text-primary">{lead["lastName"]} {lead["firstName"]}</span>
+              <span className="rounded-full bg-secondary/20 px-2 py-0.5 text-[11px] font-bold text-secondary-foreground">{r.travelers.length} pax</span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+              <span dir="ltr" className="font-mono text-muted-foreground">{r.ref}</span>
+              <span className="rounded-full bg-accent px-2 py-0.5 font-medium">{bi(statusLabels[r.status] ?? "")}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span>
+              <span className="text-muted-foreground">{r.trip}</span>
+            </div>
+          </button>
+          {r.contact_phone && (
+            <a
+              href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow transition-transform active:scale-95"
+              title="مراسلة عبر واتساب | WhatsApp"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              <span>واتساب</span>
+            </a>
+          )}
+        </div>
         {open === r.id && <div className="mt-2 space-y-2 border-t border-border pt-2">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={`https://wa.me/${r.contact_phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
           {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
