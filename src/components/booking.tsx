@@ -25,7 +25,7 @@ const cats: Array<{ id: Cat; ar: string; de: string }> = [
 const rooms = [
   { id: "double", ar: "ثنائية", de: "Doppelzimmer" }, { id: "triple", ar: "ثلاثية", de: "Dreibettzimmer" },
   { id: "quad", ar: "رباعية", de: "Vierbettzimmer" }, { id: "family", ar: "عائلية", de: "Familienzimmer" },
-  { id: "leader", ar: "حسب ما يراه الحاج مناسباً", de: "Nach Ermessen der Reiseleitung" },
+  { id: "leader", ar: "حسب ما يراه الحاج ياسر مناسباً", de: "Nach Ermessen der Reiseleitung" },
 ];
 
 function age(birth: string) {
