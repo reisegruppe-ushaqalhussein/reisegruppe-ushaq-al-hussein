@@ -6,7 +6,7 @@ import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
 import { defaultContacts, defaultContent, defaultIraqItems, type IraqItem, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
 import { LangProvider, display, isArabic, useLang, toEnglish, toGerman, type AppLang } from "@/lib/i18n";
-import { DuaAddButton, DuaAdminActions, useAdminPassword } from "@/components/dua-admin";
+import { DuaAddButton, DuaAdminActions, DuaAudioQuickButton, useAdminPassword } from "@/components/dua-admin";
 import { ReciterPlayer } from "@/components/audio-player";
 import { MemoriesView } from "@/components/memories";
 import { PilgrimIdView, ScrollToTop } from "@/components/pilgrim-id";
@@ -670,7 +670,7 @@ function DuasView({ content }: { content: SiteContent }) {
     {showHidden && <IconBtn label={gHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => setGLabel({ hidden: !gHidden })}>{gHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
     <IconBtn label="حذف | Löschen" danger onClick={() => { if (!window.confirm("حذف جميع الأدعية والتعقيبات داخل المجلد؟ (يمكن إرجاعها من سلة المحذوفات)\nAlle Bittgebete in diesem Ordner löschen?")) return; void saveContent({ ...content, duas: content.duas.filter((d) => duaCategoryOf(d) !== "general") }); }}><TrashIcon className="h-3.5 w-3.5" /></IconBtn>
   </GearMenu>;
-  if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} />;
+  if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} admin={admin} />;
   if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button>{duaGear}</div><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
   return (
@@ -710,7 +710,7 @@ function ShrineDetail({ shrine, onBack, onRead, admin }: { shrine: Shrine; onBac
   return <div className="screen-enter pb-7"><div className="relative h-56 overflow-hidden"><img src={shrine.image} alt={`${shrine.ar} | ${shrine.de}`} loading="lazy" width={768} height={1024} className="h-full w-full object-cover" /><span className="shrine-card-shade absolute inset-0" /><Button variant="secondary" size="icon" onClick={onBack} aria-label="العودة | Zurück" className="absolute right-4 top-4"><ArrowLeft className="rotate-180" /></Button><h2 className="absolute inset-x-5 bottom-5 text-xl text-primary-foreground"><Pair ar={shrine.ar} de={shrine.de} inverse /></h2></div><div className="px-4 pt-6"><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar="الزيارات والأعمال" de="Ziyarat & Andachtswerke" />{admin && <DuaAddButton category={shrine.id as DuaCategory} password={admin.password} content={admin.content} />}</div><div className="space-y-3">{shrine.entries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={onRead} admin={admin} />)}</div></div></div>;
 }
 
-function ZiyaratReader({ item, onBack }: { item: ReaderItem; onBack: () => void }) {
+function ZiyaratReader({ item, onBack, admin }: { item: ReaderItem; onBack: () => void; admin?: AdminCtx }) {
   const { lang: readerLang } = useLang();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showAr, setShowAr] = useState(true);
