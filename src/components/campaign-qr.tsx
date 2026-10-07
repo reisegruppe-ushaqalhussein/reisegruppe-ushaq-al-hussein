@@ -97,7 +97,7 @@ export function CampaignQrDialog({ open, onOpenChange }: { open: boolean; onOpen
           <h2>حملة عشاق الحسين (ع) — ألمانيا</h2>
           <p>Reisegruppe Ushaq al-Hussein</p>
           <img src="${dataUrl}" alt="QR Code" />
-          <p style="margin-top: 16px; font-weight: bold; font-family: monospace;">${qrUrl}</p>
+          <p style="margin-top: 14px; font-size: 13px; color: #888;">امسح الرمز للدخول إلى التطبيق</p>
         </body>
       </html>
     `);
