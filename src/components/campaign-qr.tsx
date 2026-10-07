@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
-import { QrCode, Share2, Printer, Check, Copy, ExternalLink, Settings2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
+import { Share2, Printer, Check, Copy, Settings2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useStaffSession } from "@/lib/admin-session";
@@ -21,36 +21,6 @@ export function CampaignQrDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [editing, setEditing] = useState(false);
   const [tempUrl, setTempUrl] = useState(qrUrl);
   const [copied, setCopied] = useState(false);
-
-  // رسم الباركود عالي الدقة مع وضع لوغو الحملة في المنتصف
-  useEffect(() => {
-    if (!open || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-
-    QRCode.toCanvas(canvas, qrUrl, {
-      width: 280,
-      margin: 2,
-      errorCorrectionLevel: "H",
-      color: { dark: "#0f1f38", light: "#ffffff" },
-    }).then(() => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = logoAsset.url;
-      img.onload = () => {
-        const size = 56;
-        const x = (canvas.width - size) / 2;
-        const y = (canvas.height - size) / 2;
-        // خلفية بيضاء دائرية خلف اللوغو لضمان وضوحه وسهولة قراءة الكود
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(canvas.width / 2, canvas.height / 2, size / 2 + 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.drawImage(img, x, y, size, size);
-      };
-    }).catch(() => {});
-  }, [open, qrUrl]);
 
   const saveUrl = () => {
     const target = tempUrl.trim() || DEFAULT_URL;
@@ -78,8 +48,9 @@ export function CampaignQrDialog({ open, onOpenChange }: { open: boolean; onOpen
   };
 
   const printQr = () => {
-    if (!canvasRef.current) return;
-    const dataUrl = canvasRef.current.toDataURL("image/png");
+    const canvas = canvasRef.current || (document.querySelector("canvas") as HTMLCanvasElement | null);
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL("image/png");
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(`
@@ -116,10 +87,24 @@ export function CampaignQrDialog({ open, onOpenChange }: { open: boolean; onOpen
           </DialogDescription>
         </DialogHeader>
 
-        {/* مساحة عرض الباركود الأنيقة */}
+        {/* مساحة عرض الباركود الأنيقة مع لوغو الحملة في المنتصف تلقائياً */}
         <div className="my-3 flex flex-col items-center justify-center">
           <div className="rounded-2xl border-2 border-secondary/40 bg-white p-3 shadow-lg">
-            <canvas ref={canvasRef} className="block rounded-lg" style={{ width: "240px", height: "240px" }} />
+            <QRCodeCanvas
+              ref={canvasRef}
+              value={qrUrl}
+              size={240}
+              level="H"
+              fgColor="#0f1f38"
+              bgColor="#ffffff"
+              imageSettings={{
+                src: logoAsset.url,
+                height: 52,
+                width: 52,
+                excavate: true,
+              }}
+              className="block rounded-lg"
+            />
           </div>
         </div>
 
@@ -136,14 +121,14 @@ export function CampaignQrDialog({ open, onOpenChange }: { open: boolean; onOpen
           </Button>
         </div>
 
-                {isAdmin && (
+        {isAdmin && (
           <Button size="sm" variant="ghost" onClick={copyLink} className="mt-1 w-full gap-1.5 text-xs text-muted-foreground">
             {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
             <span>{copied ? "تم نسخ الرابط بنجاح ✓" : "نسخ الرابط المباشر"}</span>
           </Button>
         )}
 
-        {/* قسم تعديل الرابط خاص بالإدارة فقط */}
+        {/* قسم تعديل الرابط خاص بالإدارة والحاج فقط */}
         {isAdmin && (
           <div className="mt-3 border-t border-border pt-3 text-start">
             {!editing ? (
