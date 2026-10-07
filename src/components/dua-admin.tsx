@@ -1,4 +1,4 @@
-import { GearMenu, IconBtn } from "@/components/inline-admin";
+import { GearMenu, IconBtn, useSectionEditMode } from "@/components/inline-admin";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
@@ -91,11 +91,12 @@ export function DuaAddButton({ category, password, content }: { category: DuaCat
 }
 
 export function DuaAdminActions({ id, password, content }: { id: string; password: string; content: SiteContent }) {
+  const isEditing = useSectionEditMode();
   const saveDuas = useSaveDuas(password, content);
   const entry = content.duas.find((d) => d.id === id);
   const [open, setOpen] = useState(false);
   const showHidden = useShowHidden();
-  if (!entry) return null;
+  if (!entry || !isEditing) return null;
   async function onDelete() {
     if (!window.confirm("هل أنت متأكد من حذف هذه الزيارة؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return;
     try { await saveDuas(content.duas.filter((d) => d.id !== id)); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); }
