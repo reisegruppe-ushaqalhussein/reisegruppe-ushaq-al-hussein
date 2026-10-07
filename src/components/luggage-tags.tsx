@@ -347,7 +347,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       setAllBookings(valid);
       const uniqueTrips = [...new Set(valid.map((r) => (r.trip || "").trim()).filter(Boolean))];
       setTrips(uniqueTrips);
-      if (uniqueTrips.length > 0 && !selectedTrip) setSelectedTrip(uniqueTrips[0]);
+            if (uniqueTrips[0] && !selectedTrip) setSelectedTrip(uniqueTrips[0]);
     } catch {
       setErr("تعذر جلب الحجوزات | Buchungen konnten nicht geladen werden");
     }
