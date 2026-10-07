@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { useServerFn } from "@tanstack/react-start";
+import { listBookings, type BookingRow } from "@/lib/bookings.functions";
+import { useAdminSession } from "@/lib/admin-session";
 import { Download, Printer, Tag, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { display, isArabic, useLang } from "@/lib/i18n";
@@ -302,6 +305,8 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [ar, setAr] = useState(nameAr);
   const [de, setDe] = useState(nameDe);
   const [bulk, setBulk] = useState("");
+  const [copies, setCopies] = useState<1 | 2>(2); // (القسم المضاف: تحديد بطاقتين أو بطاقة)
+  const [blankOnly, setBlankOnly] = useState(false); // (القسم المضاف: خيار بطاقات فارغة للطوارئ)
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [variant, setVariant] = useState<Style["variant"]>("new");
@@ -310,32 +315,95 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [scale, setScale] = useState(1);
   const [layout, setLayout] = useState<Style["layout"]>("side");
   const [hasCustom, setHasCustom] = useState(false);
+   
+  // (القسم المضاف: جلب أسماء المسجلين تلقائياً من الحجوزات)
+  const s = useAdminSession();
+  const listFn = useServerFn(listBookings);
+  const [trips, setTrips] = useState<string[]>([]);
+  const [selectedTrip, setSelectedTrip] = useState<string>("");
+  const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
+
   useEffect(() => { setHasCustom(!!localStorage.getItem(CUSTOM_KEY)); }, []);
   const st: Style = { variant: variant === "custom" && !hasCustom ? "new" : variant, color, bold, scale, layout };
+
   const onUpload = (file?: File) => {
     if (!file) return;
     const r = new FileReader();
     r.onload = () => { try { localStorage.setItem(CUSTOM_KEY, String(r.result)); setHasCustom(true); setVariant("custom"); } catch { setErr("الصورة كبيرة جداً | Bild zu groß"); } };
     r.readAsDataURL(file);
   };
+
   const preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
+
+  // جلب الرحلات المسجلة إذا كان المشرف مسجلاً
+  const fetchTripNames = async () => {
+    if (!s) return;
+    setBusy(true);
+    try {
+      const res = await listFn({ data: { password: s.password } });
+      const valid = (res.rows ?? []).filter((r) => r.status !== "deleted");
+      setAllBookings(valid);
+      const uniqueTrips = [...new Set(valid.map((r) => r.tripTitle.trim()).filter(Boolean))];
+      setTrips(uniqueTrips);
+      if (uniqueTrips.length > 0 && !selectedTrip) setSelectedTrip(uniqueTrips[0]);
+    } catch {
+      setErr("تعذر جلب الحجوزات | Buchungen konnten nicht geladen werden");
+    }
+    setBusy(false);
+  };
+
+  const applyTripPilgrims = (tripName: string) => {
+    setSelectedTrip(tripName);
+    const filtered = allBookings.filter((b) => b.tripTitle.trim() === tripName.trim());
+    const lines: string[] = [];
+    filtered.forEach((b) => {
+      // الزائر الأساسي
+      const mainName = `${b.fullName.trim()} / ${b.fullNameDe ? b.fullNameDe.trim() : ""}`;
+      lines.push(mainName);
+      // المرافقون إن وجدوا
+      if (Array.isArray(b.companions)) {
+        b.companions.forEach((c) => {
+          const compName = `${c.firstName || ""} ${c.lastName || ""}`.trim();
+          if (compName) lines.push(compName);
+        });
+      }
+    });
+    setBulk(lines.join("\n"));
+    setBlankOnly(false);
+  };
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    renderCard(kind, { ar, de }, st, 10).then((c) => {
+    const targetWho = blankOnly ? { ar: "", de: "" } : { ar, de };
+    renderCard(kind, targetWho, st, 10).then((c) => {
       const el = preview.current; if (!alive || !el) return;
       el.width = c.width; el.height = c.height; el.getContext("2d")!.drawImage(c, 0, 0);
     }).catch(() => setErr("تعذر تحميل التصميم | Design konnte nicht geladen werden"));
     return () => { alive = false; };
-  }, [open, kind, ar, de, st.variant, color, bold, scale, layout, hasCustom]);
+  }, [open, kind, ar, de, st.variant, color, bold, scale, layout, hasCustom, blankOnly]);
 
-  const people = () => { const b = parseNames(bulk); return b.length ? b : [{ ar, de }]; };
+  // (القسم المضاف: حساب قائمة الأشخاص وتكرار الاسمين عند اختيار بطاقتين)
+  const people = (): Person[] => {
+    const sp = SPEC[kind];
+    if (blankOnly) {
+      return Array.from({ length: sp.cols * sp.rows }, () => ({ ar: "", de: "" }));
+    }
+    const b = parseNames(bulk);
+    const baseList = b.length ? b : [{ ar, de }];
+    if (copies === 2) {
+      const doubled: Person[] = [];
+      baseList.forEach((p) => { doubled.push(p); doubled.push(p); });
+      return doubled;
+    }
+    return baseList;
+  };
+
   const run = async (fn: () => Promise<void>) => { setBusy(true); setErr(""); try { await fn(); } catch { setErr("حدث خطأ، حاول مجدداً | Fehler, bitte erneut versuchen"); } setBusy(false); };
   const fileBase = kind === "iraq" ? "bataqat-zaer-iraq" : "bataqat-zaer-umrah";
 
-  const saveCard = () => run(async () => { await download(await renderCard(kind, { ar, de }, st), `${fileBase}.png`); });
+  const saveCard = () => run(async () => { await download(await renderCard(kind, blankOnly ? { ar: "", de: "" } : { ar, de }, st), `${fileBase}.png`); });
   const saveSheet = () => run(async () => { const pages = await renderSheets(kind, people(), st); for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); });
   const printSheet = () => {
     const w = window.open("", "_blank");
@@ -350,6 +418,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
 
   const sp = SPEC[kind];
   const inputCls = "h-11 w-full rounded-md border border-border bg-background px-3 text-sm";
+
   return <section className="space-y-3 rounded-xl border border-border bg-card p-4">
     <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 text-start">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><Tag className="h-5 w-5" /></span>
@@ -357,13 +426,17 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       <span className="text-lg text-muted-foreground">{open ? "−" : "+"}</span>
     </button>
     {open && <div className="space-y-3">
+      {/* اختيار الوجهة */}
       <div className="grid grid-cols-2 gap-2">
         {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => setKind(k)} className={`min-h-11 rounded-md border-2 px-2 py-1.5 text-sm font-bold ${kind === k ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}>
           {k === "iraq" ? <L ar="العراق وإيران" de="Irak & Iran" /> : <L ar="العمرة" de="Umrah" />}
         </button>)}
       </div>
+
       <canvas ref={preview} className="w-full rounded-md border border-border bg-background shadow-sm" style={{ aspectRatio: `${sp.w} / ${sp.h}`, maxWidth: kind === "umrah" ? "60%" : "100%", marginInline: "auto", display: "block" }} />
       <p className="text-center text-[11px] text-muted-foreground" dir="ltr">{sp.w} × {sp.h} mm · {sp.cols * sp.rows} / A4</p>
+
+      {/* خيارات التصميم للعراق */}
       {kind === "iraq" && <div className="space-y-1">
         <p className="text-xs font-bold text-primary"><L ar="تصميم البطاقة" de="Kartendesign" /></p>
         <div className="grid grid-cols-3 gap-1.5">
@@ -374,6 +447,8 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           <input type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
         </label>
       </div>}
+
+      {/* خيارات الخط والحجم */}
       <div className="space-y-2 rounded-md border border-border p-2">
         <p className="text-xs font-bold text-primary"><L ar="خط اسم الزائر" de="Schrift des Namens" /></p>
         {kind === "iraq" && <div className="grid grid-cols-3 gap-1.5">
@@ -389,21 +464,60 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           <button type="button" onClick={() => setScale(Math.min(1.5, +(scale + 0.1).toFixed(1)))} className="h-10 w-10 rounded-md border border-border text-lg font-bold">+</button>
         </div>
       </div>
-      <div className="grid gap-2">
+
+      {/* (القسم المضاف: خيارات عدد البطاقات لكل زائر والبطاقات الفارغة) */}
+      <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2.5">
+        <p className="text-xs font-bold text-primary"><L ar="توزيع البطاقات والنسخ" de="Kartenanzahl" /></p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => { setCopies(2); setBlankOnly(false); }} className={`min-h-10 rounded-md border-2 p-1 text-xs font-bold ${copies === 2 && !blankOnly ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground"}`}>
+            <L ar="🏷️ بطاقتان لكل زائر (شحن + يد)" de="2 pro Pilger (Hand + Fracht)" />
+          </button>
+          <button type="button" onClick={() => { setCopies(1); setBlankOnly(false); }} className={`min-h-10 rounded-md border-2 p-1 text-xs font-bold ${copies === 1 && !blankOnly ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground"}`}>
+            <L ar="🏷️ بطاقة واحدة لكل زائر" de="1 Karte pro Pilger" />
+          </button>
+        </div>
+        <button type="button" onClick={() => setBlankOnly(!blankOnly)} className={`w-full min-h-9 rounded-md border text-xs font-bold transition-all ${blankOnly ? "border-destructive bg-destructive text-destructive-foreground" : "border-border bg-background text-primary"}`}>
+          {blankOnly ? <L ar="✓ تفعيل: طباعة بطاقات فارغة بدون اسم (للطوارئ)" de="✓ Leere Karten für Notfälle aktiv" /> : <L ar="📄 طباعة بطاقات فارغة بدون أسماء (للطوارئ)" de="Leere Karten drucken" />}
+        </button>
+      </div>
+
+      {/* إدخال اسم يدوي مفرد */}
+      {!blankOnly && <div className="grid gap-2">
         <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="اسم الزائر بالعربية" />
         <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Name (Latin)" />
-      </div>
-      <details className="rounded-md border border-border p-2 text-sm">
-        <summary className="cursor-pointer font-bold text-primary"><L ar="طباعة لعدة زوار" de="Für mehrere Pilger drucken" /></summary>
+      </div>}
+
+      {/* طباعة لعدة زوار أو سحب الأسماء من الحجوزات */}
+      {!blankOnly && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
+        <summary className="cursor-pointer font-bold text-primary"><L ar="طباعة لعدة زوار أو سحب من الحجوزات" de="Mehrere Pilger / Aus Buchungen" /></summary>
+        
+        {/* (القسم المضاف: زر وقائمة سحب أسماء الرحلة للمشرف) */}
+        {s && <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
+          {trips.length === 0 ? (
+            <Button type="button" variant="outline" size="sm" onClick={fetchTripNames} disabled={busy} className="w-full text-xs">
+              📥 <L ar="سحب أسماء الزوار من الحجوزات" de="Pilgernamen aus Buchungen laden" />
+            </Button>
+          ) : (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
+              <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
+                {trips.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
+        </div>}
+
         <p className="mt-2 text-xs text-muted-foreground"><L ar="اسم في كل سطر: الاسم العربي / Latin. تُوزع الأسماء على صفحات A4 تلقائياً." de="Ein Name pro Zeile: Arabisch / Latein. Die Namen werden automatisch auf A4-Seiten verteilt." /></p>
         <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن / Ali Hassan\nزينب محمد / Zainab Mohammad"} />
-        {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} → {Math.ceil(parseNames(bulk).length / (sp.cols * sp.rows))} A4</p>}
-      </details>
-      <div className="grid gap-2">
-        <Button type="button" disabled={busy} onClick={printSheet} className="h-auto min-h-11 whitespace-normal"><Printer className="h-4 w-4 shrink-0" /><L ar="طباعة صفحة A4 جاهزة للقص" de="A4-Bogen drucken" /></Button>
+        {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
+      </details>}
+
+      {/* أزرار الطباعة والتنزيل */}
+      <div className="grid gap-2 pt-1">
+        <Button type="button" disabled={busy} onClick={printSheet} className="h-auto min-h-11 whitespace-normal font-bold"><Printer className="h-4 w-4 shrink-0" /><L ar={`طباعة صفحة A4 جاهزة للقص (${people().length} بطاقة)`} de={`A4-Bogen drucken (${people().length} Karten)`} /></Button>
         <div className="grid grid-cols-2 gap-2">
-          <Button type="button" variant="outline" disabled={busy} onClick={saveSheet} className="h-auto min-h-11 whitespace-normal text-xs"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ صفحة A4" de="A4 als Bild" /></Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={saveCard} className="h-auto min-h-11 whitespace-normal text-xs"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ بطاقة واحدة" de="Einzelkarte" /></Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={saveSheet} className="h-auto min-h-11 whitespace-normal text-xs font-semibold"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ صفحات A4 صور" de="A4 als Bild" /></Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={saveCard} className="h-auto min-h-11 whitespace-normal text-xs font-semibold"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ بطاقة واحدة" de="Einzelkarte" /></Button>
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground"><L ar="عند الطباعة اختر: الحجم الفعلي 100% بدون تكبير أو تصغير." de="Beim Drucken: Tatsächliche Größe 100 %, ohne Skalierung." /></p>
@@ -411,4 +525,3 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     </div>}
   </section>;
 }
-
