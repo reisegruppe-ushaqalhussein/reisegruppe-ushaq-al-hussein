@@ -337,6 +337,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
 
   // جلب الرحلات المسجلة إذا كان المشرف مسجلاً
+    // (القسم المصحح: سحب أسماء المسافرين والرحلات من الحجوزات بدون أي تعارض تقني)
   const fetchTripNames = async () => {
     if (!s) return;
     setBusy(true);
@@ -344,7 +345,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       const res = await listFn({ data: { password: s.password } });
       const valid = (res.rows ?? []).filter((r) => r.status !== "deleted");
       setAllBookings(valid);
-      const uniqueTrips = [...new Set(valid.map((r) => r.tripTitle.trim()).filter(Boolean))];
+      const uniqueTrips = [...new Set(valid.map((r) => (r.trip || "").trim()).filter(Boolean))];
       setTrips(uniqueTrips);
       if (uniqueTrips.length > 0 && !selectedTrip) setSelectedTrip(uniqueTrips[0]);
     } catch {
@@ -355,19 +356,13 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
 
   const applyTripPilgrims = (tripName: string) => {
     setSelectedTrip(tripName);
-    const filtered = allBookings.filter((b) => b.tripTitle.trim() === tripName.trim());
+    const filtered = allBookings.filter((b) => (b.trip || "").trim() === tripName.trim());
     const lines: string[] = [];
     filtered.forEach((b) => {
-      // الزائر الأساسي
-      const mainName = `${b.fullName.trim()} / ${b.fullNameDe ? b.fullNameDe.trim() : ""}`;
-      lines.push(mainName);
-      // المرافقون إن وجدوا
-      if (Array.isArray(b.companions)) {
-        b.companions.forEach((c) => {
-          const compName = `${c.firstName || ""} ${c.lastName || ""}`.trim();
-          if (compName) lines.push(compName);
-        });
-      }
+      (b.travelers || []).forEach((t) => {
+        const name = `${t["firstName"] || ""} ${t["lastName"] || ""}`.trim();
+        if (name) lines.push(name);
+      });
     });
     setBulk(lines.join("\n"));
     setBlankOnly(false);
