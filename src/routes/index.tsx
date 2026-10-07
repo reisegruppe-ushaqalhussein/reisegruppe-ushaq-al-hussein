@@ -983,7 +983,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "home" && <HomeView open={open} content={content} payment={content.payment ?? defaultContent.payment} />}
         {view === "custom" && customId && <CustomSectionView key={customId} content={content} id={customId} builtins={homeTiles} onOpen={open} />}
         {view === "trips" && <TripsView content={content} admin={admin} />}
-        {view === "registration" && <RegistrationView content={content} />}
+        {view === "registration" && <RegistrationView content={content} admin={admin} />}
         {view === "contacts" && <ContactsView content={content} admin={admin} />}
         {view === "news" && <NewsView content={content} admin={admin} />}
         {view === "donations" && <DonationsView content={content} admin={admin} />}
