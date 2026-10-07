@@ -142,6 +142,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
           <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
         </DialogContent>
       </Dialog>}
+     {kinds.map((k) => {
         const items = available.filter((l) => l.kind === k.id);
         return (
           <section key={k.id} className="mb-6">
