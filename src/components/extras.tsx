@@ -142,8 +142,6 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
           <AddButton label={{ ar: "إضافة رقم طوارئ", de: "Notfallnummer hinzufügen" }} fields={emergencyFields} blank={{ ar: "", de: "", phone: "" }} onAdd={(row) => save({ ...content, emergency: [...content.emergency, { ...(row as EmergencyEntry), id: `em${Date.now()}` }] })} />
         </DialogContent>
       </Dialog>}
-      {admin && <AddButton label={{ ar: "إضافة موقع", de: "Ort hinzufügen" }} fields={locationFields} blank={{ id: "", kind: "hotel", ar: "", de: "", address: "", mapsUrl: "", hidden: false }} onAdd={(row) => commit([...all, { ...(row as LocationEntry), id: `l${Date.now()}` }])} />}
-      {kinds.map((k) => {
         const items = available.filter((l) => l.kind === k.id);
         return (
           <section key={k.id} className="mb-6">
@@ -152,7 +150,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
             {items.length === 0 ? <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground"><P ar="سيتم الإعلان عنها لاحقاً" de="Wird noch bekannt gegeben" /></p> : (
               <div className="space-y-3">{items.map((l) => (
                  <div key={l.id} className={l.hidden ? "opacity-55" : ""}>
-                   {admin && <ItemActions fields={locationFields} item={l} hidden={l.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
+                  {admin && isEditing && <ItemActions fields={locationFields} item={l} hidden={l.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === l.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === l.id ? { ...(row as LocationEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== l.id))} />}
                   <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
                     <div className="flex items-start gap-2"><h4 className="min-w-0 flex-1 font-bold text-primary"><P ar={l.ar} de={l.de} /></h4><FavStar id={`loc:${l.id}`} /></div>
                     {l.address && <p className="mt-1 text-sm text-muted-foreground">{l.address}</p>}
