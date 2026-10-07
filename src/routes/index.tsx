@@ -668,6 +668,7 @@ function DuasView({ content }: { content: SiteContent }) {
   const managedEntries = useMemo(() => duas.filter((d) => (d.ar || d.de) && (showHidden || !d.hidden)).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [showHidden, duas]);
   const inCat = (c: DuaCategory) => managedEntries.filter((e) => e.cat === c);
   const saveContent = useSaveContent(adminPw ?? "");
+  const isEditing = useSectionEditMode();
   const shrineList = content.shrines;
   const shrines: Array<Shrine & { hidden?: boolean; raw: ShrineEntry }> = shrineList.filter((s) => showHidden || !s.hidden).map((s) => ({ id: s.id, ar: s.ar, de: s.de, image: s.imageUrl || shrineImages[s.id] || shrineImage, entries: inCat(s.id), hidden: s.hidden ?? false, raw: s }));
   const generalEntries = inCat("general");
@@ -678,14 +679,14 @@ function DuasView({ content }: { content: SiteContent }) {
   const gTitle = labelOf(content, "generalDuas", "الأدعية والتعقيبات", "Bittgebete & Taqibat");
   const gHidden = content.labels?.["generalDuas"]?.hidden ?? false;
   const setGLabel = (patch: { hidden?: boolean }) => saveContent({ ...content, labels: { ...(content.labels ?? {}), generalDuas: { ar: content.labels?.["generalDuas"]?.ar ?? "", de: content.labels?.["generalDuas"]?.de ?? "", hidden: gHidden, ...patch } } });
-  const duaGear = admin && <GearMenu>
+  const duaGear = admin && isEditing && <GearMenu>
     <RenameTitle content={content} labelKey="generalDuas" ar={gTitle.ar} de={gTitle.de} />
     <DuaAddButton category="general" password={admin.password} content={admin.content} />
     {showHidden && <IconBtn label={gHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => setGLabel({ hidden: !gHidden })}>{gHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
     <IconBtn label="حذف | Löschen" danger onClick={() => { if (!window.confirm("حذف جميع الأدعية والتعقيبات داخل المجلد؟ (يمكن إرجاعها من سلة المحذوفات)\nAlle Bittgebete in diesem Ordner löschen?")) return; void saveContent({ ...content, duas: content.duas.filter((d) => duaCategoryOf(d) !== "general") }); }}><TrashIcon className="h-3.5 w-3.5" /></IconBtn>
   </GearMenu>;
   if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} admin={admin} />;
-  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button>{duaGear}</div><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} /><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
+  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button>{duaGear}</div><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} />{admin && <SectionAdminBar onRestore={() => saveContent({ ...content, duas: defaultContent.duas })}><DuaAddButton category="general" password={admin.password} content={admin.content} /></SectionAdminBar>}</div><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
   return (
     <div className="screen-enter px-4 py-7">
