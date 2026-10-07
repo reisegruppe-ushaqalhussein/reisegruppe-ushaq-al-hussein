@@ -2,7 +2,7 @@ import { useState, type ComponentType } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown, ArrowUp, BookOpen, Briefcase, CalendarDays, Camera, Compass, Eye, EyeOff, Feather, FileText, Folder, FolderInput, Gift, Globe, HandHeart, Heart, Image as ImageIcon,
-  Info, Landmark, Link2, Loader2, Luggage, Map as MapIcon, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Upload, Users, Video,
+  Info, Landmark, Link2, Loader2, Luggage, Map as MapIcon, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, RotateCcw, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Upload, Users, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -242,6 +242,7 @@ const bannerDefaults = { titleAr: "بإدارة الحاج ياسر الدر", t
 /** Home banner: one seamless block, image stays behind the text; admin can edit text, image and intensity. */
 export function HomeBanner({ content, fallbackImage }: { content: SiteContent; fallbackImage: string }) {
   const canManage = useCanManage(content);
+  const { cms, save } = useCms(content);
   const [edit, setEdit] = useState(false);
   const b = content.cms?.banner ?? {};
   const opacity = b.opacity ?? 0.55;
@@ -249,7 +250,7 @@ export function HomeBanner({ content, fallbackImage }: { content: SiteContent; f
   return <section className="relative isolate overflow-hidden rounded-lg bg-primary text-primary-foreground shadow-md">
     <img src={b.image || fallbackImage} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 h-full w-full scale-105 object-cover" style={{ opacity, filter: blur ? `blur(${blur}px)` : undefined }} />
     <div className="hero-shade pointer-events-none absolute inset-0 -z-10" />
-    {canManage && <div className="absolute left-2 top-2 z-10"><IconBtn label="تعديل البانر | Banner bearbeiten" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn></div>}
+        {canManage && <div className="absolute left-2 top-2 z-10 flex items-center gap-1.5"><IconBtn label="تعديل البانر | Banner bearbeiten" onClick={() => setEdit(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>{Boolean(b.image) && <IconBtn label="استرجاع الصورة الأصلية | Originalbild" onClick={() => save({ ...cms, banner: { ...b, image: "" } })}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>}</div>}
     <div className="relative px-5 pb-6 pt-16 text-center">
       <h1 className="text-lg"><LangText ar={b.titleAr || bannerDefaults.titleAr} de={b.titleDe || bannerDefaults.titleDe} inverse center /></h1>
       {(b.lineAr || b.lineDe) && <p className="mx-auto mt-3 max-w-[300px] rounded-full border border-secondary/50 bg-primary/40 px-4 py-1.5 text-sm font-bold text-secondary backdrop-blur-sm"><LangText ar={b.lineAr ?? ""} de={b.lineDe ?? ""} inverse center /></p>}
