@@ -647,7 +647,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           </div>
           <p>{bi("المتبقي | Rest: ")}<b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
           <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder={bi("ملاحظات الإدارة | Interne Notiz")} onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
-          {!trashView && <Button size="sm" variant="outline" className="w-full" onClick={() => setEditing(r)}><Pencil className="h-3.5 w-3.5" />{bi("تعديل بيانات الحجز والمسافرين | Buchung bearbeiten")}</Button>}
+          {!trashView && <Button size="sm" variant="outline" className="w-full" onClick={() => { setOpen(null); setEditing(r); }}><Pencil className="h-3.5 w-3.5" />{bi("تعديل بيانات الحجز والمسافرين | Buchung bearbeiten")}</Button>}
           {trashView
             ? <div className="flex gap-3"><button type="button" className="font-bold text-primary underline" onClick={() => void patch(r, { status: "new" })}>{bi("↩️ استرجاع | Wiederherstellen")}</button><button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف نهائي بلا رجعة؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف نهائي | Endgültig löschen")}</button></div>
             : <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("نقل الحجز إلى سلة المحذوفات؟ | In den Papierkorb?")) void patch(r, { status: "deleted" }); }}>{bi("🗑 نقل للسلة | In den Papierkorb")}</button>}
