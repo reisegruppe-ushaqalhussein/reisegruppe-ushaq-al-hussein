@@ -1539,7 +1539,13 @@ function Index() {
 }
 
 function CampaignApp({ content }: { content: SiteContent }) {
-  const [view, setView] = useState<View>("home");
+    const [view, setView] = useState<View>(() => {
+    if (typeof window === "undefined") return "home";
+    const h = window.location.hash.replace("#", "") as View;
+    if (h && h in viewTitles) return h;
+    const sv = sessionStorage.getItem("view") as View;
+    return (sv && sv in viewTitles) ? sv : "home";
+  });
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
   const [customId, setCustomId] = useState<string | null>(null);
     const [qrOpen, setQrOpen] = useState(false);
@@ -1562,8 +1568,9 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
   const adminPw = useAdminPassword();
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
-  const go = (next: View) => {
+    const go = (next: View) => {
     if (window.history.state?.view !== next) window.history.pushState({ view: next }, "");
+    try { window.location.hash = next; } catch {}
     setView(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
