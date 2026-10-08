@@ -681,13 +681,11 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => { setFilter(e.target.value); setLimit(60); setShowLists(false); }} className={inputCls}>
-  <option value="all">{bi("اختر الرحلة لعرض حجوزاتها | Reise wählen...")}</option>
-  {trips.map((t) => {
-    const count = (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, t)).length;
-    const paxCount = (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, t)).reduce((sum, r) => sum + r.travelers.length, 0);
-    <option key={t} value={t}>{tripLabel(t, bi)}</option>
-  })}
-</select>
+      <option value="all">{bi("اختر الرحلة لعرض حجوزاتها | Reise wählen...")}</option>
+      {trips.map((t) => (
+        <option key={t} value={t}>{tripLabel(t, bi)}</option>
+      ))}
+    </select>
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
     {!trashView && <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} placeholder={bi("🔍 الاسم (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />}
         {filter === "all" && !trashView ? (
