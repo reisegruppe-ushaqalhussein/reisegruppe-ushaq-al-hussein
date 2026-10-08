@@ -21,7 +21,8 @@ import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { LuggageTags } from "@/components/luggage-tags";
 import { enablePush } from "@/lib/push";
-import { BookingForm, BookingsPanel } from "@/components/booking";
+import { BookingForm, BookingsPanel, RoomCalcPanel } from "@/components/booking";
+import { RoomsPanel } from "@/components/final-group";
 import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, Calculator, CalendarClock, ClipboardList, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Tag, Vibrate, X } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
@@ -119,7 +120,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "custom" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId";
+type View = "custom" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId" | "rooms" | "bookings" | "roomCalc" | "luggage";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -305,6 +306,10 @@ const homeTiles: Tile[] = [
     { builtin: true, id: "pilgrimId", ar: "هويتي والطوارئ", de: "Ausweis & Notfall", icon: IdCard },
     { builtin: true, id: "favorites", ar: "محفوظاتي", de: "Meine Favoriten", icon: Star },
     { builtin: true, id: "donations", ar: "المساهمة", de: "Spenden", icon: HandHeart },
+    { builtin: true, id: "bookings", ar: "الحجوزات", de: "Buchungen", icon: ClipboardList, staffOnly: true, defaultParent: "registration" },
+    { builtin: true, id: "roomCalc", ar: "حاسبة وفرز الغرف", de: "Zimmer-Rechner", icon: Calculator, staffOnly: true, defaultParent: "registration" },
+    { builtin: true, id: "luggage", ar: "بطاقة الأمتعة والحقائب", de: "Kofferanhänger", icon: Tag, staffOnly: true, defaultParent: "registration" },
+    { builtin: true, id: "rooms", ar: "تسكين الزوار", de: "Zimmerverteilung", icon: BedDouble, staffOnly: true, defaultParent: "pilgrimId" },
 ];
 
 function HomeView({ open, content, payment }: { open: (id: string) => void; content: SiteContent; payment: SiteContent["payment"] }) {
@@ -475,10 +480,12 @@ function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar
   return <div dir={ltr ? "ltr" : "rtl"} className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div className="min-w-0 flex-1 text-start"><Pair ar={ar} de={de} /><div className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></div></div></div>;
 }
 
-function StaffLuggageTags() {
+/** Staff-only screens that live as movable tiles (default inside registration / pilgrimId). */
+function StaffScreen({ content, id, icon, ar, de, children }: { content: SiteContent; id: string; icon: IconType; ar: string; de: string; children: ReactNode }) {
   const staff = useStaffSession();
-  if (!staff) return null;
-  return <div className="mb-4"><LuggageTags nameAr="" nameDe="" /></div>;
+  const t = labelOf(content, `tile:${id}`, ar, de);
+  if (!staff) return <div className="screen-enter px-4 py-7"><p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><Pair ar="هذا القسم للإدارة فقط." de="Nur für die Reiseleitung." align="center" /></p></div>;
+  return <div className="screen-enter px-4 py-7"><ScreenTitle icon={icon} ar={t.ar} de={t.de} />{children}</div>;
 }
 
 function RegistrationView({ content, admin }: { content: SiteContent; admin?: AdminCtx }) {
@@ -488,8 +495,6 @@ function RegistrationView({ content, admin }: { content: SiteContent; admin?: Ad
         <ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" />
         {admin && <SectionAdminBar />}
       </div>
-      <BookingsPanel content={content} />
-      <StaffLuggageTags />
       <BookingForm content={content} />
     </div>
   );
@@ -1624,6 +1629,10 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "visa" && <VisaView content={content} admin={admin} />}
         {view === "memories" && <MemoriesView content={content} admin={admin} />}
         {view === "pilgrimId" && <PilgrimIdView content={content} />}
+        {view === "bookings" && <StaffScreen content={content} id="bookings" icon={ClipboardList} ar="الحجوزات" de="Buchungen"><BookingsPanel content={content} /></StaffScreen>}
+        {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><RoomCalcPanel /></StaffScreen>}
+        {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><LuggageTags nameAr="" nameDe="" /></StaffScreen>}
+        {view === "rooms" && <StaffScreen content={content} id="rooms" icon={BedDouble} ar="تسكين الزوار" de="Zimmerverteilung"><RoomsPanel content={content} /></StaffScreen>}
         <ScrollToTop />
         {view === "favorites" && <FavoritesView content={content} go={go} />}
         <footer className="space-y-4 px-4 pb-6 pt-4 text-center">
