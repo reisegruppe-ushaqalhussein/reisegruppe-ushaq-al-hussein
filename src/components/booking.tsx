@@ -818,24 +818,28 @@ export function RoomCalcPanel() {
   const trips = useMemo(() => [...new Set(active.map(groupKey))], [active]);
   if (!s) return null;
   const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && words.every((w) => r.travelers.some((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.toLowerCase().includes(w))));
+  const words = norm(q).split(" ").filter(Boolean);
+  const hit = (r: BookingRow) => words.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].some((v) => norm(v).includes(w)));
+  const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && hit(r));
+  const hiddenByRoom = words.length > 0 && room !== "all" ? byTrip.filter((r) => (r.room_pref || "leader") !== room && hit(r)).length : 0;
   const pax = byTrip.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
     <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("🛏️ حاسبة وفرز الغرف | Zimmer-Rechner ")}<span className="text-xs text-muted-foreground">({byTrip.length} / {pax} pax)</span></h2>
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
     </div>
-    <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
     <div className="mt-2 grid grid-cols-2 gap-1.5">
       {rooms.map((rm) => { const c = byTrip.filter((r) => (r.room_pref || "leader") === rm.id); const on = room === rm.id; return <button key={rm.id} type="button" onClick={() => setRoom(on ? "all" : rm.id)} className={`rounded-md border p-2 text-start text-xs ${on ? "border-secondary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>
-        <span className="block font-bold">{bi(rm.ar)}</span>
+        <span className="block font-bold">{roomLabel(rm.id, bi)}</span>
         <span className="mt-0.5 block"><b className="text-lg text-secondary">{c.length}</b> {bi("غرفة | Zimmer")} · {c.reduce((n, r) => n + r.travelers.length, 0)} pax</span>
       </button>; })}
     </div>
-    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("بحث باسم الزائر | Name suchen")} className={inputCls} />
+    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("🔍 اسم الزائر (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />
+    {room !== "all" && <button type="button" onClick={() => setRoom("all")} className="mt-1 text-xs font-bold text-primary underline">{bi("✕ إلغاء فلتر الغرفة | Zimmerfilter aufheben")}</button>}
+    {hiddenByRoom > 0 && <p className="mt-1 rounded-md bg-accent p-2 text-xs">{bi(`يوجد ${hiddenByRoom} نتيجة بنوع غرفة آخر — ألغِ فلتر الغرفة لرؤيتها | ${hiddenByRoom} Treffer in anderer Zimmerart`)}</p>}
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-1.5">{shown.map((r) => <li key={r.id} className="rounded-md border border-border p-2 text-xs">
-      <p className="font-bold text-primary">{r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.trim()).join("، ")}</p>
-      <p className="text-muted-foreground">🛏 {roomName(r.room_pref)} · {r.travelers.length} pax · {r.trip}</p>
-    </li>)}{shown.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">{bi("لا توجد نتائج | Keine Einträge")}</li>}</ul>}
+      <p dir="ltr" className="text-start font-bold text-primary">{r.travelers.map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim()).join(" · ")}</p>
+      <p className="mt-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">🛏 {roomLabel(r.room_pref, bi)}</span><span className="text-muted-foreground">{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span></p>
+    </li>)}{shown.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">{bi(words.length && /[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز، اكتبها بالإنجليزية | Keine Treffer – Namen lateinisch eingeben" : "لا توجد نتائج | Keine Einträge")}</li>}</ul>}
   </section>;
 }
