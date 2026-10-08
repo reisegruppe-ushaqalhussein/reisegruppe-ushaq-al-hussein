@@ -361,7 +361,42 @@ export function BookingForm({ content }: { content: SiteContent }) {
   </section>;
 
   const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
-  return <RegCtx.Provider value={content}>{settings}{note}<section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
+   return (
+    <RegCtx.Provider value={content}>
+      {settings}
+      {note}
+
+      {adminS && (
+        <div className="mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-bold text-primary">⚙️ وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة</span>
+            <span className="text-[10px] text-muted-foreground">(بدون ملء بيانات وهمية)</span>
+          </div>
+          <div className="grid grid-cols-4 gap-1">
+            {[
+              { idx: 0, label: "1. الرحلة" },
+              { idx: 1, label: "2. التواصل" },
+              { idx: 2, label: "3. الجوازات" },
+              { idx: 3, label: "4. التأكيد" },
+            ].map((st) => (
+              <button
+                key={st.idx}
+                type="button"
+                onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className={`rounded px-1.5 py-1 text-center font-bold transition-all ${
+                  step === st.idx
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-card border border-border text-primary hover:bg-accent"
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
       <div className="flex items-center gap-2 text-secondary"><Plane className="h-5 w-5" /><span className="text-sm font-bold"><LangText ar={reg.titleAr || "استمارة التسجيل"} de={reg.titleDe || "Anmeldeformular"} inverse /></span><EditPen content={content} k="title" label="عنوان الاستمارة" /></div>
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
@@ -441,35 +476,6 @@ export function BookingForm({ content }: { content: SiteContent }) {
     </div>
   </section></RegCtx.Provider>;
 }
-      {adminS && (
-        <div className="mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-bold text-primary">⚙️ وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة</span>
-            <span className="text-[10px] text-muted-foreground">(بدون ملء بيانات وهمية)</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1">
-            {[
-              { idx: 0, label: "1. الرحلة" },
-              { idx: 1, label: "2. التواصل" },
-              { idx: 2, label: "3. الجوازات" },
-              { idx: 3, label: "4. التأكيد" },
-            ].map((st) => (
-              <button
-                key={st.idx}
-                type="button"
-                onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className={`rounded px-1.5 py-1 text-center font-bold transition-all ${
-                  step === st.idx
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-card border border-border text-primary hover:bg-accent"
-                }`}
-              >
-                {st.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
 const statusLabels: Record<string, string> = { new: "جديد | Neu", confirmed: "مؤكد | Bestätigt", cancelled: "ملغى | Storniert" };
 const payLabels: Record<string, string> = { unpaid: "غير مدفوع | Offen", partial: "دفعة جزئية | Teilweise", paid: "مدفوع | Bezahlt" };
