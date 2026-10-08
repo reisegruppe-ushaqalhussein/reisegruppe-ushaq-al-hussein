@@ -9,13 +9,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { GearMenu, IconBtn } from "@/components/inline-admin";
 import { LangText } from "@/lib/i18n";
 import { saveOrQueue } from "@/lib/offline";
-import { useAdminSession, useCanManage, useShowHidden } from "@/lib/admin-session";
+import { useAdminSession, useCanManage, useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { labelOf, type CmsConfig, type CmsItem, type CmsSection, type SiteContent } from "@/lib/site-content";
 import { translateToEnglish } from "@/lib/site-content.functions";
 import { uploadImage } from "@/lib/upload-image";
 
 type IconType = ComponentType<{ className?: string }>;
-export type Tile = { id: string; ar: string; de: string; icon: IconType; builtin: boolean };
+export type Tile = { id: string; ar: string; de: string; icon: IconType; builtin: boolean; staffOnly?: boolean; defaultParent?: string };
+/** Parent of a tile: admin choice first, then the built-in default ("" = home). */
+const parentOf = (parents: Record<string, string>, t: Tile) => parents[t.id] ?? t.defaultParent ?? "";
 
 export const cmsIcons: Record<string, IconType> = {
   folder: Folder, book: BookOpen, scroll: ScrollText, star: Star, sparkles: Sparkles, heart: Heart, hand: HandHeart, moon: MoonStar, feather: Feather, landmark: Landmark,
@@ -71,6 +73,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const { cms, save } = useCms(content);
   const canManage = useCanManage(content);
   const showHidden = useShowHidden() || canManage;
+  const staff = useStaffSession();
   const [arranging, setArranging] = useState(false);
   const [editing, setEditing] = useState<Tile | "new" | null>(null);
   const [moving, setMoving] = useState<Tile | null>(null);
@@ -78,7 +81,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const parents = cms.parents ?? {};
   const hiddenTiles = new Set(cms.hiddenTiles ?? []);
   const everything = arrange(allTiles(content, builtins), cms);
-  const level = everything.filter((t) => (parents[t.id] ?? "") === (parentId ?? ""));
+  const level = everything.filter((t) => parentOf(parents, t) === (parentId ?? "") && (!t.staffOnly || !!staff));
   const shown = level.filter((t) => showHidden || !hiddenTiles.has(t.id));
   const cols = cms.columns === 3 ? "grid-cols-3" : "grid-cols-2";
 
@@ -185,7 +188,8 @@ export function pathOf(content: SiteContent, builtins: Tile[], tileId: string): 
   const tiles = allTiles(content, builtins);
   const out: Tile[] = [];
   const seen = new Set<string>([tileId]);
-  let p = parents[tileId];
+  const self = tiles.find((x) => x.id === tileId);
+  let p = self ? parentOf(parents, self) : parents[tileId];
   while (p) {
     const id = parentTile(p, builtins);
     if (seen.has(id)) break;
@@ -193,7 +197,7 @@ export function pathOf(content: SiteContent, builtins: Tile[], tileId: string): 
     const t = tiles.find((x) => x.id === id);
     if (!t) break;
     out.unshift(t);
-    p = parents[id];
+    p = parentOf(parents, t);
   }
   return out;
 }
@@ -207,11 +211,11 @@ function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent
   const dests = allTiles(content, builtins).map((t) => ({ value: t.builtin ? t.id : t.id.slice(2), t })).filter((d) => !isInside(d.t.id));
   const pick = (folder: string) => {
     const next = { ...parents };
-    if (folder) next[tile.id] = folder; else delete next[tile.id];
+    if (folder) next[tile.id] = folder; else if (tile.defaultParent) next[tile.id] = ""; else delete next[tile.id];
     void save({ ...cms, parents: next });
     onClose();
   };
-  const current = parents[tile.id] ?? "";
+  const current = parentOf(parents, tile);
   return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir="rtl">
     <DialogHeader className="text-right"><DialogTitle>نقل إلى <span className="text-sm italic text-muted-foreground">| Verschieben nach</span></DialogTitle><DialogDescription>«{tile.ar || tile.de}» ينتقل مع كل ما بداخله. | Mit allem Inhalt.</DialogDescription></DialogHeader>
     <div className="space-y-2">
