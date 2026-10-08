@@ -220,6 +220,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   faqs: { ar: "الأسئلة الشائعة", de: "Häufige Fragen (FAQ)" },
   visa: { ar: "الفيزا والمطارات", de: "Visum & Flughäfen" },
   memories: { ar: "ذكريات الزيارة", de: "Reiseerinnerungen" }, pilgrimId: { ar: "هويتي والطوارئ", de: "Ausweis & Notfall" }, favorites: { ar: "محفوظاتي", de: "Meine Favoriten" },
+  bookings: { ar: "الحجوزات", de: "Buchungen" }, roomCalc: { ar: "حاسبة وفرز الغرف", de: "Zimmer-Rechner" }, luggage: { ar: "بطاقة الأمتعة والحقائب", de: "Kofferanhänger" }, rooms: { ar: "تسكين الزوار", de: "Zimmerverteilung" },
 };
 
 function useLongPress(cb: () => void, ms = 3000) {
