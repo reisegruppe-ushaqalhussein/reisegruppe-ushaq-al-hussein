@@ -679,7 +679,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   {trips.map((t) => {
     const count = (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, t)).length;
     const paxCount = (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, t)).reduce((sum, r) => sum + r.travelers.length, 0);
-    return <option key={t} value={t}>{tripLabel(t, bi)} ({count} حجز · {paxCount} فرد)</option>;
+    <option key={t} value={t}>{tripLabel(t, bi)}</option>
   })}
 </select>
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
