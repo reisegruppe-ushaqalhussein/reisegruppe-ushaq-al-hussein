@@ -688,22 +688,41 @@ function RegSettings({ content }: { content: SiteContent }) {
   const { lang } = useLang();
   const bi = biFor(lang);
   const reg = regOf(content);
-  if (adminS?.role !== "admin" || !isEditing) return null;
+  if (adminS?.role !== "admin") return null;
   const saveReg = async (patch: RegCfg) => {
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
     catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
   };
   return <div className="mb-3 rounded-md border-2 border-secondary bg-card p-2 text-xs">
-    <div className="grid grid-cols-2 gap-1.5">
-      <Button size="sm" variant={reg.closed ? "default" : "outline"} onClick={() => void saveReg({ closed: !reg.closed })}>{bi(reg.closed ? "🔓 فتح التسجيل | Anmeldung öffnen" : "🔒 قفل التسجيل | Anmeldung schließen")}</Button>
-      <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>{bi(reg.ocrOff ? "📷 تفعيل المسح | Scan an" : "📷 إيقاف المسح | Scan aus")}</Button>
-    </div>
-    {!reg.ocrOff && <Button size="sm" variant={reg.ocrPublic ? "default" : "outline"} className="mt-1.5 w-full whitespace-normal" onClick={() => void saveReg({ ocrPublic: !reg.ocrPublic })}>{bi(reg.ocrPublic ? "👥 المسح متاح للزوار — اضغط لحصره بالإدارة والحاج | Scan für alle – nur Leitung" : "🔐 المسح للإدارة والحاج فقط — اضغط لإتاحته للزوار | Scan nur Leitung – für alle öffnen")}</Button>}
-    <p className="mt-2 flex items-center gap-1 text-muted-foreground"><Pencil className="h-3 w-3" />{bi("لتعديل أي نص اضغط القلم الذهبي بجانبه | Zum Bearbeiten den goldenen Stift neben dem Text tippen")}</p>
-    <div className="mt-1 flex items-center gap-1">{bi("ملاحظة أعلى الاستمارة | Hinweis oben")}<EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /> · {bi("نص تعريفي | Einleitung")}<EditPen content={content} k="intro" label="النص التعريفي" /></div>
+    {/* زر قفل / فتح التسجيل: ظاهر دائماً للإدارة للسرعة والراحة */}
+    <Button size="sm" variant={reg.closed ? "default" : "outline"} className="w-full" onClick={() => void saveReg({ closed: !reg.closed })}>
+      {bi(reg.closed ? "🔓 فتح التسجيل للزوار | Anmeldung öffnen" : "🔒 قفل التسجيل مؤقتاً | Anmeldung schließen")}
+    </Button>
+
+    {/* خيارات المسح الضوئي وتعديل النصوص: تظهر فقط عند تفعيل القلم ✏️ */}
+    {isEditing && (
+      <div className="mt-2 space-y-2 border-t border-border pt-2">
+        <div className="grid grid-cols-2 gap-1.5">
+          <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>
+            {bi(reg.ocrOff ? "📷 تفعيل المسح | Scan an" : "📷 إيقاف المسح | Scan aus")}
+          </Button>
+          {!reg.ocrOff && (
+            <Button size="sm" variant={reg.ocrPublic ? "default" : "outline"} onClick={() => void saveReg({ ocrPublic: !reg.ocrPublic })}>
+              {bi(reg.ocrPublic ? "👥 متاح للجميع" : "🔐 للإدارة فقط")}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <Pencil className="h-3 w-3" />
+          <span>{bi("ملاحظة الاستمارة:")}</span>
+          <EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" />
+          <span className="ms-2">{bi("نص تعريفي:")}</span>
+          <EditPen content={content} k="intro" label="النص التعريفي" />
+        </div>
+      </div>
+    )}
   </div>;
 }
-
 type MT = Record<string, string>;
 const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
 
