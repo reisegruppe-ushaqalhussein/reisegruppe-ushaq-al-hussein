@@ -346,7 +346,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   };
 
   const settings = <RegSettings content={content} />;
-  const note = (reg.noteAr || reg.noteDe) && <div className="mb-3 rounded-md border border-secondary bg-accent p-3 text-sm"><LangText ar={reg.noteAr ?? ""} de={reg.noteDe ?? ""} /></div>;
+  const note = (reg.noteAr || reg.noteDe) ? <div className="mb-3 flex items-start gap-1 rounded-md border border-secondary bg-accent p-3 text-sm"><span className="min-w-0 flex-1"><LangText ar={reg.noteAr ?? ""} de={reg.noteDe ?? ""} /></span><EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /></div> : <div className="mb-2"><EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /></div>;
   if (reg.closed) return <>{settings}{note}<section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><h2 className="text-lg"><LangText ar="التسجيل مغلق حالياً" de="Anmeldung vorübergehend geschlossen" inverse center /></h2></section></>;
 
   if (done) return <section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md">
@@ -364,7 +364,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
     </div>
     <div className="space-y-4 p-4 text-sm">
-      {(reg.introAr || reg.introDe) && <p className="rounded-md bg-muted p-3 text-xs"><LangText ar={reg.introAr ?? ""} de={reg.introDe ?? ""} /></p>}
+      {(reg.introAr || reg.introDe) ? <div className="flex items-start gap-1 rounded-md bg-muted p-3 text-xs"><span className="min-w-0 flex-1"><LangText ar={reg.introAr ?? ""} de={reg.introDe ?? ""} /></span><EditPen content={content} k="intro" label="النص التعريفي" /></div> : <EditPen content={content} k="intro" label="النص التعريفي" />}
       {step === 0 && <>
         <p className="font-bold text-primary"><L ar="اختر الرحلة" de="Reise auswählen" /></p>
         <div className="space-y-2">
@@ -735,13 +735,6 @@ function RegSettings({ content }: { content: SiteContent }) {
               {bi(reg.ocrPublic ? "👥 متاح للجميع" : "🔐 للإدارة فقط")}
             </Button>
           )}
-        </div>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <Pencil className="h-3 w-3" />
-          <span>{bi("ملاحظة الاستمارة:")}</span>
-          <EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" />
-          <span className="ms-2">{bi("نص تعريفي:")}</span>
-          <EditPen content={content} k="intro" label="النص التعريفي" />
         </div>
       </div>
     )}
