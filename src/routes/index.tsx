@@ -604,12 +604,16 @@ const prayerNames: Array<{ key: string; ar: string; de: string }> = [
 const cities = [
   { id: "Karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
   { id: "Najaf", ar: "النجف الأشرف", de: "Nadschaf" },
+  { id: "Baghdad", ar: "الكاظمية المقدسة", de: "al-Kazimiyya" },
+  { id: "Samarra", ar: "سامراء المشرفة", de: "Samarra" },
 ];
 
 function PrayerTimesCard() {
   const [city, setCity] = useState(cities[0]!.id);
   const [times, setTimes] = useState<Record<string, string> | null>(null);
   const [failed, setFailed] = useState(false);
+  const [nextInfo, setNextInfo] = useState<{ nameAr: string; nameDe: string; diffStr: string } | null>(null);
+
   useEffect(() => {
     let off = false;
     setTimes(null); setFailed(false);
@@ -619,6 +623,46 @@ function PrayerTimesCard() {
       .catch(() => { if (!off) setFailed(true); });
     return () => { off = true; };
   }, [city]);
+
+  useEffect(() => {
+    if (!times) { setNextInfo(null); return; }
+    const calcNext = () => {
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+      const curH = Number(parts.find((p) => p.type === "hour")?.value ?? now.getHours());
+      const curM = Number(parts.find((p) => p.type === "minute")?.value ?? now.getMinutes());
+      const nowMin = curH * 60 + curM;
+
+      for (const p of prayerNames) {
+        const raw = times[p.key];
+        if (!raw) continue;
+        const [ph, pm] = raw.split(":").map(Number);
+        if (Number.isNaN(ph) || Number.isNaN(pm)) continue;
+        const pMin = ph * 60 + pm;
+        if (pMin > nowMin) {
+          const diff = pMin - nowMin;
+          const h = Math.floor(diff / 60);
+          const m = diff % 60;
+          const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
+          setNextInfo({ nameAr: p.ar, nameDe: p.de, diffStr });
+          return;
+        }
+      }
+      const fajrRaw = times["Fajr"];
+      if (fajrRaw) {
+        const [fh, fm] = fajrRaw.split(":").map(Number);
+        const diff = (24 * 60 - nowMin) + (fh * 60 + fm);
+        const h = Math.floor(diff / 60);
+        const m = diff % 60;
+        const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
+        setNextInfo({ nameAr: "الفجر", nameDe: "Fadschr", diffStr });
+      }
+    };
+    calcNext();
+    const interval = setInterval(calcNext, 60000);
+    return () => clearInterval(interval);
+  }, [times]);
+
   return (
     <section className="mt-5 rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-3">
@@ -630,6 +674,12 @@ function PrayerTimesCard() {
           <Button key={c.id} size="sm" variant={city === c.id ? "default" : "outline"} onClick={() => setCity(c.id)} className="h-auto py-1.5"><Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} /></Button>
         ))}
       </div>
+      {nextInfo && (
+        <div className="mb-3 flex items-center justify-between rounded-md border border-secondary/40 bg-accent/50 px-3 py-1.5 text-xs">
+          <span className="font-bold text-primary">⏳ الأذان القادم: صلاة {nextInfo.nameAr}</span>
+          <span dir="ltr" className="font-mono font-bold text-secondary">{nextInfo.diffStr}</span>
+        </div>
+      )}
       <div className="grid grid-cols-4 gap-2 text-center">
         {prayerNames.map((p) => (
           <div key={p.key} className="rounded-md bg-muted px-1 py-2">
