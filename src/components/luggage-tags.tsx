@@ -25,8 +25,6 @@ type Person = { ar: string; de: string };
 type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement; template: HTMLImageElement; custom: HTMLImageElement | null };
 type Style = { variant: "new" | "classic" | "custom"; color: "red" | "gold" | "black"; bold: boolean; scale: number; layout: "side" | "stack" };
 
-/* Iraq/Iran: 2 x 4 on A4, exact A7 landscape (105 x 74.25 mm) — matches the leader's laminator sheet.
-   Umrah: 3 x 3 on A4, 55.67 x 83.87 mm portrait — matches the Canva PDF grid. */
 const SPEC: Record<Kind, { w: number; h: number; cols: number; rows: number; ox: number; oy: number }> = {
   iraq: { w: 105, h: 74.25, cols: 2, rows: 4, ox: 0, oy: 0 },
   umrah: { w: 55.67, h: 83.87, cols: 3, rows: 3, ox: (A4.w - 3 * 55.67) / 2, oy: (A4.h - 3 * 83.87) / 2 },
@@ -66,7 +64,6 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
   const X = (mm: number) => (ox + mm) * S;
   const Y = (mm: number) => (oy + mm) * S;
   const font = (size: number, weight = 700) => `${weight} ${size * S}px Cairo, "Noto Naskh Arabic", sans-serif`;
-  /** Draws text with baseline at y; shrinks to fit maxW (mm). Returns drawn width in mm. */
   const text = (s: string, x: number, y: number, size: number, o: { weight?: number; color?: string; align?: CanvasTextAlign; maxW?: number } = {}) => {
     let sz = size;
     ctx.font = font(sz, o.weight);
@@ -109,7 +106,6 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
   return { text, width, img, qr, rect, line, X, Y, S };
 }
 
-/** Phone row: Arabic label on the right, number (LTR) on the left, centred on cx. */
 function phoneRow(p: ReturnType<typeof pen>, label: string, num: string, cx: number, y: number, maxW: number, labelColor = GOLD) {
   let ls = 2.3, ns = 3.1;
   const gap = 1.2;
@@ -130,7 +126,6 @@ function drawLebanonFlag(ctx: CanvasRenderingContext2D, p: ReturnType<typeof pen
   p.rect(x, y, w, h, { fill: "#ffffff" });
   p.rect(x, y, w, h / 4, { fill: "#ed1c24" });
   p.rect(x, y + (3 * h) / 4, w, h / 4, { fill: "#ed1c24" });
-  // Simplified cedar
   const cx = x + w / 2, top = y + h * 0.28, bot = y + h * 0.72;
   ctx.fillStyle = "#00a651";
   ctx.beginPath();
@@ -145,7 +140,6 @@ function drawLebanonFlag(ctx: CanvasRenderingContext2D, p: ReturnType<typeof pen
   p.rect(x, y, w, h, { stroke: "#9a9a9a", lw: 0.15 });
 }
 
-/** Visitor name: "side" = Arabic right / Latin left on one line; "stack" = Arabic above Latin, centred. */
 function drawName(p: ReturnType<typeof pen>, who: Person, st: Style, left: number, right: number, base: number, size: number, color: string) {
   const w = st.bold ? 800 : 500;
   const sz = size * st.scale;
@@ -164,18 +158,15 @@ function drawName(p: ReturnType<typeof pen>, who: Person, st: Style, left: numbe
   }
 }
 
-/** Leader's approved design (image, exact A7 ratio) — only the visitor name is drawn on top. */
 function drawIraq(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person, st: Style) {
   const p = pen(ctx, S, ox, oy);
   const W = 105, H = 74.25;
   const tpl = st.variant === "custom" && a.custom ? a.custom : a.template;
   p.rect(0, 0, W, H, { fill: "#ffffff" });
   p.img(tpl, 0, 0, W, H);
-  // Dashed name line in the template: x 24..82 mm, y 61.2 mm
   drawName(p, who, st, 25, 81.5, 59.6, 4.4, IRAQ_COLORS[st.color]);
 }
 
-/** Previous (classic) design kept as a backup. */
 function drawIraqClassic(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number, a: Assets, who: Person, st: Style) {
   const p = pen(ctx, S, ox, oy);
   const W = 105, H = 74.25;
@@ -219,10 +210,8 @@ function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: num
   p.text("Reisegruppe Aldor", cx, 25.1, 2.7, { weight: 500, maxW: mw });
   phoneRow(p, "المانيا:", PHONE_DE, cx, 29, mw, BLUE);
 
-  // Bottom: blue name band, label above it, QR above the label — all centred
   const bh = 10, by = H - 3.2 - bh, bx = 3, bw = W - 6;
   const qs = 15.5, qy = by - 5.6 - qs;
-  // Kaaba centred in the space between the phone row and the QR
   const top = 30.6, bottom = qy - 1.2;
   const ratio = a.kaaba.naturalWidth / a.kaaba.naturalHeight;
   let kh = bottom - top, kw = kh * ratio;
@@ -255,7 +244,6 @@ async function renderSheets(kind: Kind, people: Person[], st: Style) {
   const sp = SPEC[kind];
   const per = sp.cols * sp.rows;
   const list = people.length ? people : [{ ar: "", de: "" }];
-  // One person => fill the whole sheet with their card
   const filled = list.length === 1 ? Array.from({ length: per }, () => list[0]) : list;
   const pages: HTMLCanvasElement[] = [];
   for (let i = 0; i < filled.length; i += per) {
@@ -268,7 +256,6 @@ async function renderSheets(kind: Kind, people: Person[], st: Style) {
       drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" }, st);
     });
     if (kind === "iraq") {
-      // Thin cut guides on the exact card edges
       ctx.strokeStyle = "#bdbdbd"; ctx.lineWidth = 0.15 * PX_PER_MM;
       for (let r = 0; r <= sp.rows; r++) { const y = (sp.oy + r * sp.h) * PX_PER_MM; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(c.width, y); ctx.stroke(); }
       const xm = (sp.ox + sp.w) * PX_PER_MM; ctx.beginPath(); ctx.moveTo(xm, 0); ctx.lineTo(xm, c.height); ctx.stroke();
@@ -305,8 +292,8 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [ar, setAr] = useState(nameAr);
   const [de, setDe] = useState(nameDe);
   const [bulk, setBulk] = useState("");
-  const [copies, setCopies] = useState<1 | 2>(2); // (القسم المضاف: تحديد بطاقتين أو بطاقة)
-  const [blankOnly, setBlankOnly] = useState(false); // (القسم المضاف: خيار بطاقات فارغة للطوارئ)
+  const [copies, setCopies] = useState<1 | 2>(2);
+  const [blankOnly, setBlankOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [variant, setVariant] = useState<Style["variant"]>("new");
@@ -316,7 +303,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [layout, setLayout] = useState<Style["layout"]>("side");
   const [hasCustom, setHasCustom] = useState(false);
    
-  // (القسم المضاف: جلب أسماء المسجلين تلقائياً من الحجوزات)
   const s = useAdminSession();
   const listFn = useServerFn(listBookings);
   const [trips, setTrips] = useState<string[]>([]);
@@ -336,8 +322,25 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
 
-  // جلب الرحلات المسجلة إذا كان المشرف مسجلاً
-    // (القسم المصحح: سحب أسماء المسافرين والرحلات من الحجوزات بدون أي تعارض تقني)
+  const extractTripPilgrims = (bookingsList: BookingRow[], tripName: string) => {
+    const cleanT = tripName.replace(/\s*\|\s*/g, " ").trim();
+    const filtered = bookingsList.filter((b) => {
+      const full = `${b.trip}${b.trip_date ? ` — ${b.trip_date}` : ""}`.replace(/\s*\|\s*/g, " ").trim();
+      return full === cleanT || b.trip.replace(/\s*\|\s*/g, " ").trim() === cleanT;
+    });
+    const lines: string[] = [];
+    filtered.forEach((b) => {
+      (b.travelers || []).forEach((t) => {
+        const arName = (t["arabicName"] || "").trim();
+        const enName = `${t["firstName"] || ""} ${t["lastName"] || ""}`.trim();
+        if (arName && enName) lines.push(`${arName} / ${enName}`);
+        else if (arName) lines.push(arName);
+        else if (enName) lines.push(enName);
+      });
+    });
+    return lines;
+  };
+
   const fetchTripNames = async () => {
     if (!s) return;
     setBusy(true);
@@ -345,9 +348,17 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       const res = await listFn({ data: { password: s.password } });
       const valid = (res.rows ?? []).filter((r) => r.status !== "deleted");
       setAllBookings(valid);
-      const uniqueTrips = [...new Set(valid.map((r) => (r.trip || "").trim()).filter(Boolean))];
+      const uniqueTrips = [...new Set(valid.map((r) => {
+        const t = `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`.replace(/\s*\|\s*/g, " — ");
+        return t.trim();
+      }).filter(Boolean))];
       setTrips(uniqueTrips);
-            if (uniqueTrips[0] && !selectedTrip) setSelectedTrip(uniqueTrips[0]);
+      if (uniqueTrips[0]) {
+        setSelectedTrip(uniqueTrips[0]);
+        const lines = extractTripPilgrims(valid, uniqueTrips[0]);
+        setBulk(lines.join("\n"));
+        setBlankOnly(false);
+      }
     } catch {
       setErr("تعذر جلب الحجوزات | Buchungen konnten nicht geladen werden");
     }
@@ -356,14 +367,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
 
   const applyTripPilgrims = (tripName: string) => {
     setSelectedTrip(tripName);
-    const filtered = allBookings.filter((b) => (b.trip || "").trim() === tripName.trim());
-    const lines: string[] = [];
-    filtered.forEach((b) => {
-      (b.travelers || []).forEach((t) => {
-        const name = `${t["firstName"] || ""} ${t["lastName"] || ""}`.trim();
-        if (name) lines.push(name);
-      });
-    });
+    const lines = extractTripPilgrims(allBookings, tripName);
     setBulk(lines.join("\n"));
     setBlankOnly(false);
   };
@@ -379,7 +383,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     return () => { alive = false; };
   }, [open, kind, ar, de, st.variant, color, bold, scale, layout, hasCustom, blankOnly]);
 
-  // (القسم المضاف: حساب قائمة الأشخاص وتكرار الاسمين عند اختيار بطاقتين)
   const people = (): Person[] => {
     const sp = SPEC[kind];
     if (blankOnly) {
@@ -421,7 +424,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       <span className="text-lg text-muted-foreground">{open ? "−" : "+"}</span>
     </button>
     {open && <div className="space-y-3">
-      {/* اختيار الوجهة */}
       <div className="grid grid-cols-2 gap-2">
         {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => setKind(k)} className={`min-h-11 rounded-md border-2 px-2 py-1.5 text-sm font-bold ${kind === k ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}>
           {k === "iraq" ? <L ar="العراق وإيران" de="Irak & Iran" /> : <L ar="العمرة" de="Umrah" />}
@@ -431,7 +433,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       <canvas ref={preview} className="w-full rounded-md border border-border bg-background shadow-sm" style={{ aspectRatio: `${sp.w} / ${sp.h}`, maxWidth: kind === "umrah" ? "60%" : "100%", marginInline: "auto", display: "block" }} />
       <p className="text-center text-[11px] text-muted-foreground" dir="ltr">{sp.w} × {sp.h} mm · {sp.cols * sp.rows} / A4</p>
 
-      {/* خيارات التصميم للعراق */}
       {kind === "iraq" && <div className="space-y-1">
         <p className="text-xs font-bold text-primary"><L ar="تصميم البطاقة" de="Kartendesign" /></p>
         <div className="grid grid-cols-3 gap-1.5">
@@ -443,7 +444,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         </label>
       </div>}
 
-      {/* خيارات الخط والحجم */}
       <div className="space-y-2 rounded-md border border-border p-2">
         <p className="text-xs font-bold text-primary"><L ar="خط اسم الزائر" de="Schrift des Namens" /></p>
         {kind === "iraq" && <div className="grid grid-cols-3 gap-1.5">
@@ -460,7 +460,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         </div>
       </div>
 
-      {/* (القسم المضاف: خيارات عدد البطاقات لكل زائر والبطاقات الفارغة) */}
       <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2.5">
         <p className="text-xs font-bold text-primary"><L ar="توزيع البطاقات والنسخ" de="Kartenanzahl" /></p>
         <div className="grid grid-cols-2 gap-2">
@@ -476,17 +475,14 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         </button>
       </div>
 
-      {/* إدخال اسم يدوي مفرد */}
       {!blankOnly && <div className="grid gap-2">
         <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="اسم الزائر بالعربية" />
         <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Name (Latin)" />
       </div>}
 
-      {/* طباعة لعدة زوار أو سحب الأسماء من الحجوزات */}
       {!blankOnly && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
         <summary className="cursor-pointer font-bold text-primary"><L ar="طباعة لعدة زوار أو سحب من الحجوزات" de="Mehrere Pilger / Aus Buchungen" /></summary>
         
-        {/* (القسم المضاف: زر وقائمة سحب أسماء الرحلة للمشرف) */}
         {s && <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
           {trips.length === 0 ? (
             <Button type="button" variant="outline" size="sm" onClick={fetchTripNames} disabled={busy} className="w-full text-xs">
@@ -494,7 +490,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
             </Button>
           ) : (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
+                <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline">🔄 تحديث</button>
+              </div>
               <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
                 {trips.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -503,11 +502,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         </div>}
 
         <p className="mt-2 text-xs text-muted-foreground"><L ar="اسم في كل سطر: الاسم العربي / Latin. تُوزع الأسماء على صفحات A4 تلقائياً." de="Ein Name pro Zeile: Arabisch / Latein. Die Namen werden automatisch auf A4-Seiten verteilt." /></p>
-        <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن / Ali Hassan\nزينب محمد / Zainab Mohammad"} />
+        <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
         {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
       </details>}
 
-      {/* أزرار الطباعة والتنزيل */}
       <div className="grid gap-2 pt-1">
         <Button type="button" disabled={busy} onClick={printSheet} className="h-auto min-h-11 whitespace-normal font-bold"><Printer className="h-4 w-4 shrink-0" /><L ar={`طباعة صفحة A4 جاهزة للقص (${people().length} بطاقة)`} de={`A4-Bogen drucken (${people().length} Karten)`} /></Button>
         <div className="grid grid-cols-2 gap-2">
