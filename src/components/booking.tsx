@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Baby, Bell, Camera, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, MessageCircle, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LangText, display, useLang } from "@/lib/i18n";
 import { useSectionEditMode } from "@/components/inline-admin";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
@@ -548,6 +549,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [rows, setRows] = useState<BookingRow[] | null>(null);
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [limit, setLimit] = useState(60);
   const [push, setPush] = useState("");
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
@@ -579,6 +582,9 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const w = window.open("", "_blank"); if (!w) return;
     w.document.write(printHtml(sheetOf(kind, shown, hotelMap), filter)); w.document.close();
   };
+  const ql = q.trim().toLowerCase();
+  const listed = ql ? shown.filter((r) => [r.ref, r.contact_phone, r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].join(" ").toLowerCase().includes(ql)) : shown;
+  const openRow = (rows ?? []).find((r) => r.id === open) ?? null;
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
     <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi(trashView ? "🗑 سلة الحجوزات | Papierkorb " : "📋 الحجوزات | Buchungen ")}<span className="text-xs text-muted-foreground">({shown.length} / {pax} pax)</span></h2>
@@ -601,37 +607,28 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     </div>}
     {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز وقائمة الحاج الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
-    {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-2">{shown.map((r) => {
+    {!trashView && <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} placeholder={bi("🔍 بحث بالاسم أو الهاتف أو رقم الحجز | Suche: Name, Telefon, Nr.")} className={inputCls} />}
+    {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 divide-y divide-border overflow-hidden rounded-lg border border-border">{listed.slice(0, limit).map((r) => {
       const lead = r.travelers[0] ?? {};
-      return <li key={r.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
-        <div className="flex items-center justify-between gap-2">
-          <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setOpen(open === r.id ? null : r.id)}>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold text-primary">{lead["lastName"]} {lead["firstName"]}</span>
-              <span className="rounded-full bg-secondary/20 px-2 py-0.5 text-[11px] font-bold text-secondary-foreground">{r.travelers.length} pax</span>
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-              <span dir="ltr" className="font-mono text-muted-foreground">{r.ref}</span>
-              <span className="rounded-full bg-accent px-2 py-0.5 font-medium">{bi(statusLabels[r.status] ?? "")}</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span>
-              <span className="text-muted-foreground">{r.trip}</span>
-            </div>
-          </button>
-          {r.contact_phone && (
-            <a
-                            href={waLink(r.contact_phone)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow transition-transform active:scale-95"
-              title="مراسلة عبر واتساب | WhatsApp"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              <span>واتساب</span>
-            </a>
-          )}
-        </div>
-        {open === r.id && <div className="mt-2 space-y-2 border-t border-border pt-2">
+      const extra = r.travelers.length - 1;
+      return <li key={r.id}><button type="button" onClick={() => setOpen(r.id)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card px-3 py-2.5 text-start active:bg-accent">
+        <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-bold text-primary">{lead["lastName"]} {lead["firstName"]}</span>{issuesOf(r).length > 0 && <span className="shrink-0 text-xs">⚠️</span>}</span>
+        <span className="shrink-0 rounded-full bg-secondary/20 px-2 py-0.5 text-[11px] font-bold">{extra > 0 ? `+${extra}` : bi("فرد | allein")}</span>
+      </button></li>;
+    })}{!listed.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
+    {listed.length > limit && <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => setLimit(limit + 60)}>{bi(`عرض المزيد (${listed.length - limit}) | Mehr anzeigen`)}</Button>}
+    <Dialog open={!!openRow} onOpenChange={(v) => { if (!v) setOpen(null); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        {openRow && (() => { const r = openRow; const lead = r.travelers[0] ?? {}; return <>
+          <DialogHeader><DialogTitle className="text-start text-primary">{lead["lastName"]} {lead["firstName"]} <span className="text-xs text-muted-foreground">({r.travelers.length} pax)</span></DialogTitle></DialogHeader>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span dir="ltr" className="font-mono text-muted-foreground">{r.ref}</span>
+            <span className="rounded-full bg-accent px-2 py-0.5 font-medium">{bi(statusLabels[r.status] ?? "")}</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span>
+            <span className="text-muted-foreground">{r.trip}</span>
+          </div>
+          {r.contact_phone && <a href={waLink(r.contact_phone)} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"><MessageCircle className="h-4 w-4" />{bi("مراسلة عبر واتساب | WhatsApp")}</a>}
+          <div className="space-y-2 text-xs">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={waLink(r.contact_phone)} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
           {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
             <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span>
@@ -650,13 +647,13 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           </div>
           <p>{bi("المتبقي | Rest: ")}<b>{Math.max(0, r.total_amount - r.paid_amount)}€</b></p>
           <textarea rows={2} defaultValue={r.admin_notes ?? ""} placeholder={bi("ملاحظات الإدارة | Interne Notiz")} onBlur={(e) => e.target.value !== (r.admin_notes ?? "") && void patch(r, { admin_notes: e.target.value })} className={inputCls} />
-          {!trashView && <Button size="sm" variant="outline" className="w-full" onClick={() => setEditing(r)}><Pencil className="h-3.5 w-3.5" />{bi("تعديل بيانات الحجز والمسافرين | Buchung bearbeiten")}</Button>}
+          {!trashView && <Button size="sm" variant="outline" className="w-full" onClick={() => { setOpen(null); setEditing(r); }}><Pencil className="h-3.5 w-3.5" />{bi("تعديل بيانات الحجز والمسافرين | Buchung bearbeiten")}</Button>}
           {trashView
             ? <div className="flex gap-3"><button type="button" className="font-bold text-primary underline" onClick={() => void patch(r, { status: "new" })}>{bi("↩️ استرجاع | Wiederherstellen")}</button><button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف نهائي بلا رجعة؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف نهائي | Endgültig löschen")}</button></div>
             : <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("نقل الحجز إلى سلة المحذوفات؟ | In den Papierkorb?")) void patch(r, { status: "deleted" }); }}>{bi("🗑 نقل للسلة | In den Papierkorb")}</button>}
-        </div>}
-      </li>;
-    })}{!shown.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
+        </div></>; })()}
+      </DialogContent>
+    </Dialog>
   </section>;
 }
 
