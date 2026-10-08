@@ -651,7 +651,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           {trashView
             ? <div className="flex gap-3"><button type="button" className="font-bold text-primary underline" onClick={() => void patch(r, { status: "new" })}>{bi("↩️ استرجاع | Wiederherstellen")}</button><button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("حذف نهائي بلا رجعة؟ | Endgültig löschen?")) void patch(r, { remove: true }); }}>{bi("حذف نهائي | Endgültig löschen")}</button></div>
             : <button type="button" className="text-destructive underline" onClick={() => { if (window.confirm("نقل الحجز إلى سلة المحذوفات؟ | In den Papierkorb?")) void patch(r, { status: "deleted" }); }}>{bi("🗑 نقل للسلة | In den Papierkorb")}</button>}
-        </div> })()}
+        </div></>; })()}
       </DialogContent>
     </Dialog>
   </section>;
