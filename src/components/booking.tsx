@@ -453,7 +453,7 @@ const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === i
 /** In-app room label in the chosen language (exports keep roomName). */
 const roomLabel = (id: string | null, bi: (s: string) => string) => { const r = rooms.find((x) => x.id === (id || "leader")); return r ? bi(`${r.ar} | ${r.de}`) : id ?? ""; };
 /** Display-only trip name: drops a dangling "|" and shows the chosen language; the stored value stays unchanged for matching. */
-const tripLabel = (t: string, bi: (s: string) => string) => { const s = t.replace(/\s*\|\s*(?=$| —)/g, "").trim(); return / \| \S/.test(s) ? bi(s) : s; };
+const tripLabel = (t: string, bi: (s: string) => string) => { const [name = "", ...rest] = t.split(" — "); const n = name.replace(/\s*\|\s*$/, "").trim(); const d = rest.join(" — ").trim(); return `${/ \| \S/.test(n) ? bi(n) : n}${d ? ` — ${d}` : ""}`; };
 /** Search normalizer: case/accents/extra spaces ignored so a query never misses due to formatting. */
 const norm = (v: string | null | undefined) => (v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 /** One group per trip + date so each journey gets its own list. */
