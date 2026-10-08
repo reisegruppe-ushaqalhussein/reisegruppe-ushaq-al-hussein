@@ -346,7 +346,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   };
 
   const settings = <RegSettings content={content} />;
-  const note = (reg.noteAr || reg.noteDe) && <div className="mb-3 rounded-md border border-secondary bg-accent p-3 text-sm"><LangText ar={reg.noteAr ?? ""} de={reg.noteDe ?? ""} /></div>;
+  const note = (reg.noteAr || reg.noteDe) ? <div className="mb-3 flex items-start gap-1 rounded-md border border-secondary bg-accent p-3 text-sm"><span className="min-w-0 flex-1"><LangText ar={reg.noteAr ?? ""} de={reg.noteDe ?? ""} /></span><EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /></div> : <div className="mb-2"><EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" /></div>;
   if (reg.closed) return <>{settings}{note}<section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md"><h2 className="text-lg"><LangText ar="التسجيل مغلق حالياً" de="Anmeldung vorübergehend geschlossen" inverse center /></h2></section></>;
 
   if (done) return <section className="rounded-lg border border-secondary bg-primary px-5 py-8 text-center text-primary-foreground shadow-md">
@@ -364,7 +364,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
       <ol className="mt-3 grid grid-cols-4 gap-1.5">{steps.map((s, i) => <li key={i} className="text-center"><span className={`block h-1.5 rounded-full ${i <= step ? "bg-secondary" : "bg-primary-foreground/20"}`} /><span className={`mt-1 block text-[10px] ${i === step ? "font-bold text-secondary" : "opacity-70"}`}><LangText ar={s.ar} de={s.de} inverse center /></span></li>)}</ol>
     </div>
     <div className="space-y-4 p-4 text-sm">
-      {(reg.introAr || reg.introDe) && <p className="rounded-md bg-muted p-3 text-xs"><LangText ar={reg.introAr ?? ""} de={reg.introDe ?? ""} /></p>}
+      {(reg.introAr || reg.introDe) ? <div className="flex items-start gap-1 rounded-md bg-muted p-3 text-xs"><span className="min-w-0 flex-1"><LangText ar={reg.introAr ?? ""} de={reg.introDe ?? ""} /></span><EditPen content={content} k="intro" label="النص التعريفي" /></div> : <EditPen content={content} k="intro" label="النص التعريفي" />}
       {step === 0 && <>
         <p className="font-bold text-primary"><L ar="اختر الرحلة" de="Reise auswählen" /></p>
         <div className="space-y-2">
@@ -555,7 +555,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const trips = useMemo(() => [...new Set((rows ?? []).filter((r) => r.status !== "deleted").map(groupKey))], [rows]);
   const [trashView, setTrashView] = useState(false);
   const [editing, setEditing] = useState<BookingRow | "new" | null>(null);
-  const [roomFilter, setRoomFilter] = useState<string>("all");
   const tripOptions = useMemo(() => {
     const m = new Map<string, { trip: string; date: string }>();
     content.trips.filter((t) => !t.hidden).forEach((t) => m.set(`${t.ar} | ${t.de}`, { trip: `${t.ar} | ${t.de}`, date: t.date ?? "" }));
@@ -565,7 +564,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   if (!s) return null;
   const trashed = (rows ?? []).filter((r) => r.status === "deleted");
   const tripFiltered = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && (filter === "all" || groupKey(r) === filter));
-  const shown = roomFilter === "all" ? tripFiltered : tripFiltered.filter((r) => (r.room_pref || "leader") === roomFilter);
+  const shown = tripFiltered;
   const patch = async (r: BookingRow, p: Partial<BookingRow> & { remove?: boolean }) => {
     try { await update({ data: { password: s.password, id: r.id, ...p } as never }); await load(); } catch (e) { window.alert(String(e)); }
   };
@@ -589,26 +588,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
     {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
-    {!trashView && tripFiltered.length > 0 && (
-      <div className="mt-2 rounded-md border border-secondary/50 bg-accent/30 p-2 text-xs">
-        <div className="flex items-center justify-between font-bold text-primary">
-          <span>🛏️ حاسبة وفرز الغرف | Zimmer-Verteilung</span>
-          {roomFilter !== "all" && <button type="button" onClick={() => setRoomFilter("all")} className="text-[11px] text-secondary underline">عرض الكل | Alle</button>}
-        </div>
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {rooms.map((rm) => {
-            const count = tripFiltered.filter((r) => (r.room_pref || "leader") === rm.id).length;
-            const active = roomFilter === rm.id;
-            return (
-              <button key={rm.id} type="button" onClick={() => setRoomFilter(active ? "all" : rm.id)} className={`rounded px-2 py-1 text-[11px] font-bold transition-all ${active ? "bg-primary text-secondary ring-1 ring-secondary" : "bg-card text-primary hover:bg-muted"}`}>
-                {bi(rm.ar)}: <span className="font-extrabold text-secondary">{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    )}
-
     {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
     {filter !== "all" && !trashView && <div className="mt-2 space-y-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
       <HotelNames content={content} trip={filter} />
@@ -736,13 +715,6 @@ function RegSettings({ content }: { content: SiteContent }) {
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <Pencil className="h-3 w-3" />
-          <span>{bi("ملاحظة الاستمارة:")}</span>
-          <EditPen content={content} k="note" label="ملاحظة أعلى الاستمارة" />
-          <span className="ms-2">{bi("نص تعريفي:")}</span>
-          <EditPen content={content} k="intro" label="النص التعريفي" />
-        </div>
       </div>
     )}
   </div>;
@@ -831,4 +803,42 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
     {errs.length > 0 && <ul className="rounded-md bg-destructive/10 p-2 font-bold text-destructive">{errs.map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
     <div className="flex gap-1.5"><Button className="flex-1" disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{bi("حفظ | Speichern")}</Button><Button variant="ghost" onClick={() => void onDone()}>✕</Button></div>
   </div>;
+}
+
+/** Staff-only room calculator: counts rooms per type from the bookings and searches visitors by name. */
+export function RoomCalcPanel() {
+  const s = useStaffSession();
+  const { lang } = useLang();
+  const bi = biFor(lang);
+  const list = useServerFn(listBookings);
+  const [rows, setRows] = useState<BookingRow[] | null>(null);
+  const [trip, setTrip] = useState("all");
+  const [room, setRoom] = useState("all");
+  const [q, setQ] = useState("");
+  const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
+  useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
+  const active = useMemo(() => (rows ?? []).filter((r) => r.status !== "deleted" && r.status !== "cancelled"), [rows]);
+  const trips = useMemo(() => [...new Set(active.map(groupKey))], [active]);
+  if (!s) return null;
+  const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && words.every((w) => r.travelers.some((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.toLowerCase().includes(w))));
+  const pax = byTrip.reduce((n, r) => n + r.travelers.length, 0);
+  return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
+    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("🛏️ حاسبة وفرز الغرف | Zimmer-Rechner ")}<span className="text-xs text-muted-foreground">({byTrip.length} / {pax} pax)</span></h2>
+      <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
+    </div>
+    <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    <div className="mt-2 grid grid-cols-2 gap-1.5">
+      {rooms.map((rm) => { const c = byTrip.filter((r) => (r.room_pref || "leader") === rm.id); const on = room === rm.id; return <button key={rm.id} type="button" onClick={() => setRoom(on ? "all" : rm.id)} className={`rounded-md border p-2 text-start text-xs ${on ? "border-secondary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>
+        <span className="block font-bold">{bi(rm.ar)}</span>
+        <span className="mt-0.5 block"><b className="text-lg text-secondary">{c.length}</b> {bi("غرفة | Zimmer")} · {c.reduce((n, r) => n + r.travelers.length, 0)} pax</span>
+      </button>; })}
+    </div>
+    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("بحث باسم الزائر | Name suchen")} className={inputCls} />
+    {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-1.5">{shown.map((r) => <li key={r.id} className="rounded-md border border-border p-2 text-xs">
+      <p className="font-bold text-primary">{r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.trim()).join("، ")}</p>
+      <p className="text-muted-foreground">🛏 {roomName(r.room_pref)} · {r.travelers.length} pax · {r.trip}</p>
+    </li>)}{shown.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">{bi("لا توجد نتائج | Keine Einträge")}</li>}</ul>}
+  </section>;
 }
