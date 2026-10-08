@@ -18,7 +18,7 @@ import { CustomSectionView, HomeBanner, TileGrid, pathOf, type Tile } from "@/co
 import { LanguageSwitcher } from "@/components/lang-switcher";
 import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
-import { useShowHidden } from "@/lib/admin-session";
+import { useAdminSession, useShowHidden } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
 import { BookingForm, BookingsPanel } from "@/components/booking";
 import { CampaignQrDialog } from "@/components/campaign-qr";
@@ -609,7 +609,10 @@ const defaultCities = [
 ];
 
 function PrayerTimesCard() {
-  const isEditing = useSectionEditMode();
+  const adminSession = useAdminSession();
+  const [localEdit, setLocalEdit] = useState(false);
+  const isSectionEditing = useSectionEditMode();
+  const isEditing = Boolean(adminSession) && (localEdit || isSectionEditing);
   
   // ترتيب المدن مع حفظه محلياً
   const [citiesList, setCitiesList] = useState(() => {
@@ -771,14 +774,22 @@ function PrayerTimesCard() {
             <Pair ar="مواقيت الصلاة" de="Gebetszeiten" />
           </h2>
         </div>
-        {isEditing && (
+           {adminSession && (
           <button
             type="button"
-            onClick={() => setShowSettings(!showSettings)}
-            aria-label="تعديل المواقيت | Einstellungen"
-            className="flex items-center gap-1 rounded border border-secondary/50 bg-secondary/10 px-2 py-1 text-xs font-semibold text-secondary hover:bg-secondary/20"
+            onClick={() => {
+              const next = !localEdit;
+              setLocalEdit(next);
+              setShowSettings(next);
+            }}
+            aria-label="تعديل المواقيت والترتيب | Einstellungen"
+            className={`flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-semibold transition-colors ${
+              localEdit
+                ? "border-secondary bg-secondary text-secondary-foreground shadow-xs"
+                : "border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
+            }`}
           >
-            ⚙️ <Pair ar="تعديل التوقيت والمذهب" de="Zeiten anpassen" />
+            {localEdit ? "✓ إنهاء | Fertig" : "⚙️ تعديل وترتيب | Anpassen"}
           </button>
         )}
       </div>
