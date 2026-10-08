@@ -450,6 +450,12 @@ function visaType(trip: string) { const d = destOf(trip); return d === "umrah" ?
 const paxOf = (t: Record<string, string>) => t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
 const paxMark: Record<string, string> = { ADT: "ADT", CHD: "CHD ⚠ CHILD", INF: "INF ⚠ INFANT (lap)" };
 const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === id); return r ? `${r.de} / ${r.ar}` : id ?? ""; };
+/** In-app room label in the chosen language (exports keep roomName). */
+const roomLabel = (id: string | null, bi: (s: string) => string) => { const r = rooms.find((x) => x.id === (id || "leader")); return r ? bi(`${r.ar} | ${r.de}`) : id ?? ""; };
+/** Display-only trip name: drops a dangling "|" and shows the chosen language; the stored value stays unchanged for matching. */
+const tripLabel = (t: string, bi: (s: string) => string) => { const [name = "", ...rest] = t.split(" — "); const n = name.replace(/\s*\|\s*$/, "").trim(); const d = rest.join(" — ").trim(); return `${/ \| \S/.test(n) ? bi(n) : n}${d ? ` — ${d}` : ""}`; };
+/** Search normalizer: case/accents/extra spaces ignored so a query never misses due to formatting. */
+const norm = (v: string | null | undefined) => (v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 /** One group per trip + date so each journey gets its own list. */
 const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
@@ -551,6 +557,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [open, setOpen] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(60);
+  const [showLists, setShowLists] = useState(false);
   const [push, setPush] = useState("");
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
@@ -582,8 +589,9 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const w = window.open("", "_blank"); if (!w) return;
     w.document.write(printHtml(sheetOf(kind, shown, hotelMap), filter)); w.document.close();
   };
-  const ql = q.trim().toLowerCase();
-  const listed = ql ? shown.filter((r) => [r.ref, r.contact_phone, r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].join(" ").toLowerCase().includes(ql)) : shown;
+  const ql = norm(q);
+  const qw = ql.split(" ").filter(Boolean);
+  const listed = qw.length ? shown.filter((r) => qw.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].some((v) => norm(v).includes(w)))) : shown;
   const openRow = (rows ?? []).find((r) => r.id === open) ?? null;
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
@@ -592,31 +600,33 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
       <button type="button" aria-label="سلة المحذوفات | Papierkorb" title="سلة المحذوفات | Papierkorb" onClick={() => setTrashView(!trashView)} className={`relative grid h-8 w-8 place-items-center rounded-full border border-border ${trashView ? "bg-primary text-primary-foreground" : "text-primary"}`}><Trash2 className="h-4 w-4" />{trashed.length > 0 && <span className="absolute -end-1 -top-1 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{trashed.length}</span>}</button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
-    <select value={filter} onChange={(e) => setFilter(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    <select value={filter} onChange={(e) => { setFilter(e.target.value); setLimit(60); setShowLists(false); }} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
+    {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
+    {!trashView && <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} placeholder={bi("🔍 الاسم (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />}
+    {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 divide-y divide-border overflow-hidden rounded-lg border border-border">{listed.slice(0, limit).map((r) => {
+      const lead = r.travelers[0] ?? {};
+      const extra = r.travelers.length - 1;
+      return <li key={r.id}><button type="button" onClick={() => setOpen(r.id)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card px-3 py-2.5 text-start active:bg-accent">
+        <span className="flex min-w-0 items-center gap-1.5"><span dir="ltr" className="truncate text-sm font-bold text-primary">{lead["lastName"]} {lead["firstName"]}</span>{issuesOf(r).length > 0 && <span className="shrink-0 text-xs">⚠️</span>}</span>
+        <span className="shrink-0 rounded-full bg-secondary/20 px-2 py-0.5 text-[11px] font-bold">{extra > 0 ? `+${extra}` : bi("فرد | allein")}</span>
+      </button></li>;
+    })}{!listed.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : ql && /[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز | Keine Treffer – Namen lateinisch eingeben" : ql ? "لا توجد نتائج | Keine Treffer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
+    {listed.length > limit && <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => setLimit(limit + 60)}>{bi(`عرض المزيد (${listed.length - limit}) | Mehr anzeigen`)}</Button>}
     {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
     {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
-    {filter !== "all" && !trashView && <div className="mt-2 space-y-1.5 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
+    {filter !== "all" && !trashView && <div className="mt-2 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
+      <button type="button" onClick={() => setShowLists(!showLists)} className="flex w-full items-center justify-between font-bold text-primary"><span>{bi("📑 كشوفات الطباعة وتصدير الإكسل للشركات | Listen & Export")}</span><span>{showLists ? "▲" : "▼"}</span></button>
+      {showLists && <div className="mt-2 space-y-1.5">
       <HotelNames content={content} trip={filter} />
-      <p className="font-bold text-primary">{bi("قوائم هذه الرحلة فقط | Listen nur für diese Reise")}</p>
       {([["flight", "✈️ قائمة شركة الطيران | Airline-Liste"], ["visa", "🛂 قائمة الفيز | Visum-Liste"], ["rooms", "🧭 قائمة الحاج: التجمّع والتسكين | Leiterliste"]] as const).map(([k, label]) => <div key={k} className="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
         <span className="font-bold">{bi(label)}</span>
         <Button size="sm" variant="outline" onClick={() => xls(k)}><Download className="h-3.5 w-3.5" />Excel</Button>
         <Button size="sm" variant="outline" onClick={() => printList(k)}>🖨 PDF</Button>
       </div>)}
-      <p className="text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر | Kinder gelb, Kleinkinder rot markiert")}</p>
+      <p className="text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر · الكشوفات دائماً بالأحرف اللاتينية | Kinder gelb, Kleinkinder rot markiert")}</p>
+      </div>}
     </div>}
     {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز وقائمة الحاج الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
-    {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
-    {!trashView && <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} placeholder={bi("🔍 بحث بالاسم أو الهاتف أو رقم الحجز | Suche: Name, Telefon, Nr.")} className={inputCls} />}
-    {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 divide-y divide-border overflow-hidden rounded-lg border border-border">{listed.slice(0, limit).map((r) => {
-      const lead = r.travelers[0] ?? {};
-      const extra = r.travelers.length - 1;
-      return <li key={r.id}><button type="button" onClick={() => setOpen(r.id)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card px-3 py-2.5 text-start active:bg-accent">
-        <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-sm font-bold text-primary">{lead["lastName"]} {lead["firstName"]}</span>{issuesOf(r).length > 0 && <span className="shrink-0 text-xs">⚠️</span>}</span>
-        <span className="shrink-0 rounded-full bg-secondary/20 px-2 py-0.5 text-[11px] font-bold">{extra > 0 ? `+${extra}` : bi("فرد | allein")}</span>
-      </button></li>;
-    })}{!listed.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
-    {listed.length > limit && <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => setLimit(limit + 60)}>{bi(`عرض المزيد (${listed.length - limit}) | Mehr anzeigen`)}</Button>}
     <Dialog open={!!openRow} onOpenChange={(v) => { if (!v) setOpen(null); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         {openRow && (() => { const r = openRow; const lead = r.travelers[0] ?? {}; return <>
@@ -625,20 +635,30 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
             <span dir="ltr" className="font-mono text-muted-foreground">{r.ref}</span>
             <span className="rounded-full bg-accent px-2 py-0.5 font-medium">{bi(statusLabels[r.status] ?? "")}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span>
-            <span className="text-muted-foreground">{r.trip}</span>
+            <span className="text-muted-foreground">{tripLabel(groupKey(r), bi)}</span>
           </div>
           {r.contact_phone && <a href={waLink(r.contact_phone)} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"><MessageCircle className="h-4 w-4" />{bi("مراسلة عبر واتساب | WhatsApp")}</a>}
           <div className="space-y-2 text-xs">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={waLink(r.contact_phone)} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
-          {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
-            <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span>
-            <label className="mt-1.5 flex items-center gap-1.5" dir={lang === "ar" || lang === "both" ? "rtl" : "ltr"}>
+          {r.travelers.map((t, i) => { const rel = (t["relation"] ?? "").trim(); const row = (label: string, v?: string, ltr = true) => v ? <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2 border-b border-border/60 py-1 last:border-0"><span className="text-muted-foreground">{bi(label)}</span><span dir={ltr ? "ltr" : undefined} className="break-words text-start font-medium">{v}</span></div> : null; return <div key={i} className="rounded-md bg-muted p-2">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">{bi(i === 0 ? "👤 صاحب الطلب | Antragsteller/in" : `👥 مرافق ${i} | Begleitperson ${i}`)}</span><b dir="ltr" className="text-primary">{t["lastName"]} {t["firstName"]}</b></div>
+            {row("الفئة | Kategorie", `${paxOf(t)} · ${bi(`${cats.find((c) => c.id === t["category"])?.ar ?? ""} | ${cats.find((c) => c.id === t["category"])?.de ?? ""}`)}`, false)}
+            {row("الجنس | Geschlecht", t["gender"] ? bi(t["gender"] === "f" ? "أنثى | weiblich" : "ذكر | männlich") : "", false)}
+            {row("تاريخ الميلاد | Geburtsdatum", t["birthDate"])}
+            {row("الجنسية | Nationalität", t["nationality"])}
+            {row("رقم الجواز | Passnummer", t["passportNo"])}
+            {row("انتهاء الجواز | Pass gültig bis", t["passportExpiry"])}
+            {row("المطار | Flughafen", t["airport"])}
+            {i > 0 && row("صلة القرابة | Beziehung", rel.includes(" | ") ? bi(rel) : rel, false)}
+            <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{bi(k === "passportFile" ? "الجواز | Pass" : "الصورة | Foto")}</button>)}</span>
+            <label className="mt-1.5 flex items-center gap-1.5">
               <span className={`rounded-full px-2 py-0.5 font-bold ${visaCls[t["visa"] || "none"]}`}>🛂</span>
               <select value={t["visa"] || "none"} onChange={(e) => void patch(r, { travelers: r.travelers.map((x, j) => j === i ? { ...x, visa: e.target.value } : x) })} className={inputCls + " mt-0 flex-1 py-1 text-xs"}>{Object.entries(visaLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
-            </label></div>)}
+            </label></div>; })}
           <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
           {issuesOf(r).length > 0 && <ul className="rounded-md border-2 border-destructive bg-destructive/10 p-2 font-bold text-destructive">{issuesOf(r).map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
-          {(r.room_pref || r.notes) && <p>🛏 {roomName(r.room_pref)} · {r.notes}</p>}
+          {r.room_pref && <p>🛏 <b>{bi("الغرفة | Zimmer")}:</b> {roomLabel(r.room_pref, bi)}</p>}
+          {r.notes && <p className="whitespace-pre-line">📝 {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
             <select value={r.payment_status} onChange={(e) => void patch(r, { payment_status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(payLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
@@ -818,24 +838,28 @@ export function RoomCalcPanel() {
   const trips = useMemo(() => [...new Set(active.map(groupKey))], [active]);
   if (!s) return null;
   const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && words.every((w) => r.travelers.some((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.toLowerCase().includes(w))));
+  const words = norm(q).split(" ").filter(Boolean);
+  const hit = (r: BookingRow) => words.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].some((v) => norm(v).includes(w)));
+  const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && hit(r));
+  const hiddenByRoom = words.length > 0 && room !== "all" ? byTrip.filter((r) => (r.room_pref || "leader") !== room && hit(r)).length : 0;
   const pax = byTrip.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
     <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("🛏️ حاسبة وفرز الغرف | Zimmer-Rechner ")}<span className="text-xs text-muted-foreground">({byTrip.length} / {pax} pax)</span></h2>
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
     </div>
-    <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+    <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
     <div className="mt-2 grid grid-cols-2 gap-1.5">
       {rooms.map((rm) => { const c = byTrip.filter((r) => (r.room_pref || "leader") === rm.id); const on = room === rm.id; return <button key={rm.id} type="button" onClick={() => setRoom(on ? "all" : rm.id)} className={`rounded-md border p-2 text-start text-xs ${on ? "border-secondary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>
-        <span className="block font-bold">{bi(rm.ar)}</span>
+        <span className="block font-bold">{roomLabel(rm.id, bi)}</span>
         <span className="mt-0.5 block"><b className="text-lg text-secondary">{c.length}</b> {bi("غرفة | Zimmer")} · {c.reduce((n, r) => n + r.travelers.length, 0)} pax</span>
       </button>; })}
     </div>
-    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("بحث باسم الزائر | Name suchen")} className={inputCls} />
+    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("🔍 اسم الزائر (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />
+    {room !== "all" && <button type="button" onClick={() => setRoom("all")} className="mt-1 text-xs font-bold text-primary underline">{bi("✕ إلغاء فلتر الغرفة | Zimmerfilter aufheben")}</button>}
+    {hiddenByRoom > 0 && <p className="mt-1 rounded-md bg-accent p-2 text-xs">{bi(`يوجد ${hiddenByRoom} نتيجة بنوع غرفة آخر — ألغِ فلتر الغرفة لرؤيتها | ${hiddenByRoom} Treffer in anderer Zimmerart`)}</p>}
     {rows === null ? <Loader2 className="mx-auto mt-3 animate-spin" /> : <ul className="mt-2 space-y-1.5">{shown.map((r) => <li key={r.id} className="rounded-md border border-border p-2 text-xs">
-      <p className="font-bold text-primary">{r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`.trim()).join("، ")}</p>
-      <p className="text-muted-foreground">🛏 {roomName(r.room_pref)} · {r.travelers.length} pax · {r.trip}</p>
-    </li>)}{shown.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">{bi("لا توجد نتائج | Keine Einträge")}</li>}</ul>}
+      <p dir="ltr" className="text-start font-bold text-primary">{r.travelers.map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim()).join(" · ")}</p>
+      <p className="mt-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">🛏 {roomLabel(r.room_pref, bi)}</span><span className="text-muted-foreground">{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span></p>
+    </li>)}{shown.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">{bi(words.length && /[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز، اكتبها بالإنجليزية | Keine Treffer – Namen lateinisch eingeben" : "لا توجد نتائج | Keine Einträge")}</li>}</ul>}
   </section>;
 }
