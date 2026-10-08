@@ -714,35 +714,60 @@ function PrayerTimesCard() {
     }
   });
 
+  // بديل تلقائي عند حجب GPS: تقدير الموقع من الشبكة
+  const ipFallback = async (reason: string) => {
+    try {
+      const r = await fetch("https://ipapi.co/json/");
+      const j = (await r.json()) as { latitude?: number; longitude?: number; city?: string };
+      if (typeof j.latitude !== "number" || typeof j.longitude !== "number") throw new Error("ip");
+      setGpsCoords({ lat: j.latitude, lng: j.longitude });
+      setGpsLabel(j.city ? `${j.city} (≈)` : "≈");
+      setGpsError(null);
+    } catch {
+      setGpsError(reason);
+    } finally {
+      setGpsLoading(false);
+    }
+  };
+
   // طلب الموقع الجغرافي من المتصفح
   const requestGps = () => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setGpsError("خاصية الموقع غير مدعومة في متصفحك | Geolocation wird nicht unterstützt");
-      return;
-    }
+    setManualPlace(null);
+    try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
     setGpsLoading(true);
     setGpsError(null);
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      void ipFallback("خاصية الموقع غير مدعومة في متصفحك | Geolocation wird nicht unterstützt");
+      return;
+    }
+    let settled = false;
+    const guard = window.setTimeout(() => { if (!settled) { settled = true; void ipFallback("تعذر قراءة الموقع | Standort nicht ermittelbar"); } }, 9000);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setGpsCoords(coords);
-        setManualPlace(null);
+        if (settled) return;
+        settled = true; window.clearTimeout(guard);
+        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsLabel("GPS");
         setGpsLoading(false);
-        try {
-          localStorage.removeItem("ushaq_prayer_gps");
-          localStorage.removeItem("ushaq_prayer_manual");
-        } catch {}
       },
       (err) => {
-        setGpsLoading(false);
-        setGpsError(
+        if (settled) return;
+        settled = true; window.clearTimeout(guard);
+        void ipFallback(
           err.code === 1
-            ? "يرجى السماح بالوصول إلى الموقع | Bitte Standortfreigabe erlauben"
+            ? "يرجى السماح بالوصول إلى الموقع من إعدادات المتصفح | Bitte Standortfreigabe erlauben"
             : "تعذر قراءة الموقع، يرجى المحاولة ثانية | Standort nicht ermittelbar"
         );
       },
-      { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 }
+      { timeout: 8000, enableHighAccuracy: true, maximumAge: 60000 }
     );
+  };
+
+  const clearManualPlace = () => {
+    setManualPlace(null);
+    setPlaceQuery("");
+    setPlaceError(null);
+    try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
   };
 
   // البحث عن مدينة بالاسم
