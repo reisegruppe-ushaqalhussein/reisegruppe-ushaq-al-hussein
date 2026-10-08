@@ -1122,22 +1122,32 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           {manualPlace ? (
             <div className="flex items-center justify-between gap-2 px-1 text-xs">
               <span className="min-w-0 truncate font-semibold text-primary">🔍 {manualPlace.name}</span>
-              <button type="button" onClick={requestGps} className="shrink-0 text-[11px] text-muted-foreground underline hover:text-primary">
-                📍 موقعي التلقائي | GPS
-              </button>
+              <span className="flex shrink-0 items-center gap-2">
+                <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
+                  📍 GPS
+                </button>
+                <button type="button" onClick={clearManualPlace} aria-label="حذف العنوان | Ort löschen" title="حذف العنوان | Ort löschen" className="grid h-6 w-6 place-items-center rounded-full border border-destructive/40 text-destructive">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
             </div>
           ) : gpsLoading ? (
             <p className="text-xs text-muted-foreground animate-pulse">
               📍 جاري قراءة موقعك الحالي... | Standort wird ermittelt...
             </p>
           ) : gpsCoords ? (
-            <div className="flex items-center justify-between px-2 text-xs">
-              <span className="font-semibold text-primary">
-                📍 الموقع الحالي: <span className="font-mono text-secondary">{timezone.replace(/_/g, " ")}</span>
-              </span>
-              <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
-                تحديث الموقع 🔄
-              </button>
+            <div className="space-y-1 px-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-semibold text-primary">
+                  📍 {gpsLabel === "GPS" ? "" : `${gpsLabel} · `}<span className="font-mono text-secondary">{timezone.replace(/_/g, " ")}</span>
+                </span>
+                <button type="button" onClick={requestGps} className="shrink-0 text-[11px] text-muted-foreground underline hover:text-primary">
+                  🔄
+                </button>
+              </div>
+              <a href={`https://maps.google.com/?q=${gpsCoords.lat.toFixed(5)},${gpsCoords.lng.toFixed(5)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-secondary underline">
+                <MapPin className="h-3 w-3" /> عرض موقعي على الخريطة | Auf Karte zeigen
+              </a>
             </div>
           ) : (
             <div className="space-y-1.5">
