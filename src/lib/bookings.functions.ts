@@ -10,6 +10,7 @@ const travelerSchema = z.object({
   relation: z.string().max(60),
   firstName: latin,
   lastName: latin,
+  arabicName: z.string().trim().max(120).default(""),
   gender: z.enum(["m", "f"]),
   birthDate: date,
   nationality: z.string().trim().min(2).max(60),
