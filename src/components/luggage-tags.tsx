@@ -322,17 +322,23 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
 
-  const extractTripPilgrims = (bookingsList: BookingRow[], tripName: string) => {
-    const cleanT = tripName.replace(/\s*\|\s*/g, " ").trim();
+    const extractTripPilgrims = (bookingsList: BookingRow[], tripName: string) => {
+    // توحيد تنظيف نصوص الرحلات لمطابقة تامة مهما اختلف الفاصل (| أو — أو مسافات)
+    const normTrip = (s: string) => s.replace(/[\s|—–-]+/g, " ").trim().toLowerCase();
+    const target = normTrip(tripName);
+
     const filtered = bookingsList.filter((b) => {
-      const full = `${b.trip}${b.trip_date ? ` — ${b.trip_date}` : ""}`.replace(/\s*\|\s*/g, " ").trim();
-      return full === cleanT || b.trip.replace(/\s*\|\s*/g, " ").trim() === cleanT;
+      const bFull = normTrip(`${b.trip} ${b.trip_date ?? ""}`);
+      const bTripOnly = normTrip(b.trip);
+      return bFull.includes(target) || target.includes(bTripOnly) || bTripOnly.includes(target);
     });
+
     const lines: string[] = [];
     filtered.forEach((b) => {
       (b.travelers || []).forEach((t) => {
         const arName = (t["arabicName"] || "").trim();
         const enName = `${t["firstName"] || ""} ${t["lastName"] || ""}`.trim();
+        // إظهار الاسم بالعربية أولاً كما طلبتِ بالدفتر
         if (arName && enName) lines.push(`${arName} / ${enName}`);
         else if (arName) lines.push(arName);
         else if (enName) lines.push(enName);
@@ -355,6 +361,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       setTrips(uniqueTrips);
       if (uniqueTrips[0]) {
         setSelectedTrip(uniqueTrips[0]);
+        // سحب فوري وتلقائي للأسماء وتعبئتها بالخانة فور فتح القائمة
         const lines = extractTripPilgrims(valid, uniqueTrips[0]);
         setBulk(lines.join("\n"));
         setBlankOnly(false);
@@ -363,13 +370,6 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       setErr("تعذر جلب الحجوزات | Buchungen konnten nicht geladen werden");
     }
     setBusy(false);
-  };
-
-  const applyTripPilgrims = (tripName: string) => {
-    setSelectedTrip(tripName);
-    const lines = extractTripPilgrims(allBookings, tripName);
-    setBulk(lines.join("\n"));
-    setBlankOnly(false);
   };
 
   useEffect(() => {
