@@ -307,6 +307,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const listFn = useServerFn(listBookings);
   const [trips, setTrips] = useState<string[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<string>("");
+  const [pullLang, setPullLang] = useState<"ar" | "latin" | "both">("ar");
   const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
 
   useEffect(() => { setHasCustom(!!localStorage.getItem(CUSTOM_KEY)); }, []);
@@ -322,8 +323,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const preview = useRef<HTMLCanvasElement>(null);
   useEffect(() => { setAr(nameAr); setDe(nameDe); }, [nameAr, nameDe]);
 
-    const extractTripPilgrims = (bookingsList: BookingRow[], tripName: string) => {
-    // توحيد تنظيف نصوص الرحلات لمطابقة تامة مهما اختلف الفاصل (| أو — أو مسافات)
+    const extractTripPilgrims = (bookingsList: BookingRow[], tripName: string, mode: "ar" | "latin" | "both" = pullLang) => {
     const normTrip = (s: string) => s.replace(/[\s|—–-]+/g, " ").trim().toLowerCase();
     const target = normTrip(tripName);
 
@@ -338,13 +338,28 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       (b.travelers || []).forEach((t) => {
         const arName = (t["arabicName"] || "").trim();
         const enName = `${t["firstName"] || ""} ${t["lastName"] || ""}`.trim();
-        // إظهار الاسم بالعربية أولاً كما طلبتِ بالدفتر
-        if (arName && enName) lines.push(`${arName} / ${enName}`);
-        else if (arName) lines.push(arName);
-        else if (enName) lines.push(enName);
+        
+        if (mode === "ar") {
+          // عربي فقط كما في الدفتر، وإن لم يتوفر يُوضع الاسم اللاتيني كبديل
+          lines.push(arName || enName);
+        } else if (mode === "latin") {
+          // لاتيني فقط
+          lines.push(enName || arName);
+        } else {
+          // دمج الاثنين
+          if (arName && enName) lines.push(`${arName} / ${enName}`);
+          else lines.push(arName || enName);
+        }
       });
     });
-    return lines;
+    return lines.filter(Boolean);
+  };
+
+  const applyTripPilgrims = (tripName: string, mode = pullLang) => {
+    setSelectedTrip(tripName);
+    const lines = extractTripPilgrims(allBookings, tripName, mode);
+    setBulk(lines.join("\n"));
+    setBlankOnly(false);
   };
 
   const fetchTripNames = async () => {
@@ -489,7 +504,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
               📥 <L ar="سحب أسماء الزوار من الحجوزات" de="Pilgernamen aus Buchungen laden" />
             </Button>
           ) : (
-            <div className="space-y-1.5">
+              <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
                 <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline">🔄 تحديث</button>
@@ -497,9 +512,17 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
               <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
                 {trips.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
+
+              {/* خيارات لغة السحب المطلوبة بالدفتر: عربي فقط أو لاتيني فقط */}
+              <div className="flex items-center justify-between gap-1 pt-1">
+                <span className="text-[10px] font-bold text-muted-foreground">صيغة الأسماء:</span>
+                <div className="flex gap-1 text-[10px]">
+                  <button type="button" onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>عربي فقط</button>
+                  <button type="button" onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Latin فقط</button>
+                  <button type="button" onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>دمج الاثنين</button>
+                </div>
+              </div>
             </div>
-          )}
-        </div>}
 
         <p className="mt-2 text-xs text-muted-foreground"><L ar="اسم في كل سطر: الاسم العربي / Latin. تُوزع الأسماء على صفحات A4 تلقائياً." de="Ein Name pro Zeile: Arabisch / Latein. Die Namen werden automatisch auf A4-Seiten verteilt." /></p>
         <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
