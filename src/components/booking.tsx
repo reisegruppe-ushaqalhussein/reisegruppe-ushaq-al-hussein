@@ -548,6 +548,36 @@ const fileSafe = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-
 export function BookingsPanel({ content }: { content: SiteContent }) {
   const s = useStaffSession();
   const adminS = useAdminSession();
+    {adminS && (
+    <div className="mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs">
+      <div className="flex items-center justify-between mb-1">
+        <span className="font-bold text-primary">⚙️ وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة</span>
+        <span className="text-[10px] text-muted-foreground">(بدون الحاجة لملء بيانات)</span>
+      </div>
+      <div className="grid grid-cols-4 gap-1">
+        {[
+          { idx: 0, label: "1. الرحلة والمطار" },
+          { idx: 1, label: "2. التواصل والمدينة" },
+          { idx: 2, label: "3. بيانات الجوازات" },
+          { idx: 3, label: "4. التأكيد والشروط" },
+        ].map((st) => (
+          <button
+            key={st.idx}
+            type="button"
+            onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            className={`rounded px-1.5 py-1 text-center font-bold transition-all ${
+              step === st.idx
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-card border border-border text-primary hover:bg-accent"
+            }`}
+          >
+            {st.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
   const qc = useQueryClient();
   const { lang } = useLang();
   const bi = biFor(lang);
