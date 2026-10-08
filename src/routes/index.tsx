@@ -1166,7 +1166,20 @@ function PrayerTimesCard() {
     </section>
   );
 }
-
+function AlertBanner({ alert }: { alert: SiteContent["alert"] }) {
+  const [hidden, setHidden] = useState(false);
+  if (!alert.active || (!alert.ar && !alert.de) || hidden) return null;
+  return (
+    <div role="alert" className="alert-glow mx-4 mt-4 flex items-start gap-3 rounded-lg border border-secondary bg-primary p-4 text-primary-foreground">
+      <Siren className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-secondary" aria-hidden="true" />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className="mb-1 text-xs font-extrabold text-secondary">تنبيه عاجل <span lang="de" className="italic">| Eilmeldung</span></p>
+        <Pair ar={alert.ar} de={alert.de} inverse />
+      </div>
+      <button onClick={() => setHidden(true)} aria-label="إغلاق | Schließen" className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground">×</button>
+    </div>
+  );
+}
 type ReaderItem = { id: string; ar: string; de: string; textAr: string; latin: string; translation: string; link?: string; hidden?: boolean; reciters?: import("@/lib/site-content").Reciter[]; textEn?: string };
 type Shrine = { id: string; ar: string; de: string; image: string; entries: ReaderItem[] };
 
