@@ -628,7 +628,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
         <span className="flex min-w-0 items-center gap-1.5"><span dir="ltr" className="truncate text-sm font-bold text-primary">{lead["lastName"]} {lead["firstName"]}</span>{issuesOf(r).length > 0 && <span className="shrink-0 text-xs">⚠️</span>}</span>
         <span className="shrink-0 rounded-full bg-secondary/20 px-2 py-0.5 text-[11px] font-bold">{extra > 0 ? `+${extra}` : bi("فرد | allein")}</span>
       </button></li>;
-    })}{!listed.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : ql && /[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز | Keine Treffer – Namen lateinisch eingeben" : ql ? "لا توجد نتائج | Keine Treffer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>}
+    })}{!listed.length && <li className="py-3 text-center text-muted-foreground">{bi(trashView ? "السلة فارغة | Papierkorb leer" : ql && /[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز | Keine Treffer – Namen lateinisch eingeben" : ql ? "لا توجد نتائج | Keine Treffer" : "لا توجد حجوزات بعد | Noch keine Buchungen")}</li>}</ul>
+    )}
     {listed.length > limit && <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => setLimit(limit + 60)}>{bi(`عرض المزيد (${listed.length - limit}) | Mehr anzeigen`)}</Button>}
     {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
     {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
@@ -899,8 +900,5 @@ export function RoomCalcPanel() {
         )}
       </ul>
     )}
-      <p dir="ltr" className="text-start font-bold text-primary">{r.travelers.map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim()).join(" · ")}</p>
-      <p className="mt-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">🛏 {roomLabel(r.room_pref, bi)}</span><span className="text-muted-foreground">{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span></p>
-    </li>)}{shown.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">{bi(words.length && /[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز، اكتبها بالإنجليزية | Keine Treffer – Namen lateinisch eingeben" : "لا توجد نتائج | Keine Einträge")}</li>}</ul>}
   </section>;
 }
