@@ -373,7 +373,13 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         const t = `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`.replace(/\s*\|\s*/g, " — ");
         return t.trim();
       }).filter(Boolean))];
-      setTrips(uniqueTrips);
+            const officialTrips = [
+        "زيارة العراق — 01.12–09.12.2026",
+        "زيارة العراق - عطلة الشتاء / رأس السنة — 23.12.2026–01.01.2027",
+        "العمرة — 13.01–22.01.2027",
+      ];
+      const mergedTrips = [...new Set([...uniqueTrips, ...officialTrips])].filter(Boolean);
+      setTrips(mergedTrips);
       if (uniqueTrips[0]) {
         setSelectedTrip(uniqueTrips[0]);
         // سحب فوري وتلقائي للأسماء وتعبئتها بالخانة فور فتح القائمة
