@@ -498,34 +498,46 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       {!blankOnly && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
         <summary className="cursor-pointer font-bold text-primary"><L ar="طباعة لعدة زوار أو سحب من الحجوزات" de="Mehrere Pilger / Aus Buchungen" /></summary>
         
-        {s && <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
-          {trips.length === 0 ? (
-            <Button type="button" variant="outline" size="sm" onClick={fetchTripNames} disabled={busy} className="w-full text-xs">
-              📥 <L ar="سحب أسماء الزوار من الحجوزات" de="Pilgernamen aus Buchungen laden" />
-            </Button>
-          ) : (
+          {s && (
+          <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
+            {trips.length === 0 ? (
+              <Button type="button" variant="outline" size="sm" onClick={fetchTripNames} disabled={busy} className="w-full text-xs">
+                📥 <L ar="سحب أسماء الزوار من الحجوزات" de="Pilgernamen aus Buchungen laden" />
+              </Button>
+            ) : (
               <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
-                <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline">🔄 تحديث</button>
-              </div>
-              <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
-                {trips.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
+                  <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline">🔄 تحديث</button>
+                </div>
+                <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
+                  {trips.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
 
-              {/* خيارات لغة السحب المطلوبة بالدفتر: عربي فقط أو لاتيني فقط */}
-              <div className="flex items-center justify-between gap-1 pt-1">
-                <span className="text-[10px] font-bold text-muted-foreground">صيغة الأسماء:</span>
-                <div className="flex gap-1 text-[10px]">
-                  <button type="button" onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>عربي فقط</button>
-                  <button type="button" onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Latin فقط</button>
-                  <button type="button" onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>دمج الاثنين</button>
+                {/* خيارات لغة السحب: عربي فقط أو لاتيني فقط أو دمج الاثنين */}
+                <div className="flex items-center justify-between gap-1 pt-1">
+                  <span className="text-[10px] font-bold text-muted-foreground">صيغة الأسماء:</span>
+                  <div className="flex gap-1 text-[10px]">
+                    <button type="button" onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>عربي فقط</button>
+                    <button type="button" onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Latin فقط</button>
+                    <button type="button" onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>دمج الاثنين</button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+          </div>
+        )}
 
-        <p className="mt-2 text-xs text-muted-foreground"><L ar="اسم في كل سطر: الاسم العربي / Latin. تُوزع الأسماء على صفحات A4 تلقائياً." de="Ein Name pro Zeile: Arabisch / Latein. Die Namen werden automatisch auf A4-Seiten verteilt." /></p>
-        <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
+        {/* سطر الملاحظة مع زر المسح السريع X فوق مربع النص مباشرة */}
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-xs text-muted-foreground"><L ar="اسم في كل سطر: الاسم العربي / Latin" de="Ein Name pro Zeile: Arabisch / Latein" /></p>
+          {bulk.trim() && (
+            <button type="button" onClick={() => setBulk("")} className="text-xs font-bold text-destructive hover:underline">
+              ✕ <L ar="مسح الأسماء" de="Leeren" />
+            </button>
+          )}
+        </div>
+        <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
         {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
       </details>}
 
