@@ -671,6 +671,7 @@ function PrayerTimesCard() {
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsLabel, setGpsLabel] = useState("");
 
   // ترتيب المدن مع حفظه محلياً
   const [citiesList, setCitiesList] = useState<PrayerCity[]>(() => {
