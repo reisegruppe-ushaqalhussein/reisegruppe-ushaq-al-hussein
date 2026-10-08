@@ -564,7 +564,47 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
-  const trips = useMemo(() => [...new Set((rows ?? []).filter((r) => r.status !== "deleted").map(groupKey))], [rows]);
+   // الرحلات المعلنة الحالية من إعدادات الحملة
+  const announcedTrips = useMemo(() => {
+    return content.trips.filter((t) => !t.hidden).map((t) => ({
+      key: `${t.ar} | ${t.de}${t.date ? ` | ${t.date}` : ""}`,
+      raw: `${t.ar} | ${t.de}`,
+      ar: t.ar,
+      date: t.date ?? "",
+    }));
+  }, [content.trips]);
+
+  // دمج كل الرحلات المعلنة + أي رحلات سابقة لا تزال بالحجوزات
+  const trips = useMemo(() => {
+    const list: string[] = [];
+    announcedTrips.forEach((a) => list.push(a.key));
+    (rows ?? []).filter((r) => r.status !== "deleted").forEach((r) => {
+      const k = groupKey(r);
+      if (!list.includes(k)) list.push(k);
+    });
+    return list;
+  }, [announcedTrips, rows]);
+
+  // دالة مطابقة ذكية للرحلة
+  const matchesTrip = (r: BookingRow, f: string) => {
+    if (f === "all") return true;
+    const gk = groupKey(r);
+    if (gk === f) return true;
+    const ann = announcedTrips.find((a) => a.key === f);
+    if (ann && (r.trip === ann.raw || r.trip.includes(ann.ar))) return true;
+    return false;
+  };
+
+  // دالة لتحديث ونقل الحجوزات القديمة للاسم الجديد المعتمد
+  const migrateOldTrip = async (oldKey: string, newRaw: string, newDate: string) => {
+    if (!s || !window.confirm(bi(`تحديث جميع الحجوزات السابقة لتصبح بالاسم الجديد؟ | Alle Buchungen aktualisieren?`))) return;
+    const targets = (rows ?? []).filter((r) => groupKey(r) === oldKey);
+    for (const r of targets) {
+      await update({ data: { password: s.password, id: r.id, trip: newRaw, trip_date: newDate } as never });
+    }
+    await load();
+  };
+
   const [trashView, setTrashView] = useState(false);
   const [editing, setEditing] = useState<BookingRow | "new" | null>(null);
   const tripOptions = useMemo(() => {
@@ -575,7 +615,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   }, [rows, content.trips]);
   if (!s) return null;
   const trashed = (rows ?? []).filter((r) => r.status === "deleted");
-  const tripFiltered = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && (filter === "all" || groupKey(r) === filter));
+  const tripFiltered = trashView ? trashed : (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, filter));
   const shown = tripFiltered;
   const patch = async (r: BookingRow, p: Partial<BookingRow> & { remove?: boolean }) => {
     try { await update({ data: { password: s.password, id: r.id, ...p } as never }); await load(); } catch (e) { window.alert(String(e)); }
@@ -606,13 +646,13 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
     <select value={filter} onChange={(e) => { setFilter(e.target.value); setLimit(60); setShowLists(false); }} className={inputCls}>
-      <option value="all">{bi("اختر الرحلة لعرض حجوزاتها | Reise wählen...")}</option>
-      {trips.map((t) => {
-        const count = (rows ?? []).filter((r) => r.status !== "deleted" && groupKey(r) === t).length;
-        const paxCount = (rows ?? []).filter((r) => r.status !== "deleted" && groupKey(r) === t).reduce((sum, r) => sum + r.travelers.length, 0);
-        return <option key={t} value={t}>{tripLabel(t, bi)} ({count} حجز · {paxCount} فرد)</option>;
-      })}
-    </select>
+  <option value="all">{bi("اختر الرحلة لعرض حجوزاتها | Reise wählen...")}</option>
+  {trips.map((t) => {
+    const count = (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, t)).length;
+    const paxCount = (rows ?? []).filter((r) => r.status !== "deleted" && matchesTrip(r, t)).reduce((sum, r) => sum + r.travelers.length, 0);
+    return <option key={t} value={t}>{tripLabel(t, bi)} ({count} حجز · {paxCount} فرد)</option>;
+  })}
+</select>
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
     {!trashView && <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(60); }} placeholder={bi("🔍 الاسم (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />}
         {filter === "all" && !trashView ? (
