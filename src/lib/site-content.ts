@@ -115,10 +115,10 @@ export const defaultContent: SiteContent = {
     { id: "tawassul", ar: "دعاء التوسل", de: "Bittgebet Tawassul", textAr: "اللّهُمَّ إنِّي أسْألُكَ وَأتَوَجَّهُ إلَيْكَ بِنَبِيِّكَ نَبِيِّ الرَّحْمَةِ مُحَمَّدٍ...", textDe: "Allāhumma innī asʾaluka wa atawajjahu ilayka bi-nabiyyika nabiyyi r-raḥmati Muḥammad... — O Gott, ich bitte Dich und wende mich an Dich durch Deinen Propheten, den Propheten der Barmherzigkeit, Muhammad.", link: "" },
     { id: "kumayl", ar: "دعاء كميل", de: "Bittgebet Kumayl", textAr: "اللّهُمَّ إنِّي أسْألُكَ بِرَحْمَتِكَ الَّتي وَسِعَتْ كُلَّ شَيْءٍ...", textDe: "Allāhumma innī asʾaluka bi-raḥmatika llatī wasiʿat kulla shayʾ... — O Gott, ich bitte Dich bei Deiner Barmherzigkeit, die alles umfasst.", link: "" },
   ],
-  trips: [
-    { id: "iraq", ar: "زيارة الإمام الحسين (ع)", de: "Zyarat Imam Hussein (as)", date: "01.12 – 09.12.2026", visible: true },
-    { id: "winter", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Zyarat Imam Hussein (as) Winterferien / Neujahr", date: "23.12.2026 – 01.01.2027", visible: true },
-    { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01 – 22.01.2027", visible: true },
+    trips: [
+    { id: "iraq", ar: "زيارة العراق", de: "Irak Ziyara", date: "01.12–09.12.2026", visible: true },
+    { id: "winter", ar: "زيارة العراق - عطلة الشتاء / رأس السنة", de: "Irak Ziyara - Winterferien / Neujahr", date: "23.12.2026–01.01.2027", visible: true },
+    { id: "umrah", ar: "العمرة", de: "Umrah", date: "13.01–22.01.2027", visible: true },
   ],
   hotels: { kadhimiya: "", karbala: "", najaf: "" },
   program: {
