@@ -45,7 +45,7 @@ export function AccessGateway() {
 export function AdminBar({ content }: { content: SiteContent }) {
   const s = useStaffSession();
   const { lang } = useLang();
-  const isAr = lang === "ar" || lang === "both";
+  const t = (ar: string, de: string, en: string) => lang === "ar" || lang === "both" ? ar : lang === "en" ? en : de;
   const toolsHidden = useToolsHidden();
   const [trashOpen, setTrashOpen] = useState(false);
   const [secOpen, setSecOpen] = useState(false);
@@ -81,14 +81,14 @@ export function AdminBar({ content }: { content: SiteContent }) {
           <span>{badge}</span>{alerts > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}<span className="text-sm leading-none tracking-widest">⋯</span>
         </button>
         <button type="button" onClick={() => setToolsHidden(!toolsHidden)} aria-pressed={toolsHidden} aria-label={toolsHidden ? "إظهار أدوات التحكم | Werkzeuge zeigen" : "إخفاء أدوات التحكم | Werkzeuge ausblenden"} title={toolsHidden ? "إظهار الأدوات | Werkzeuge zeigen" : "عرض نظيف | Saubere Ansicht"} className={`ml-2 grid h-7 w-7 place-items-center rounded-full border border-secondary shadow-md ${toolsHidden ? "bg-secondary text-secondary-foreground" : "bg-primary text-secondary"}`}>{toolsHidden ? <Wrench className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</button>
-               {menu && <div className="absolute left-3 top-10 w-56 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
-          <Button size="sm" variant="ghost" className={btn} onClick={() => window.dispatchEvent(new CustomEvent("open-view", { detail: "registration" }))}><ScrollText className="h-3.5 w-3.5 text-secondary" />{isAr ? "كشوفات التسكين والحجوزات" : "Buchungen & Listen"}</Button>
+                       {menu && <div className="absolute left-3 top-10 w-56 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
+          <Button size="sm" variant="ghost" className={btn} onClick={() => window.dispatchEvent(new CustomEvent("open-view", { detail: "registration" }))}><ScrollText className="h-3.5 w-3.5 text-secondary" />{t("كشوفات التسكين والحجوزات", "Buchungen & Listen", "Room Distribution & Bookings")}</Button>
           {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setMode(s.mode === "admin" ? "haj" : "admin")}>{s.mode === "admin" ? <><Eye className="h-3.5 w-3.5" />{labels.haj}</> : <><Pencil className="h-3.5 w-3.5" />{labels.admin}</>}</Button>}
-          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => { setDraft(labels); setRenameOpen(true); }}><Pencil className="h-3.5 w-3.5" />{isAr ? "تعديل الأسماء" : "Namen anpassen"}</Button>}
-          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setTrashOpen(true)}><Trash2 className="h-3.5 w-3.5" />{isAr ? "المحذوفات" : "Papierkorb"}{trashCount > 0 && <span className="rounded-full bg-secondary px-1.5 text-[10px] text-secondary-foreground">{trashCount}</span>}</Button>}
-          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setSecOpen(true)}><ShieldAlert className="h-3.5 w-3.5" />{isAr ? "الأمان" : "Sicherheit"}{alerts > 0 && <span className="rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">{alerts}</span>}</Button>}
-          {isAdmin && <Button asChild size="sm" variant="ghost" className={btn}><Link to="/admin"><LayoutDashboard className="h-3.5 w-3.5" />{isAr ? "لوحة التحكم" : "Dashboard"}</Link></Button>}
-          <Button size="sm" variant="ghost" className={btn} onClick={() => { if (window.confirm(isAr ? "تسجيل الخروج من هذا الجهاز؟" : "Auf diesem Gerät abmelden?")) logout(); }}><LogOut className="h-3.5 w-3.5" />{isAr ? "تسجيل الخروج" : "Abmelden"}</Button>
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => { setDraft(labels); setRenameOpen(true); }}><Pencil className="h-3.5 w-3.5" />{t("تعديل الأسماء", "Namen anpassen", "Edit names")}</Button>}
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setTrashOpen(true)}><Trash2 className="h-3.5 w-3.5" />{t("المحذوفات", "Papierkorb", "Trash")}{trashCount > 0 && <span className="rounded-full bg-secondary px-1.5 text-[10px] text-secondary-foreground">{trashCount}</span>}</Button>}
+          {isAdmin && <Button size="sm" variant="ghost" className={btn} onClick={() => setSecOpen(true)}><ShieldAlert className="h-3.5 w-3.5" />{t("الأمان", "Sicherheit", "Security")}{alerts > 0 && <span className="rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">{alerts}</span>}</Button>}
+          {isAdmin && <Button asChild size="sm" variant="ghost" className={btn}><Link to="/admin"><LayoutDashboard className="h-3.5 w-3.5" />{t("لوحة التحكم", "Dashboard", "Dashboard")}</Link></Button>}
+          <Button size="sm" variant="ghost" className={btn} onClick={() => { if (window.confirm(t("تسجيل الخروج من هذا الجهاز؟", "Auf diesem Gerät abmelden?", "Log out from this device?"))) logout(); }}><LogOut className="h-3.5 w-3.5" />{t("تسجيل الخروج", "Abmelden", "Log out")}</Button>
         </div>}
       </div>
       {isAdmin && renameOpen && <Dialog open={renameOpen} onOpenChange={setRenameOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[360px]" dir="rtl">
