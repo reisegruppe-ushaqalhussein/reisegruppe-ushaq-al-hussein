@@ -601,19 +601,84 @@ const prayerNames: Array<{ key: string; ar: string; de: string }> = [
   { key: "Dhuhr", ar: "الظهر", de: "Dhuhr" },
   { key: "Maghrib", ar: "المغرب", de: "Maghrib" },
 ];
-const cities = [
-  { id: "Karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
-  { id: "Najaf", ar: "النجف الأشرف", de: "Nadschaf" },
+const defaultCities = [
   { id: "Baghdad", ar: "الكاظمية المقدسة", de: "al-Kazimiyya" },
   { id: "Samarra", ar: "سامراء المشرفة", de: "Samarra" },
+  { id: "Karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
+  { id: "Najaf", ar: "النجف الأشرف", de: "Nadschaf" },
 ];
 
 function PrayerTimesCard() {
-  const [city, setCity] = useState(cities[0]!.id);
+  const isEditing = useSectionEditMode();
+  
+  // ترتيب المدن مع حفظه محلياً
+  const [citiesList, setCitiesList] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ushaq_prayer_cities_order");
+      if (saved) {
+        const ids: string[] = JSON.parse(saved);
+        const reordered = ids.map((id) => defaultCities.find((c) => c.id === id)).filter(Boolean) as typeof defaultCities;
+        if (reordered.length === defaultCities.length) return reordered;
+      }
+    } catch {}
+    return defaultCities;
+  });
+
+  const [city, setCity] = useState(citiesList[0]?.id ?? "Baghdad");
   const [times, setTimes] = useState<Record<string, string> | null>(null);
   const [failed, setFailed] = useState(false);
   const [nextInfo, setNextInfo] = useState<{ nameAr: string; nameDe: string; diffStr: string } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
+  // إعدادات التوقيت الصيفي/الشتوي وفوارق المرجع
+  const [hourOffset, setHourOffset] = useState<number>(() => {
+    try { return Number(localStorage.getItem("ushaq_prayer_hour_offset") || 0); } catch { return 0; }
+  });
+  const [minuteOffsets, setMinuteOffsets] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem("ushaq_prayer_min_offsets");
+      return saved ? JSON.parse(saved) : { Fajr: 0, Sunrise: 0, Dhuhr: 0, Maghrib: 0 };
+    } catch {
+      return { Fajr: 0, Sunrise: 0, Dhuhr: 0, Maghrib: 0 };
+    }
+  });
+
+  // حفظ التعديلات
+  const updateHourOffset = (val: number) => {
+    setHourOffset(val);
+    try { localStorage.setItem("ushaq_prayer_hour_offset", String(val)); } catch {}
+  };
+  const updateMinOffset = (key: string, diff: number) => {
+    setMinuteOffsets((prev) => {
+      const next = { ...prev, [key]: (prev[key] || 0) + diff };
+      try { localStorage.setItem("ushaq_prayer_min_offsets", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const resetOffsets = () => {
+    setHourOffset(0);
+    setMinuteOffsets({ Fajr: 0, Sunrise: 0, Dhuhr: 0, Maghrib: 0 });
+    try {
+      localStorage.removeItem("ushaq_prayer_hour_offset");
+      localStorage.removeItem("ushaq_prayer_min_offsets");
+    } catch {}
+  };
+
+  // نقل وتبديل ترتيب المدن
+  const moveCity = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= citiesList.length) return;
+    const nextList = [...citiesList];
+    const item = nextList[index]!;
+    nextList[index] = nextList[target]!;
+    nextList[target] = item;
+    setCitiesList(nextList);
+    try {
+      localStorage.setItem("ushaq_prayer_cities_order", JSON.stringify(nextList.map((c) => c.id)));
+    } catch {}
+  };
+
+  // جلب المواقيت
   useEffect(() => {
     let off = false;
     setTimes(null); setFailed(false);
@@ -624,6 +689,26 @@ function PrayerTimesCard() {
     return () => { off = true; };
   }, [city]);
 
+  // تعديل الوقت حسب التوقيت الصيفي/الشتوي وفارق الدقائق
+  const getAdjustedTime = (key: string, raw?: string) => {
+    if (!raw) return raw;
+    const parts = raw.split(":");
+    const hStr = parts[0];
+    const mStr = parts[1];
+    if (hStr === undefined || mStr === undefined) return raw;
+    const h = Number(hStr);
+    const m = Number(mStr);
+    if (Number.isNaN(h) || Number.isNaN(m)) return raw;
+
+    const minOffset = minuteOffsets[key] || 0;
+    const totalMin = (h + hourOffset) * 60 + m + minOffset;
+    const normalized = ((totalMin % 1440) + 1440) % 1440;
+    const adjH = Math.floor(normalized / 60);
+    const adjM = normalized % 60;
+    return `${String(adjH).padStart(2, "0")}:${String(adjM).padStart(2, "0")}`;
+  };
+
+  // حساب الأذان القادم بدقة مع معالجة undefined بأمان تام
   useEffect(() => {
     if (!times) { setNextInfo(null); return; }
     const calcNext = () => {
@@ -636,8 +721,13 @@ function PrayerTimesCard() {
       for (const p of prayerNames) {
         const raw = times[p.key];
         if (!raw) continue;
-        const [ph, pm] = raw.split(":").map(Number);
+        const adj = getAdjustedTime(p.key, raw);
+        if (!adj) continue;
+        const splitAdj = adj.split(":");
+        const ph = splitAdj[0] !== undefined ? Number(splitAdj[0]) : NaN;
+        const pm = splitAdj[1] !== undefined ? Number(splitAdj[1]) : NaN;
         if (Number.isNaN(ph) || Number.isNaN(pm)) continue;
+
         const pMin = ph * 60 + pm;
         if (pMin > nowMin) {
           const diff = pMin - nowMin;
@@ -650,46 +740,160 @@ function PrayerTimesCard() {
       }
       const fajrRaw = times["Fajr"];
       if (fajrRaw) {
-        const [fh, fm] = fajrRaw.split(":").map(Number);
-        const diff = (24 * 60 - nowMin) + (fh * 60 + fm);
-        const h = Math.floor(diff / 60);
-        const m = diff % 60;
-        const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
-        setNextInfo({ nameAr: "الفجر", nameDe: "Fadschr", diffStr });
+        const adj = getAdjustedTime("Fajr", fajrRaw);
+        if (adj) {
+          const splitAdj = adj.split(":");
+          const fh = splitAdj[0] !== undefined ? Number(splitAdj[0]) : NaN;
+          const fm = splitAdj[1] !== undefined ? Number(splitAdj[1]) : NaN;
+          if (!Number.isNaN(fh) && !Number.isNaN(fm)) {
+            const diff = (24 * 60 - nowMin) + (fh * 60 + fm);
+            const h = Math.floor(diff / 60);
+            const m = diff % 60;
+            const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
+            setNextInfo({ nameAr: "الفجر", nameDe: "Fadschr", diffStr });
+          }
+        }
       }
     };
     calcNext();
     const interval = setInterval(calcNext, 60000);
     return () => clearInterval(interval);
-  }, [times]);
+  }, [times, hourOffset, minuteOffsets]);
 
   return (
     <section className="mt-5 rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><Clock className="h-5 w-5" aria-hidden="true" /></span>
-        <h2 className="text-primary"><Pair ar="مواقيت الصلاة" de="Gebetszeiten" /></h2>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary">
+            <Clock className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <h2 className="text-primary font-bold">
+            <Pair ar="مواقيت الصلاة" de="Gebetszeiten" />
+          </h2>
+        </div>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="تعديل المواقيت | Einstellungen"
+            className="flex items-center gap-1 rounded border border-secondary/50 bg-secondary/10 px-2 py-1 text-xs font-semibold text-secondary hover:bg-secondary/20"
+          >
+            ⚙️ <Pair ar="تعديل التوقيت والمذهب" de="Zeiten anpassen" />
+          </button>
+        )}
       </div>
+
+      {/* لوحة تحكم التوقيت والمذهب للإدارة */}
+      {isEditing && showSettings && (
+        <div className="mb-4 rounded-lg border border-secondary/40 bg-accent/40 p-3 text-xs">
+          <p className="mb-2 font-bold text-primary">⚙️ ضبط التوقيت الصيفي/الشتوي وفوارق المرجع:</p>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground">التوقيت:</span>
+            <button
+              type="button"
+              onClick={() => updateHourOffset(0)}
+              className={`rounded px-2 py-1 ${hourOffset === 0 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"}`}
+            >
+              عادي / شتوي (0س)
+            </button>
+            <button
+              type="button"
+              onClick={() => updateHourOffset(1)}
+              className={`rounded px-2 py-1 ${hourOffset === 1 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"}`}
+            >
+              صيفي (+1ساعة)
+            </button>
+          </div>
+          <div className="mb-2 space-y-1.5">
+            <p className="text-[11px] text-muted-foreground">فارق الدقائق حسب المرجع / الاحتياط:</p>
+            {prayerNames.map((p) => (
+              <div key={p.key} className="flex items-center justify-between rounded bg-card px-2 py-1 border border-border/50">
+                <span>{p.ar} ({p.de}):</span>
+                <div className="flex items-center gap-1.5 font-mono">
+                  <button type="button" onClick={() => updateMinOffset(p.key, -1)} className="h-5 w-5 rounded bg-muted hover:bg-muted/80 leading-none font-bold">-</button>
+                  <span className="w-8 text-center font-bold text-secondary">
+                    {(minuteOffsets[p.key] || 0) > 0 ? `+${minuteOffsets[p.key]}` : minuteOffsets[p.key] || 0}د
+                  </span>
+                  <button type="button" onClick={() => updateMinOffset(p.key, 1)} className="h-5 w-5 rounded bg-muted hover:bg-muted/80 leading-none font-bold">+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={resetOffsets}
+              className="text-[11px] text-muted-foreground underline hover:text-foreground"
+            >
+              🔄 إعادة الضبط للأصل
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* أزرار اختيار المدن مع أزرار النقل ◀️ ▶️ عند وضع التعديل */}
       <div className="mb-3 grid grid-cols-2 gap-2">
-        {cities.map((c) => (
-          <Button key={c.id} size="sm" variant={city === c.id ? "default" : "outline"} onClick={() => setCity(c.id)} className="h-auto py-1.5"><Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} /></Button>
+        {citiesList.map((c, idx) => (
+          <div key={c.id} className="relative flex items-center">
+            <Button
+              size="sm"
+              variant={city === c.id ? "default" : "outline"}
+              onClick={() => setCity(c.id)}
+              className="h-auto w-full py-1.5"
+            >
+              <Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} />
+            </Button>
+            {isEditing && (
+              <div className="absolute left-1 flex items-center gap-0.5 bg-card/90 rounded border border-secondary/40 shadow-xs px-0.5">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={(e) => { e.stopPropagation(); moveCity(idx, -1); }}
+                  aria-label="تقديم"
+                  className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === citiesList.length - 1}
+                  onClick={(e) => { e.stopPropagation(); moveCity(idx, 1); }}
+                  aria-label="تأخير"
+                  className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
+                >
+                  ▶
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
+
+      {/* شريط الأذان القادم */}
       {nextInfo && (
         <div className="mb-3 flex items-center justify-between rounded-md border border-secondary/40 bg-accent/50 px-3 py-1.5 text-xs">
           <span className="font-bold text-primary">⏳ الأذان القادم: صلاة {nextInfo.nameAr}</span>
           <span dir="ltr" className="font-mono font-bold text-secondary">{nextInfo.diffStr}</span>
         </div>
       )}
+
+      {/* كروت الصلوات الأربع */}
       <div className="grid grid-cols-4 gap-2 text-center">
-        {prayerNames.map((p) => (
-          <div key={p.key} className="rounded-md bg-muted px-1 py-2">
-            <p className="text-[11px] font-bold text-primary">{p.ar}</p>
-            <p lang="de" dir="ltr" className="text-[9px] italic text-muted-foreground">{p.de}</p>
-            <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">{times?.[p.key] ?? (failed ? "—" : "…")}</p>
-          </div>
-        ))}
+        {prayerNames.map((p) => {
+          const raw = times?.[p.key];
+          const displayTime = raw ? getAdjustedTime(p.key, raw) : (failed ? "—" : "…");
+          return (
+            <div key={p.key} className="rounded-md bg-muted px-1 py-2">
+              <p className="text-[11px] font-bold text-primary">{p.ar}</p>
+              <p lang="de" dir="ltr" className="text-[9px] italic text-muted-foreground">{p.de}</p>
+              <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">{displayTime}</p>
+            </div>
+          );
+        })}
       </div>
-      <p className="mt-2 text-[10px] text-muted-foreground"><Pair ar="بالتوقيت المحلي للعراق — حسب المذهب الجعفري" de="Ortszeit Irak — nach jaʿfaritischer Berechnung" /></p>
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        <Pair ar="بالتوقيت المحلي للعراق — حسب المذهب الجعفري" de="Ortszeit Irak — nach jaʿfaritischer Berechnung" />
+      </p>
     </section>
   );
 }
