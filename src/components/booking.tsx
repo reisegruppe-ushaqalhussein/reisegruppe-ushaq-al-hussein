@@ -91,8 +91,9 @@ function L({ ar, de }: { ar: string; de: string }) {
 /** Saves a patch of the registration settings (admin only). */
 function useRegSave(content: SiteContent) {
   const adminS = useAdminSession();
+  const isEditing = useSectionEditMode();
   const qc = useQueryClient();
-  if (adminS?.role !== "admin") return null;
+  if (adminS?.role !== "admin" || !isEditing) return null;
   return async (patch: (reg: RegCfg) => RegCfg) => {
     const reg = regOf(content);
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: patch(reg) } } as never, "التسجيل | Anmeldung", qc); return true; }
@@ -103,9 +104,10 @@ function useRegSave(content: SiteContent) {
 /** Pencil right beside a field name: opens the editor for exactly that field, pre-filled with its current name. */
 function LabelPen({ content, id, cur, renamed }: { content: SiteContent; id: string; cur: Lbl; renamed: boolean }) {
   const save = useRegSave(content);
+  const isEditing = useSectionEditMode();
   const [open, setOpen] = useState(false);
   const [ar, setAr] = useState(cur.ar); const [de, setDe] = useState(cur.de);
-  if (!save) return null;
+  if (!save || !isEditing) return null;
   const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
   const commit = async (v: Lbl | null) => { if (await save((r) => { const labels = { ...(r.labels ?? {}) }; if (v) labels[id] = v; else delete labels[id]; return { ...r, labels }; })) setOpen(false); };
   if (!open) return <span role="button" tabIndex={0} aria-label="تعديل اسم الخانة | Feldname bearbeiten" onClick={(e) => { stop(e); setAr(cur.ar); setDe(cur.de); setOpen(true); }} className="ms-1 inline-grid h-5 w-5 shrink-0 cursor-pointer place-items-center rounded-full bg-secondary align-middle text-secondary-foreground shadow-sm"><Pencil className="h-2.5 w-2.5" /></span>;
