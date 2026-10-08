@@ -15,8 +15,8 @@ import type { SiteContent } from "@/lib/site-content";
 
 type Cat = "adult" | "child" | "infant";
 type FileData = { name: string; type: string; data: string };
-type Traveler = { category: Cat; relation: string; firstName: string; lastName: string; gender: "m" | "f" | ""; birthDate: string; nationality: string; passportNo: string; passportExpiry: string; passportFile?: FileData | undefined; photoFile?: FileData | undefined };
-const blank = (category: Cat = "adult", relation = ""): Traveler => ({ category, relation, firstName: "", lastName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "" });
+type Traveler = { category: Cat; relation: string; firstName: string; lastName: string; arabicName: string; gender: "m" | "f" | ""; birthDate: string; nationality: string; passportNo: string; passportExpiry: string; passportFile?: FileData | undefined; photoFile?: FileData | undefined };
+const blank = (category: Cat = "adult", relation = ""): Traveler => ({ category, relation, firstName: "", lastName: "", arabicName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "" });
 const OTHER = "__other";
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 const cats: Array<{ id: Cat; ar: string; de: string }> = [
@@ -68,6 +68,7 @@ function travelerErrors(t: Traveler, i: number): string[] {
   const e: string[] = [];
   const latin = /^[A-Za-z][A-Za-z '\-]*$/;
   if (!latin.test(t.firstName.trim()) || !latin.test(t.lastName.trim())) e.push(`${n}: الاسم بالأحرف اللاتينية كما في الجواز | Name in lateinischen Buchstaben wie im Pass`);
+  if (!/[\u0600-\u06FF]/.test(t.arabicName.trim()) || t.arabicName.trim().split(/\s+/).length < 2) e.push(`${n}: الاسم الكامل بالعربية | Vollständiger Name auf Arabisch`);
   if (!t.gender) e.push(`${n}: الجنس | Geschlecht`);
   if (!t.birthDate) e.push(`${n}: تاريخ الميلاد | Geburtsdatum`);
   else if (catOf(t.birthDate) !== t.category) e.push(`${n}: الفئة العمرية لا تطابق تاريخ الميلاد | Altersgruppe passt nicht zum Geburtsdatum`);
@@ -406,6 +407,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
             <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="off" list="bk-first" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
             <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="off" list="bk-last" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
           </div>
+          <label className="block font-bold"><L ar="الاسم الكامل بالعربية (لبطاقات الأمتعة)" de="Vollständiger Name auf Arabisch (für Gepäckanhänger)" /><span className="block text-[11px] font-normal text-muted-foreground"><L ar="(الاسم الثلاثي أو الرباعي لتجنب تشابه الأسماء)" de="(Drei- oder vierteiliger Name, um Verwechslungen zu vermeiden)" /></span><input dir="rtl" autoComplete="off" value={t.arabicName} onChange={(e) => setT(i, { arabicName: e.target.value })} maxLength={120} placeholder="علي حسن محمد" className={inputCls} /></label>
           <div className="grid grid-cols-2 gap-2">
             {(["m", "f"] as const).map((g) => <button key={g} type="button" onClick={() => setT(i, { gender: g })} className={`rounded-md border py-2 font-bold ${t.gender === g ? "border-secondary bg-accent text-primary" : "border-border"}`}>{g === "m" ? <L ar="ذكر" de="Männlich" /> : <L ar="أنثى" de="Weiblich" />}</button>)}
           </div>
@@ -594,7 +596,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   };
   const ql = norm(q);
   const qw = ql.split(" ").filter(Boolean);
-  const listed = qw.length ? shown.filter((r) => qw.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].some((v) => norm(v).includes(w)))) : shown;
+  const listed = qw.length ? shown.filter((r) => qw.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""} ${t["arabicName"] ?? ""}`)].some((v) => norm(v).includes(w)))) : shown;
   const openRow = (rows ?? []).find((r) => r.id === open) ?? null;
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
@@ -647,7 +649,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     </div>}
     {filter === "all" && !trashView && <p className="mt-1 text-xs text-muted-foreground">{bi("اختر رحلة من القائمة لتحميل قوائم الطيران والفيز وقائمة الحاج الخاصة بها | Reise wählen, um Listen zu laden")}</p>}
     <Dialog open={!!openRow} onOpenChange={(v) => { if (!v) setOpen(null); }}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent dir={lang === "de" || lang === "en" ? "ltr" : "rtl"} className="max-h-[90vh] overflow-y-auto">
         {openRow && (() => { const r = openRow; const lead = r.travelers[0] ?? {}; return <>
           <DialogHeader><DialogTitle className="text-start text-primary">{lead["lastName"]} {lead["firstName"]} <span className="text-xs text-muted-foreground">({r.travelers.length} pax)</span></DialogTitle></DialogHeader>
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -661,6 +663,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={waLink(r.contact_phone)} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
           {r.travelers.map((t, i) => { const rel = (t["relation"] ?? "").trim(); const row = (label: string, v?: string, ltr = true) => v ? <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2 border-b border-border/60 py-1 last:border-0"><span className="text-muted-foreground">{bi(label)}</span><span dir={ltr ? "ltr" : undefined} className="break-words text-start font-medium">{v}</span></div> : null; return <div key={i} className="rounded-md bg-muted p-2">
             <div className="mb-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">{bi(i === 0 ? "👤 صاحب الطلب | Antragsteller/in" : `👥 مرافق ${i} | Begleitperson ${i}`)}</span><b dir="ltr" className="text-primary">{t["lastName"]} {t["firstName"]}</b></div>
+            {row("الاسم بالعربية | Name (arabisch)", t["arabicName"], false)}
             {row("الفئة | Kategorie", `${paxOf(t)} · ${bi(`${cats.find((c) => c.id === t["category"])?.ar ?? ""} | ${cats.find((c) => c.id === t["category"])?.de ?? ""}`)}`, false)}
             {row("الجنس | Geschlecht", t["gender"] ? bi(t["gender"] === "f" ? "أنثى | weiblich" : "ذكر | männlich") : "", false)}
             {row("تاريخ الميلاد | Geburtsdatum", t["birthDate"])}
@@ -756,7 +759,7 @@ function RegSettings({ content }: { content: SiteContent }) {
   </div>;
 }
 type MT = Record<string, string>;
-const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
+const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", arabicName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
 
 /** Staff form to add a notebook booking (or edit any booking). Files optional, no emails sent. */
 function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string }>; rows: BookingRow[]; password: string; onDone: () => Promise<void> }) {
@@ -817,6 +820,7 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
       <div className="grid grid-cols-2 gap-1.5">
         <label className={lbl}>{bi("الاسم الأول (لاتيني) | Vorname")}<input dir="ltr" value={t["firstName"]} onChange={(e) => setT(i, "firstName", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("اللقب (لاتيني) | Nachname")}<input dir="ltr" value={t["lastName"]} onChange={(e) => setT(i, "lastName", e.target.value)} className={inputCls} /></label>
+        <label className={lbl + " col-span-2"}>{bi("الاسم الكامل بالعربية (لبطاقات الأمتعة) | Name auf Arabisch (Gepäckanhänger)")}<span className="block text-[10px] font-normal text-muted-foreground">{bi("(ثلاثي أو رباعي لتجنب تشابه الأسماء) | (Drei-/vierteilig, Verwechslungen vermeiden)")}</span><input dir="rtl" value={t["arabicName"] ?? ""} onChange={(e) => setT(i, "arabicName", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("الجنس | Geschlecht")}<select value={t["gender"]} onChange={(e) => setT(i, "gender", e.target.value)} className={inputCls}><option value="">—</option><option value="m">{bi("ذكر | männlich")}</option><option value="f">{bi("أنثى | weiblich")}</option></select></label>
         <label className={lbl}>{bi("تاريخ الميلاد | Geburtsdatum")}<input type="date" value={t["birthDate"]} onChange={(e) => setT(i, "birthDate", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("الجنسية | Nationalität")}<input value={t["nationality"]} onChange={(e) => setT(i, "nationality", e.target.value)} className={inputCls} /></label>
