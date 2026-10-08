@@ -944,6 +944,55 @@ export function RoomCalcPanel() {
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
     </div>
     <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
+        {/* كشف محاسبة الفنادق التلقائي بين الحاج وإدارة الفندق */}
+    <div className="mt-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2.5 text-xs">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-bold text-primary">🏨 كشف محاسبة الفندق التلقائي (حسب أفراد الحجز)</span>
+        <button
+          type="button"
+          onClick={() => {
+            const singles = byTrip.filter((r) => r.travelers.length === 1).length;
+            const doubles = byTrip.filter((r) => r.travelers.length === 2).length;
+            const triples = byTrip.filter((r) => r.travelers.length === 3).length;
+            const quads = byTrip.filter((r) => r.travelers.length >= 4).length;
+            const totalRooms = singles + doubles + triples + quads;
+            const text = `كشف غرف الحملة (${tripLabel(trip, bi)}):\n` +
+              `• غرف ثنائية: ${doubles}\n` +
+              `• غرف ثلاثية: ${triples}\n` +
+              `• غرف رباعية: ${quads}\n` +
+              `• غرف فردية/منفرد: ${singles}\n` +
+              `───────────────\n` +
+              `المجموع: ${totalRooms} غرفة لـ ${pax} زائر`;
+            navigator.clipboard.writeText(text);
+            window.alert("تم نسخ كشف المحاسبة بنجاح! يمكنك إرساله لإدارة الفندق عبر الواتساب.");
+          }}
+          className="rounded bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground hover:opacity-90"
+        >
+          📋 نسخ الكشف للفندق
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-1 text-center font-bold">
+        <div className="rounded bg-card p-1.5 border border-border">
+          <span className="text-[10px] text-muted-foreground block">ثنائية (2)</span>
+          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 2).length}</span>
+        </div>
+        <div className="rounded bg-card p-1.5 border border-border">
+          <span className="text-[10px] text-muted-foreground block">ثلاثية (3)</span>
+          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 3).length}</span>
+        </div>
+        <div className="rounded bg-card p-1.5 border border-border">
+          <span className="text-[10px] text-muted-foreground block">رباعية (4)</span>
+          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length >= 4).length}</span>
+        </div>
+        <div className="rounded bg-card p-1.5 border border-border">
+          <span className="text-[10px] text-muted-foreground block">فردية (1)</span>
+          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 1).length}</span>
+        </div>
+      </div>
+      <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
+        إجمالي الغرف المطلوبة: <b>{byTrip.filter((r) => r.travelers.length === 1).length + byTrip.filter((r) => r.travelers.length === 2).length + byTrip.filter((r) => r.travelers.length === 3).length + byTrip.filter((r) => r.travelers.length >= 4).length}</b> غرفة لـ <b>{pax}</b> زائر
+      </p>
+    </div>
     <div className="mt-2 grid grid-cols-2 gap-1.5">
       {rooms.map((rm) => { const c = byTrip.filter((r) => (r.room_pref || "leader") === rm.id); const on = room === rm.id; return <button key={rm.id} type="button" onClick={() => setRoom(on ? "all" : rm.id)} className={`rounded-md border p-2 text-start text-xs ${on ? "border-secondary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>
         <span className="block font-bold">{roomLabel(rm.id, bi)}</span>
