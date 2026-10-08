@@ -474,7 +474,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
           : <Button type="button" disabled={busy} className="h-12 flex-[2] bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={send}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}<L ar="تأكيد وإرسال الطلب" de="Anmeldung absenden" /></Button>}
       </div>
     </div>
-  </section></RegCtx.Provider>;
+  </section></RegCtx.Provider>);
 }
 
 const statusLabels: Record<string, string> = { new: "جديد | Neu", confirmed: "مؤكد | Bestätigt", cancelled: "ملغى | Storniert" };
