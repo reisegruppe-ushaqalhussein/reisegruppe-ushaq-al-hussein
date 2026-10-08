@@ -601,41 +601,96 @@ const prayerNames: Array<{ key: string; ar: string; de: string }> = [
   { key: "Dhuhr", ar: "الظهر", de: "Dhuhr" },
   { key: "Maghrib", ar: "المغرب", de: "Maghrib" },
 ];
-const defaultCities = [
-  { id: "Baghdad", ar: "الكاظمية المقدسة", de: "al-Kazimiyya" },
-  { id: "Samarra", ar: "سامراء المشرفة", de: "Samarra" },
-  { id: "Karbala", ar: "كربلاء المقدسة", de: "Kerbela" },
-  { id: "Najaf", ar: "النجف الأشرف", de: "Nadschaf" },
+
+interface PrayerCity {
+  id: string;
+  ar: string;
+  de: string;
+  country: string;
+  region: "iraq" | "saudi" | "iran";
+  apiCity: string;
+}
+
+const defaultCities: PrayerCity[] = [
+  // العراق
+  { id: "Baghdad", ar: "الكاظمية المقدسة", de: "al-Kazimiyya", country: "Iraq", region: "iraq", apiCity: "Baghdad" },
+  { id: "Samarra", ar: "سامراء المشرفة", de: "Samarra", country: "Iraq", region: "iraq", apiCity: "Samarra" },
+  { id: "Karbala", ar: "كربلاء المقدسة", de: "Kerbela", country: "Iraq", region: "iraq", apiCity: "Karbala" },
+  { id: "Najaf", ar: "النجف الأشرف", de: "Nadschaf", country: "Iraq", region: "iraq", apiCity: "Najaf" },
+  // الحرمين الشريفين
+  { id: "Makkah", ar: "مكة المكرمة", de: "Mekka", country: "Saudi Arabia", region: "saudi", apiCity: "Makkah" },
+  { id: "Madinah", ar: "المدينة المنورة", de: "Medina", country: "Saudi Arabia", region: "saudi", apiCity: "Medina" },
+  // إيران
+  { id: "Mashhad", ar: "مشهد المقدسة", de: "Maschhad", country: "Iran", region: "iran", apiCity: "Mashhad" },
+  { id: "Qom", ar: "قم المشرفة", de: "Qom", country: "Iran", region: "iran", apiCity: "Qom" },
 ];
+
+const prayerRegions = [
+  { id: "location", ar: "📍 موقعي الحالي", de: "Mein Standort" },
+  { id: "iraq", ar: "🇮🇶 العراق", de: "Irak" },
+  { id: "saudi", ar: "🇸🇦 الحرمين", de: "Mekka & Medina" },
+  { id: "iran", ar: "🇮🇷 إيران", de: "Iran" },
+] as const;
 
 function PrayerTimesCard() {
   const adminSession = useAdminSession();
   const [localEdit, setLocalEdit] = useState(false);
   const isSectionEditing = useSectionEditMode();
   const isEditing = Boolean(adminSession) && (localEdit || isSectionEditing);
-  
+
+  // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
+  const [activeRegion, setActiveRegion] = useState<string>(() => {
+    try {
+      return localStorage.getItem("ushaq_prayer_region") || "iraq";
+    } catch {
+      return "iraq";
+    }
+  });
+
+  // إحداثيات الموقع الحالي GPS
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem("ushaq_prayer_gps");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
   // ترتيب المدن مع حفظه محلياً
-  const [citiesList, setCitiesList] = useState(() => {
+  const [citiesList, setCitiesList] = useState<PrayerCity[]>(() => {
     try {
       const saved = localStorage.getItem("ushaq_prayer_cities_order");
       if (saved) {
         const ids: string[] = JSON.parse(saved);
-        const reordered = ids.map((id) => defaultCities.find((c) => c.id === id)).filter(Boolean) as typeof defaultCities;
+        const reordered = ids
+          .map((id) => defaultCities.find((c) => c.id === id))
+          .filter(Boolean) as PrayerCity[];
         if (reordered.length === defaultCities.length) return reordered;
       }
     } catch {}
     return defaultCities;
   });
 
-  const [city, setCity] = useState(citiesList[0]?.id ?? "Baghdad");
+  const [city, setCity] = useState<string>(() => {
+    return defaultCities[0]?.id ?? "Baghdad";
+  });
+
   const [times, setTimes] = useState<Record<string, string> | null>(null);
+  const [timezone, setTimezone] = useState<string>("Asia/Baghdad");
   const [failed, setFailed] = useState(false);
   const [nextInfo, setNextInfo] = useState<{ nameAr: string; nameDe: string; diffStr: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
   // إعدادات التوقيت الصيفي/الشتوي وفوارق المرجع
   const [hourOffset, setHourOffset] = useState<number>(() => {
-    try { return Number(localStorage.getItem("ushaq_prayer_hour_offset") || 0); } catch { return 0; }
+    try {
+      return Number(localStorage.getItem("ushaq_prayer_hour_offset") || 0);
+    } catch {
+      return 0;
+    }
   });
   const [minuteOffsets, setMinuteOffsets] = useState<Record<string, number>>(() => {
     try {
@@ -646,15 +701,63 @@ function PrayerTimesCard() {
     }
   });
 
-  // حفظ التعديلات
+  // طلب الموقع الجغرافي من المتصفح
+  const requestGps = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setGpsError("خاصية الموقع غير مدعومة في متصفحك | Geolocation wird nicht unterstützt");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setGpsCoords(coords);
+        setGpsLoading(false);
+        try {
+          localStorage.setItem("ushaq_prayer_gps", JSON.stringify(coords));
+        } catch {}
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsError(
+          err.code === 1
+            ? "يرجى السماح بالوصول إلى الموقع | Bitte Standortfreigabe erlauben"
+            : "تعذر قراءة الموقع، يرجى المحاولة ثانية | Standort nicht ermittelbar"
+        );
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  const handleRegionChange = (regId: string) => {
+    setActiveRegion(regId);
+    try {
+      localStorage.setItem("ushaq_prayer_region", regId);
+    } catch {}
+    if (regId === "location") {
+      if (!gpsCoords) requestGps();
+    } else {
+      const regCities = citiesList.filter((c) => c.region === regId);
+      if (regCities[0] && !regCities.some((c) => c.id === city)) {
+        setCity(regCities[0].id);
+      }
+    }
+  };
+
+  // حفظ التعديلات للإدارة
   const updateHourOffset = (val: number) => {
     setHourOffset(val);
-    try { localStorage.setItem("ushaq_prayer_hour_offset", String(val)); } catch {}
+    try {
+      localStorage.setItem("ushaq_prayer_hour_offset", String(val));
+    } catch {}
   };
   const updateMinOffset = (key: string, diff: number) => {
     setMinuteOffsets((prev) => {
       const next = { ...prev, [key]: (prev[key] || 0) + diff };
-      try { localStorage.setItem("ushaq_prayer_min_offsets", JSON.stringify(next)); } catch {}
+      try {
+        localStorage.setItem("ushaq_prayer_min_offsets", JSON.stringify(next));
+      } catch {}
       return next;
     });
   };
@@ -667,14 +770,24 @@ function PrayerTimesCard() {
     } catch {}
   };
 
-  // نقل وتبديل ترتيب المدن
-  const moveCity = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= citiesList.length) return;
+  // نقل وتبديل ترتيب المدن بالأسهم
+  const moveCityInRegion = (cityId: string, direction: -1 | 1) => {
+    const regCities = citiesList.filter((c) => c.region === activeRegion);
+    const idx = regCities.findIndex((c) => c.id === cityId);
+    const targetIdx = idx + direction;
+    if (idx === -1 || targetIdx < 0 || targetIdx >= regCities.length) return;
+    const targetCity = regCities[targetIdx];
+    if (!targetCity) return;
+
     const nextList = [...citiesList];
-    const item = nextList[index]!;
-    nextList[index] = nextList[target]!;
-    nextList[target] = item;
+    const pos1 = nextList.findIndex((c) => c.id === cityId);
+    const pos2 = nextList.findIndex((c) => c.id === targetCity.id);
+    if (pos1 === -1 || pos2 === -1) return;
+
+    const temp = nextList[pos1]!;
+    nextList[pos1] = nextList[pos2]!;
+    nextList[pos2] = temp;
+
     setCitiesList(nextList);
     try {
       localStorage.setItem("ushaq_prayer_cities_order", JSON.stringify(nextList.map((c) => c.id)));
@@ -684,15 +797,39 @@ function PrayerTimesCard() {
   // جلب المواقيت
   useEffect(() => {
     let off = false;
-    setTimes(null); setFailed(false);
-    fetch(`https://api.aladhan.com/v1/timingsByCity?city=${city}&country=Iraq&method=0`)
-      .then((r) => r.json())
-      .then((j) => { if (!off) setTimes(j?.data?.timings ?? null); })
-      .catch(() => { if (!off) setFailed(true); });
-    return () => { off = true; };
-  }, [city]);
+    setTimes(null);
+    setFailed(false);
 
-  // تعديل الوقت حسب التوقيت الصيفي/الشتوي وفارق الدقائق
+    let url = "";
+    if (activeRegion === "location") {
+      if (!gpsCoords) return;
+      url = `https://api.aladhan.com/v1/timings?latitude=${gpsCoords.lat}&longitude=${gpsCoords.lng}&method=0`;
+    } else {
+      const curCity = citiesList.find((c) => c.id === city) || citiesList[0];
+      if (!curCity) return;
+      url = `https://api.aladhan.com/v1/timingsByCity?city=${curCity.apiCity}&country=${encodeURIComponent(curCity.country)}&method=0`;
+    }
+
+    fetch(url)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!off) {
+          setTimes(j?.data?.timings ?? null);
+          if (j?.data?.meta?.timezone) {
+            setTimezone(j.data.meta.timezone);
+          }
+        }
+      })
+      .catch(() => {
+        if (!off) setFailed(true);
+      });
+
+    return () => {
+      off = true;
+    };
+  }, [activeRegion, city, gpsCoords, citiesList]);
+
+  // تعديل الوقت حسب فوارق التوقيت
   const getAdjustedTime = (key: string, raw?: string) => {
     if (!raw) return raw;
     const parts = raw.split(":");
@@ -711,12 +848,31 @@ function PrayerTimesCard() {
     return `${String(adjH).padStart(2, "0")}:${String(adjM).padStart(2, "0")}`;
   };
 
-  // حساب الأذان القادم بدقة مع معالجة undefined بأمان تام
+  // حساب الأذان القادم بناءً على المنطقة الزمنية للمكان المختار
   useEffect(() => {
-    if (!times) { setNextInfo(null); return; }
+    if (!times) {
+      setNextInfo(null);
+      return;
+    }
     const calcNext = () => {
       const now = new Date();
-      const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+      let parts: Intl.DateTimeFormatPart[];
+      try {
+        parts = new Intl.DateTimeFormat("en-GB", {
+          timeZone: timezone || "Asia/Baghdad",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).formatToParts(now);
+      } catch {
+        parts = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Baghdad",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).formatToParts(now);
+      }
+
       const curH = Number(parts.find((p) => p.type === "hour")?.value ?? now.getHours());
       const curM = Number(parts.find((p) => p.type === "minute")?.value ?? now.getMinutes());
       const nowMin = curH * 60 + curM;
@@ -741,6 +897,8 @@ function PrayerTimesCard() {
           return;
         }
       }
+
+      // بعد صلاة المغرب: حساب وقت صلاة فجر الغد
       const fajrRaw = times["Fajr"];
       if (fajrRaw) {
         const adj = getAdjustedTime("Fajr", fajrRaw);
@@ -749,7 +907,7 @@ function PrayerTimesCard() {
           const fh = splitAdj[0] !== undefined ? Number(splitAdj[0]) : NaN;
           const fm = splitAdj[1] !== undefined ? Number(splitAdj[1]) : NaN;
           if (!Number.isNaN(fh) && !Number.isNaN(fm)) {
-            const diff = (24 * 60 - nowMin) + (fh * 60 + fm);
+            const diff = 24 * 60 - nowMin + (fh * 60 + fm);
             const h = Math.floor(diff / 60);
             const m = diff % 60;
             const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
@@ -758,10 +916,13 @@ function PrayerTimesCard() {
         }
       }
     };
+
     calcNext();
     const interval = setInterval(calcNext, 60000);
     return () => clearInterval(interval);
-  }, [times, hourOffset, minuteOffsets]);
+  }, [times, hourOffset, minuteOffsets, timezone]);
+
+  const currentRegionCities = citiesList.filter((c) => c.region === activeRegion);
 
   return (
     <section className="mt-5 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -774,7 +935,7 @@ function PrayerTimesCard() {
             <Pair ar="مواقيت الصلاة" de="Gebetszeiten" />
           </h2>
         </div>
-           {adminSession && (
+        {adminSession && (
           <button
             type="button"
             onClick={() => {
@@ -794,7 +955,7 @@ function PrayerTimesCard() {
         )}
       </div>
 
-      {/* لوحة تحكم التوقيت والمذهب للإدارة */}
+      {/* لوحة تحكم التوقيت للإدارة */}
       {isEditing && showSettings && (
         <div className="mb-4 rounded-lg border border-secondary/40 bg-accent/40 p-3 text-xs">
           <p className="mb-2 font-bold text-primary">⚙️ ضبط التوقيت الصيفي/الشتوي وفوارق المرجع:</p>
@@ -803,14 +964,18 @@ function PrayerTimesCard() {
             <button
               type="button"
               onClick={() => updateHourOffset(0)}
-              className={`rounded px-2 py-1 ${hourOffset === 0 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"}`}
+              className={`rounded px-2 py-1 ${
+                hourOffset === 0 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"
+              }`}
             >
               عادي / شتوي (0س)
             </button>
             <button
               type="button"
               onClick={() => updateHourOffset(1)}
-              className={`rounded px-2 py-1 ${hourOffset === 1 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"}`}
+              className={`rounded px-2 py-1 ${
+                hourOffset === 1 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"
+              }`}
             >
               صيفي (+1ساعة)
             </button>
@@ -818,14 +983,31 @@ function PrayerTimesCard() {
           <div className="mb-2 space-y-1.5">
             <p className="text-[11px] text-muted-foreground">فارق الدقائق حسب المرجع / الاحتياط:</p>
             {prayerNames.map((p) => (
-              <div key={p.key} className="flex items-center justify-between rounded bg-card px-2 py-1 border border-border/50">
-                <span>{p.ar} ({p.de}):</span>
+              <div
+                key={p.key}
+                className="flex items-center justify-between rounded bg-card px-2 py-1 border border-border/50"
+              >
+                <span>
+                  {p.ar} ({p.de}):
+                </span>
                 <div className="flex items-center gap-1.5 font-mono">
-                  <button type="button" onClick={() => updateMinOffset(p.key, -1)} className="h-5 w-5 rounded bg-muted hover:bg-muted/80 leading-none font-bold">-</button>
+                  <button
+                    type="button"
+                    onClick={() => updateMinOffset(p.key, -1)}
+                    className="h-5 w-5 rounded bg-muted hover:bg-muted/80 leading-none font-bold"
+                  >
+                    -
+                  </button>
                   <span className="w-8 text-center font-bold text-secondary">
                     {(minuteOffsets[p.key] || 0) > 0 ? `+${minuteOffsets[p.key]}` : minuteOffsets[p.key] || 0}د
                   </span>
-                  <button type="button" onClick={() => updateMinOffset(p.key, 1)} className="h-5 w-5 rounded bg-muted hover:bg-muted/80 leading-none font-bold">+</button>
+                  <button
+                    type="button"
+                    onClick={() => updateMinOffset(p.key, 1)}
+                    className="h-5 w-5 rounded bg-muted hover:bg-muted/80 leading-none font-bold"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             ))}
@@ -842,49 +1024,109 @@ function PrayerTimesCard() {
         </div>
       )}
 
-      {/* أزرار اختيار المدن مع أزرار النقل ◀️ ▶️ عند وضع التعديل */}
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        {citiesList.map((c, idx) => (
-          <div key={c.id} className="relative flex items-center">
-            <Button
-              size="sm"
-              variant={city === c.id ? "default" : "outline"}
-              onClick={() => setCity(c.id)}
-              className="h-auto w-full py-1.5"
-            >
-              <Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} />
-            </Button>
-            {isEditing && (
-              <div className="absolute left-1 flex items-center gap-0.5 bg-card/90 rounded border border-secondary/40 shadow-xs px-0.5">
-                <button
-                  type="button"
-                  disabled={idx === 0}
-                  onClick={(e) => { e.stopPropagation(); moveCity(idx, -1); }}
-                  aria-label="تقديم"
-                  className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
-                >
-                  ◀
-                </button>
-                <button
-                  type="button"
-                  disabled={idx === citiesList.length - 1}
-                  onClick={(e) => { e.stopPropagation(); moveCity(idx, 1); }}
-                  aria-label="تأخير"
-                  className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
-                >
-                  ▶
-                </button>
-              </div>
-            )}
-          </div>
+      {/* شريط اختيار الوجهة: موقعي الحالي | العراق | الحرمين | إيران */}
+      <div className="mb-3 grid grid-cols-4 gap-1 rounded-lg bg-muted/60 p-1 text-[11px]">
+        {prayerRegions.map((reg) => (
+          <button
+            key={reg.id}
+            type="button"
+            onClick={() => handleRegionChange(reg.id)}
+            className={`rounded-md px-1 py-1.5 font-bold transition-all text-center ${
+              activeRegion === reg.id
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {reg.ar}
+          </button>
         ))}
       </div>
+
+      {/* إذا تم اختيار موقعي الحالي GPS */}
+      {activeRegion === "location" ? (
+        <div className="mb-3 rounded-md border border-border/70 bg-accent/20 p-2.5 text-center">
+          {gpsLoading ? (
+            <p className="text-xs text-muted-foreground animate-pulse">
+              📍 جاري قراءة موقعك الحالي... | Standort wird ermittelt...
+            </p>
+          ) : gpsCoords ? (
+            <div className="flex items-center justify-between px-2 text-xs">
+              <span className="font-semibold text-primary">
+                📍 الموقع الحالي: <span className="font-mono text-secondary">{timezone.replace(/_/g, " ")}</span>
+              </span>
+              <button
+                type="button"
+                onClick={requestGps}
+                className="text-[11px] text-muted-foreground underline hover:text-primary"
+              >
+                تحديث الموقع 🔄
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">
+                {gpsError || "اضغط على الزر لتفعيل مواقيت الصلاة حسب موقعك الحالي في العالم"}
+              </p>
+              <Button size="sm" onClick={requestGps} className="h-8 gap-1 text-xs">
+                <MapPin className="h-3.5 w-3.5" />
+                تحديد موقعي الآن | Meinen Standort abrufen
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* أزرار اختيار المدن مع أسهم النقل ◀️ ▶️ للإدارة */
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          {currentRegionCities.map((c, idx) => (
+            <div key={c.id} className="relative flex items-center">
+              <Button
+                size="sm"
+                variant={city === c.id ? "default" : "outline"}
+                onClick={() => setCity(c.id)}
+                className="h-auto w-full py-1.5"
+              >
+                <Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} />
+              </Button>
+              {isEditing && (
+                <div className="absolute left-1 flex items-center gap-0.5 bg-card/90 rounded border border-secondary/40 shadow-xs px-0.5">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveCityInRegion(c.id, -1);
+                    }}
+                    aria-label="تقديم"
+                    className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === currentRegionCities.length - 1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveCityInRegion(c.id, 1);
+                    }}
+                    aria-label="تأخير"
+                    className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
+                  >
+                    ▶
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* شريط الأذان القادم */}
       {nextInfo && (
         <div className="mb-3 flex items-center justify-between rounded-md border border-secondary/40 bg-accent/50 px-3 py-1.5 text-xs">
           <span className="font-bold text-primary">⏳ الأذان القادم: صلاة {nextInfo.nameAr}</span>
-          <span dir="ltr" className="font-mono font-bold text-secondary">{nextInfo.diffStr}</span>
+          <span dir="ltr" className="font-mono font-bold text-secondary">
+            {nextInfo.diffStr}
+          </span>
         </div>
       )}
 
@@ -892,35 +1134,36 @@ function PrayerTimesCard() {
       <div className="grid grid-cols-4 gap-2 text-center">
         {prayerNames.map((p) => {
           const raw = times?.[p.key];
-          const displayTime = raw ? getAdjustedTime(p.key, raw) : (failed ? "—" : "…");
+          const displayTime = raw ? getAdjustedTime(p.key, raw) : failed ? "—" : "…";
           return (
             <div key={p.key} className="rounded-md bg-muted px-1 py-2">
               <p className="text-[11px] font-bold text-primary">{p.ar}</p>
-              <p lang="de" dir="ltr" className="text-[9px] italic text-muted-foreground">{p.de}</p>
-              <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">{displayTime}</p>
+              <p lang="de" dir="ltr" className="text-[9px] italic text-muted-foreground">
+                {p.de}
+              </p>
+              <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">
+                {displayTime}
+              </p>
             </div>
           );
         })}
       </div>
-      <p className="mt-2 text-[10px] text-muted-foreground">
-        <Pair ar="بالتوقيت المحلي للعراق — حسب المذهب الجعفري" de="Ortszeit Irak — nach jaʿfaritischer Berechnung" />
+
+      {/* سطر الملاحظة أسفل الكرت */}
+      <p className="mt-2 text-[10px] text-muted-foreground text-center">
+        {activeRegion === "location" ? (
+          <Pair
+            ar={`حسب موقع جهازك (${timezone.replace(/_/g, " ")}) — مذهب أهل البيت (ع)`}
+            de={`Nach aktuellem Standort (${timezone.replace(/_/g, " ")}) — jaʿfaritisch`}
+          />
+        ) : (
+          <Pair
+            ar="بالتوقيت المحلي للمدينة المقدسة — مذهب أهل البيت (ع)"
+            de="Ortszeit der heiligen Stätte — jaʿfaritische Berechnung"
+          />
+        )}
       </p>
     </section>
-  );
-}
-
-function AlertBanner({ alert }: { alert: SiteContent["alert"] }) {
-  const [hidden, setHidden] = useState(false);
-  if (!alert.active || (!alert.ar && !alert.de) || hidden) return null;
-  return (
-    <div role="alert" className="alert-glow mx-4 mt-4 flex items-start gap-3 rounded-lg border border-secondary bg-primary p-4 text-primary-foreground">
-      <Siren className="mt-0.5 h-5 w-5 shrink-0 animate-pulse text-secondary" aria-hidden="true" />
-      <div className="min-w-0 flex-1 text-sm">
-        <p className="mb-1 text-xs font-extrabold text-secondary">تنبيه عاجل <span lang="de" className="italic">| Eilmeldung</span></p>
-        <Pair ar={alert.ar} de={alert.de} inverse />
-      </div>
-      <button onClick={() => setHidden(true)} aria-label="إغلاق | Schließen" className="text-lg leading-none text-primary-foreground/70 hover:text-primary-foreground">×</button>
-    </div>
   );
 }
 
