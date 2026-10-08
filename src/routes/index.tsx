@@ -18,7 +18,8 @@ import { CustomSectionView, HomeBanner, TileGrid, pathOf, type Tile } from "@/co
 import { LanguageSwitcher } from "@/components/lang-switcher";
 import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
-import { useAdminSession, useShowHidden } from "@/lib/admin-session";
+import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
+import { LuggageTags } from "@/components/luggage-tags";
 import { enablePush } from "@/lib/push";
 import { BookingForm, BookingsPanel } from "@/components/booking";
 import { CampaignQrDialog } from "@/components/campaign-qr";
@@ -474,6 +475,12 @@ function Detail({ icon: Icon, ar, de, detailAr, detailDe }: { icon: IconType; ar
   return <div dir={ltr ? "ltr" : "rtl"} className="flex gap-3 border-b border-border pb-3 last:border-0"><Icon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" /><div className="min-w-0 flex-1 text-start"><Pair ar={ar} de={de} /><div className="mt-1 text-sm"><Pair ar={detailAr} de={detailDe} /></div></div></div>;
 }
 
+function StaffLuggageTags() {
+  const staff = useStaffSession();
+  if (!staff) return null;
+  return <div className="mb-4"><LuggageTags nameAr="" nameDe="" /></div>;
+}
+
 function RegistrationView({ content, admin }: { content: SiteContent; admin?: AdminCtx }) {
   return (
     <div className="screen-enter px-4 py-7">
@@ -482,6 +489,7 @@ function RegistrationView({ content, admin }: { content: SiteContent; admin?: Ad
         {admin && <SectionAdminBar />}
       </div>
       <BookingsPanel content={content} />
+      <StaffLuggageTags />
       <BookingForm content={content} />
     </div>
   );
@@ -648,14 +656,19 @@ function PrayerTimesCard() {
   });
 
   // إحداثيات الموقع الحالي GPS
-  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  // مدينة مكتوبة يدوياً (تُحفظ فقط عند الإدخال اليدوي)
+  const [manualPlace, setManualPlace] = useState<{ name: string; lat: number; lng: number } | null>(() => {
     try {
-      const saved = localStorage.getItem("ushaq_prayer_gps");
+      const saved = localStorage.getItem("ushaq_prayer_manual");
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeBusy, setPlaceBusy] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
@@ -713,9 +726,11 @@ function PrayerTimesCard() {
       (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setGpsCoords(coords);
+        setManualPlace(null);
         setGpsLoading(false);
         try {
-          localStorage.setItem("ushaq_prayer_gps", JSON.stringify(coords));
+          localStorage.removeItem("ushaq_prayer_gps");
+          localStorage.removeItem("ushaq_prayer_manual");
         } catch {}
       },
       (err) => {
@@ -726,9 +741,39 @@ function PrayerTimesCard() {
             : "تعذر قراءة الموقع، يرجى المحاولة ثانية | Standort nicht ermittelbar"
         );
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 15000, enableHighAccuracy: false, maximumAge: 300000 }
     );
   };
+
+  // البحث عن مدينة بالاسم
+  const searchPlace = async () => {
+    const q = placeQuery.trim();
+    if (!q) return;
+    setPlaceBusy(true);
+    setPlaceError(null);
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ar,de,en&q=${encodeURIComponent(q)}`);
+      const j = (await r.json()) as Array<{ lat: string; lon: string; display_name: string }>;
+      const hit = j[0];
+      if (!hit) throw new Error("none");
+      const place = { name: hit.display_name.split(",").slice(0, 2).join(",").trim(), lat: Number(hit.lat), lng: Number(hit.lon) };
+      setManualPlace(place);
+      setPlaceQuery("");
+      try {
+        localStorage.setItem("ushaq_prayer_manual", JSON.stringify(place));
+      } catch {}
+    } catch {
+      setPlaceError("لم يتم العثور على المدينة، جرّب اسماً آخر | Ort nicht gefunden");
+    } finally {
+      setPlaceBusy(false);
+    }
+  };
+
+  // تحديث الموقع الحي تلقائياً عند فتح «موقعي» (ما لم تُختر مدينة يدوياً)
+  useEffect(() => {
+    if (activeRegion === "location" && !manualPlace && !gpsCoords) requestGps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRegion]);
 
   const handleRegionChange = (regId: string) => {
     setActiveRegion(regId);
@@ -736,7 +781,7 @@ function PrayerTimesCard() {
       localStorage.setItem("ushaq_prayer_region", regId);
     } catch {}
     if (regId === "location") {
-      if (!gpsCoords) requestGps();
+      if (!gpsCoords && !manualPlace) requestGps();
     } else {
       const regCities = citiesList.filter((c) => c.region === regId);
       if (regCities[0] && !regCities.some((c) => c.id === city)) {
@@ -802,8 +847,9 @@ function PrayerTimesCard() {
 
     let url = "";
     if (activeRegion === "location") {
-      if (!gpsCoords) return;
-      url = `https://api.aladhan.com/v1/timings?latitude=${gpsCoords.lat}&longitude=${gpsCoords.lng}&method=0`;
+      const pt = manualPlace ?? gpsCoords;
+      if (!pt) return;
+      url = `https://api.aladhan.com/v1/timings?latitude=${pt.lat}&longitude=${pt.lng}&method=0`;
     } else {
       const curCity = citiesList.find((c) => c.id === city) || citiesList[0];
       if (!curCity) return;
@@ -827,7 +873,7 @@ function PrayerTimesCard() {
     return () => {
       off = true;
     };
-  }, [activeRegion, city, gpsCoords, citiesList]);
+  }, [activeRegion, city, gpsCoords, manualPlace, citiesList]);
 
   // تعديل الوقت حسب فوارق التوقيت
   const getAdjustedTime = (key: string, raw?: string) => {
@@ -1044,8 +1090,15 @@ function PrayerTimesCard() {
 
       {/* إذا تم اختيار موقعي الحالي GPS */}
       {activeRegion === "location" ? (
-        <div className="mb-3 rounded-md border border-border/70 bg-accent/20 p-2.5 text-center">
-          {gpsLoading ? (
+        <div className="mb-3 space-y-2 rounded-md border border-border/70 bg-accent/20 p-2.5 text-center">
+          {manualPlace ? (
+            <div className="flex items-center justify-between gap-2 px-1 text-xs">
+              <span className="min-w-0 truncate font-semibold text-primary">🔍 {manualPlace.name}</span>
+              <button type="button" onClick={requestGps} className="shrink-0 text-[11px] text-muted-foreground underline hover:text-primary">
+                📍 موقعي التلقائي | GPS
+              </button>
+            </div>
+          ) : gpsLoading ? (
             <p className="text-xs text-muted-foreground animate-pulse">
               📍 جاري قراءة موقعك الحالي... | Standort wird ermittelt...
             </p>
@@ -1054,11 +1107,7 @@ function PrayerTimesCard() {
               <span className="font-semibold text-primary">
                 📍 الموقع الحالي: <span className="font-mono text-secondary">{timezone.replace(/_/g, " ")}</span>
               </span>
-              <button
-                type="button"
-                onClick={requestGps}
-                className="text-[11px] text-muted-foreground underline hover:text-primary"
-              >
+              <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
                 تحديث الموقع 🔄
               </button>
             </div>
@@ -1073,6 +1122,24 @@ function PrayerTimesCard() {
               </Button>
             </div>
           )}
+          <form
+            className="flex gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void searchPlace();
+            }}
+          >
+            <input
+              value={placeQuery}
+              onChange={(e) => setPlaceQuery(e.target.value)}
+              placeholder="أو اكتب اسم مدينتك | Oder Stadt eingeben"
+              className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <Button type="submit" size="sm" disabled={placeBusy || !placeQuery.trim()} className="h-8 text-xs">
+              {placeBusy ? "..." : "🔍 بحث | Suchen"}
+            </Button>
+          </form>
+          {placeError && <p className="text-[11px] text-destructive">{placeError}</p>}
         </div>
       ) : (
         /* أزرار اختيار المدن مع أسهم النقل ◀️ ▶️ للإدارة */

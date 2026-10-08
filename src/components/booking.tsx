@@ -24,6 +24,7 @@ const cats: Array<{ id: Cat; ar: string; de: string }> = [
   { id: "infant", ar: "رضيع (أقل من سنتين)", de: "Kleinkind (unter 2)" },
 ];
 const rooms = [
+  { id: "single", ar: "منفردة (غرفة خاصة)", de: "Einzelzimmer (privat)" },
   { id: "double", ar: "ثنائية", de: "Doppelzimmer" }, { id: "triple", ar: "ثلاثية", de: "Dreibettzimmer" },
   { id: "quad", ar: "رباعية", de: "Vierbettzimmer" }, { id: "family", ar: "عائلية", de: "Familienzimmer" },
   { id: "leader", ar: "حسب ما يراه الحاج ياسر مناسباً", de: "Nach Ermessen der Reiseleitung" },
@@ -241,12 +242,11 @@ function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Tra
     finally { setBusy(false); }
   };
   return <div className="space-y-1.5">
-    <label className={`flex cursor-pointer items-center gap-3 rounded-md border-2 border-secondary bg-primary p-3 text-primary-foreground ${busy ? "opacity-70" : ""}`}>
+    <div className="flex flex-wrap items-start gap-1"><label className={`flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md border-2 border-secondary bg-primary p-3 text-primary-foreground ${busy ? "opacity-70" : ""}`}>
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}</span>
       <span className="min-w-0 flex-1 text-sm font-bold"><LangText ar="مسح الجواز وتعبئة البيانات تلقائياً" de="Pass scannen & automatisch ausfüllen" inverse /><span className="block text-[11px] font-normal opacity-80"><LangText ar={reg.ocrNoteAr || "صوّر صفحة البيانات كاملة مع السطرين السفليين، بدون فلاش ولمعان."} de={reg.ocrNoteDe || "Ganze Datenseite inkl. der zwei unteren Zeilen, ohne Blitz und Spiegelung."} inverse /></span></span>
       <input type="file" accept="image/*" className="hidden" disabled={busy} onClick={markPicking} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; donePicking(); if (f) void run(f); }} />
-    </label>
-    {pen}
+    </label>{pen}</div>
     {msg && <p className={`rounded-md p-2 text-xs ${msg.ok ? "bg-accent text-primary" : "bg-destructive/10 text-destructive"}`}><L ar={msg.ar} de={msg.de} /></p>}
   </div>;
 }
@@ -423,7 +423,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
 
       {step === 3 && <>
         <div className="rounded-md bg-muted p-3"><p className="font-bold text-primary">{tripName}</p>{tripDate && <p dir="ltr" className="text-xs text-muted-foreground">{tripDate}</p>}<p className="mt-1 text-xs"><Users className="me-1 inline h-3.5 w-3.5" />{travelers.length} — <LangText ar={`بالغ ${travelers.filter((t) => t.category === "adult").length}، طفل ${travelers.filter((t) => t.category === "child").length}، رضيع ${travelers.filter((t) => t.category === "infant").length}`} de={`Erw. ${travelers.filter((t) => t.category === "adult").length}, Kind ${travelers.filter((t) => t.category === "child").length}, Kleinkind ${travelers.filter((t) => t.category === "infant").length}`} /></p></div>
-        <div><p className="mb-1 font-bold"><L ar="تفضيل الغرفة" de="Zimmerwunsch" /></p><div className="grid grid-cols-2 gap-1.5">{rooms.map((r) => <button key={r.id} type="button" onClick={() => setRoomPref(r.id)} className={`rounded-md border py-2 text-xs font-bold ${roomPref === r.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={r.ar} de={r.de} center /></button>)}</div></div>
+        <div><p className="mb-1 font-bold"><L ar="تفضيل الغرفة" de="Zimmerwunsch" /></p><div className="grid grid-cols-2 gap-1.5">{rooms.map((r) => <button key={r.id} type="button" onClick={() => setRoomPref(r.id)} className={`rounded-md border py-2 text-xs font-bold ${roomPref === r.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={r.ar} de={r.de} center /></button>)}</div><p className="mt-1 text-[11px] text-muted-foreground"><L ar="(يختلف السعر الإضافي بحسب نوع الغرفة المختارة، مثل الغرفة المنفردة أو غرفة كاملة خاصة، وبالتنسيق مع إدارة الحملة)" de="(Der Aufpreis richtet sich nach der gewählten Zimmerart, z. B. Einzel- oder eigenes Zimmer – in Absprache mit der Reiseleitung)" /></p></div>
         <label className="block font-bold"><L ar="ملاحظات (حالة صحية، كرسي متحرك، طعام…)" de="Hinweise (Gesundheit, Rollstuhl, Essen …)" /><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1500} className={inputCls} /></label>
         <ExtraFields content={content} step={3} values={extras} onChange={setExtras} />
         <label className="flex items-start gap-2 rounded-md border border-border p-3"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-4 w-4 accent-secondary" /><span className="text-xs leading-relaxed"><L ar="أؤكد أن جميع البيانات مطابقة للجوازات، وأوافق على استخدامها لحجز الطيران والفندق وطلب التأشيرة فقط." de="Ich bestätige, dass alle Angaben den Reisepässen entsprechen, und stimme der Nutzung nur für Flug, Hotel und Visum zu." /></span></label>
