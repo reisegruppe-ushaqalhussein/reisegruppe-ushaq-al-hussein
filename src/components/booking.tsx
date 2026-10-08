@@ -625,20 +625,30 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
             <span dir="ltr" className="font-mono text-muted-foreground">{r.ref}</span>
             <span className="rounded-full bg-accent px-2 py-0.5 font-medium">{bi(statusLabels[r.status] ?? "")}</span>
             <span className="rounded-full bg-muted px-2 py-0.5 font-medium">{bi(payLabels[r.payment_status] ?? "")} {r.paid_amount}/{r.total_amount}€</span>
-            <span className="text-muted-foreground">{r.trip}</span>
+            <span className="text-muted-foreground">{tripLabel(groupKey(r), bi)}</span>
           </div>
           {r.contact_phone && <a href={waLink(r.contact_phone)} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"><MessageCircle className="h-4 w-4" />{bi("مراسلة عبر واتساب | WhatsApp")}</a>}
           <div className="space-y-2 text-xs">
           <p dir="ltr" className="text-start">{r.contact_email} · <a className="underline" href={waLink(r.contact_phone)} target="_blank" rel="noreferrer">{r.contact_phone}</a></p>
-          {r.travelers.map((t, i) => <div key={i} className="rounded bg-muted p-2" dir="ltr"><b>{i + 1}. {t["lastName"]}/{t["firstName"]}</b> — {t["category"]?.toUpperCase()} {t["gender"]?.toUpperCase()} — {t["birthDate"]} — {t["nationality"]} — {t["passportNo"]} ({t["passportExpiry"]}) {t["airport"] && `✈ ${t["airport"]}`} {t["relation"] && `— ${t["relation"]}`}
-            <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{k === "passportFile" ? "Pass" : "Foto"}</button>)}</span>
-            <label className="mt-1.5 flex items-center gap-1.5" dir={lang === "ar" || lang === "both" ? "rtl" : "ltr"}>
+          {r.travelers.map((t, i) => { const rel = (t["relation"] ?? "").trim(); const row = (label: string, v?: string, ltr = true) => v ? <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2 border-b border-border/60 py-1 last:border-0"><span className="text-muted-foreground">{bi(label)}</span><span dir={ltr ? "ltr" : undefined} className="break-words text-start font-medium">{v}</span></div> : null; return <div key={i} className="rounded-md bg-muted p-2">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">{bi(i === 0 ? "👤 صاحب الطلب | Antragsteller/in" : `👥 مرافق ${i} | Begleitperson ${i}`)}</span><b dir="ltr" className="text-primary">{t["lastName"]} {t["firstName"]}</b></div>
+            {row("الفئة | Kategorie", `${paxOf(t)} · ${bi(`${cats.find((c) => c.id === t["category"])?.ar ?? ""} | ${cats.find((c) => c.id === t["category"])?.de ?? ""}`)}`, false)}
+            {row("الجنس | Geschlecht", t["gender"] ? bi(t["gender"] === "f" ? "أنثى | weiblich" : "ذكر | männlich") : "", false)}
+            {row("تاريخ الميلاد | Geburtsdatum", t["birthDate"])}
+            {row("الجنسية | Nationalität", t["nationality"])}
+            {row("رقم الجواز | Passnummer", t["passportNo"])}
+            {row("انتهاء الجواز | Pass gültig bis", t["passportExpiry"])}
+            {row("المطار | Flughafen", t["airport"])}
+            {i > 0 && row("صلة القرابة | Beziehung", rel.includes(" | ") ? bi(rel) : rel, false)}
+            <span className="mt-1 flex gap-2">{(["passportFile", "photoFile"] as const).map((k) => t[k] && <button key={k} type="button" className="inline-flex items-center gap-1 underline" onClick={async () => { const w = window.open("", "_blank"); const u = await fileUrl({ data: { password: s.password, path: t[k]! } }); if (w) w.location.href = u.url; }}><FileText className="h-3 w-3" />{bi(k === "passportFile" ? "الجواز | Pass" : "الصورة | Foto")}</button>)}</span>
+            <label className="mt-1.5 flex items-center gap-1.5">
               <span className={`rounded-full px-2 py-0.5 font-bold ${visaCls[t["visa"] || "none"]}`}>🛂</span>
               <select value={t["visa"] || "none"} onChange={(e) => void patch(r, { travelers: r.travelers.map((x, j) => j === i ? { ...x, visa: e.target.value } : x) })} className={inputCls + " mt-0 flex-1 py-1 text-xs"}>{Object.entries(visaLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
-            </label></div>)}
+            </label></div>; })}
           <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
           {issuesOf(r).length > 0 && <ul className="rounded-md border-2 border-destructive bg-destructive/10 p-2 font-bold text-destructive">{issuesOf(r).map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
-          {(r.room_pref || r.notes) && <p>🛏 {roomName(r.room_pref)} · {r.notes}</p>}
+          {r.room_pref && <p>🛏 <b>{bi("الغرفة | Zimmer")}:</b> {roomLabel(r.room_pref, bi)}</p>}
+          {r.notes && <p className="whitespace-pre-line">📝 {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
             <select value={r.payment_status} onChange={(e) => void patch(r, { payment_status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(payLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
