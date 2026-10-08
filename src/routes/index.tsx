@@ -315,7 +315,7 @@ function HomeView({ open, content, payment }: { open: (id: string) => void; cont
       <TileGrid content={content} builtins={homeTiles} onOpen={open} />
 
       <InstallButton />
-      <PrayerTimesCard />
+      <PrayerTimesCard content={content} />
 
       {payment?.visible && <PaymentCard payment={payment} />}
     </div>
@@ -640,7 +640,8 @@ const prayerRegions = [
   { id: "iran", ar: "🇮🇷 إيران", de: "Iran" },
 ] as const;
 
-function PrayerTimesCard() {
+function PrayerTimesCard({ content }: { content?: SiteContent }) {
+  const prayerTitle = content ? labelOf(content, "prayer", "مواقيت الصلاة", "Gebetszeiten") : { ar: "مواقيت الصلاة", de: "Gebetszeiten" };
   const adminSession = useAdminSession();
   const [localEdit, setLocalEdit] = useState(false);
   const isSectionEditing = useSectionEditMode();
@@ -1004,8 +1005,9 @@ function PrayerTimesCard() {
             <Clock className="h-5 w-5" aria-hidden="true" />
           </span>
           <h2 className="text-primary font-bold">
-            <Pair ar="مواقيت الصلاة" de="Gebetszeiten" />
+            <Pair ar={prayerTitle.ar} de={prayerTitle.de} />
           </h2>
+          {isEditing && content && <RenameTitle content={content} labelKey="prayer" ar={prayerTitle.ar} de={prayerTitle.de} />}
         </div>
         {adminSession && (
           <button
