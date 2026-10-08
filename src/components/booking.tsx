@@ -450,6 +450,12 @@ function visaType(trip: string) { const d = destOf(trip); return d === "umrah" ?
 const paxOf = (t: Record<string, string>) => t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
 const paxMark: Record<string, string> = { ADT: "ADT", CHD: "CHD ⚠ CHILD", INF: "INF ⚠ INFANT (lap)" };
 const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === id); return r ? `${r.de} / ${r.ar}` : id ?? ""; };
+/** In-app room label in the chosen language (exports keep roomName). */
+const roomLabel = (id: string | null, bi: (s: string) => string) => { const r = rooms.find((x) => x.id === (id || "leader")); return r ? bi(`${r.ar} | ${r.de}`) : id ?? ""; };
+/** Display-only trip name: drops a dangling "|" and shows the chosen language; the stored value stays unchanged for matching. */
+const tripLabel = (t: string, bi: (s: string) => string) => { const s = t.replace(/\s*\|\s*(?=$| —)/g, "").trim(); return / \| \S/.test(s) ? bi(s) : s; };
+/** Search normalizer: case/accents/extra spaces ignored so a query never misses due to formatting. */
+const norm = (v: string | null | undefined) => (v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 /** One group per trip + date so each journey gets its own list. */
 const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
@@ -551,6 +557,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [open, setOpen] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(60);
+  const [showLists, setShowLists] = useState(false);
   const [push, setPush] = useState("");
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
@@ -582,8 +589,9 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const w = window.open("", "_blank"); if (!w) return;
     w.document.write(printHtml(sheetOf(kind, shown, hotelMap), filter)); w.document.close();
   };
-  const ql = q.trim().toLowerCase();
-  const listed = ql ? shown.filter((r) => [r.ref, r.contact_phone, r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].join(" ").toLowerCase().includes(ql)) : shown;
+  const ql = norm(q);
+  const qw = ql.split(" ").filter(Boolean);
+  const listed = qw.length ? shown.filter((r) => qw.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), r.contact_email, ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].some((v) => norm(v).includes(w)))) : shown;
   const openRow = (rows ?? []).find((r) => r.id === open) ?? null;
   const pax = shown.reduce((n, r) => n + r.travelers.length, 0);
   return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
