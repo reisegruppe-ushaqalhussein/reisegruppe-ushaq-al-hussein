@@ -257,7 +257,7 @@ const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "Münc
 type Lbl = { ar: string; de: string };
 type ExtraField = { id: string; ar: string; de: string; step: 1 | 3; required?: boolean };
 type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string> };
-const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 1 };
+const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 2 };
 const extraFields = (reg: RegCfg) => [...(reg.cityOff ? [] : [CITY]), ...(reg.extra ?? [])];
 const labelOf = (reg: RegCfg, f: ExtraField): Lbl => { const o = reg.labels?.[f.ar]; return { ar: o?.ar || f.ar, de: o?.de || f.de }; };
 const DRAFT_KEY = "booking-draft";
@@ -324,8 +324,8 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const missingExtra = (st: number) => fields.filter((f) => f.step === st && f.required && !(extras[f.id] ?? "").trim()).map((f) => `${labelOf(reg, f).ar} | ${labelOf(reg, f).de}`);
   const validate = (s: number): string[] => {
     if (s === 0) { const e: string[] = []; if (!tripName) e.push("اختر الرحلة أو اكتب الوجهة | Bitte Reise wählen oder Reiseziel eingeben"); else if (trip === OTHER && !tripDate) e.push("اكتب التاريخ المطلوب | Bitte Wunschdatum angeben"); if (airport.length < 2) e.push("اختر مطار الانطلاق | Bitte Abflughafen wählen"); return e; }
-    if (s === 1) { const e: string[] = []; if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.push("البريد الإلكتروني | E-Mail"); if (!/^[+0-9 ()-]{6,30}$/.test(phone.trim())) e.push("رقم الواتساب | WhatsApp-Nummer"); return [...e, ...missingExtra(1)]; }
-    if (s === 2) { const e = travelers.flatMap(travelerErrors); if (!travelers.some((t) => t.category === "adult")) e.push("يجب وجود بالغ واحد على الأقل | Mindestens ein Erwachsener"); return e; }
+    if (s === 1) { const e = travelers.flatMap(travelerErrors); if (!travelers.some((t) => t.category === "adult")) e.push("يجب وجود بالغ واحد على الأقل | Mindestens ein Erwachsener"); return e; }
+    if (s === 2) { const e: string[] = []; if (!/^\S+@\S+\.\S+$/.test(email.trim())) e.push("البريد الإلكتروني | E-Mail"); if (!/^[+0-9 ()-]{6,30}$/.test(phone.trim())) e.push("رقم الواتساب | WhatsApp-Nummer"); return [...e, ...missingExtra(2)]; }
     if (s === 3) return [...missingExtra(3), ...(consent ? [] : ["الرجاء تأكيد صحة البيانات | Bitte Richtigkeit bestätigen"])];
     return [];
   };
@@ -360,29 +360,50 @@ export function BookingForm({ content }: { content: SiteContent }) {
     <p className="mt-5 text-xs leading-relaxed text-secondary">Reisegruppe Ushaq al-Hussein DE<br />حملة عشاق الحسين - ألمانيا · بإدارة الحاج ياسر الدر</p>
   </section>;
 
-  const steps = [{ ar: "الرحلة", de: "Reise" }, { ar: "التواصل", de: "Kontakt" }, { ar: "المسافرون", de: "Reisende" }, { ar: "التأكيد", de: "Abschluss" }];
+   const steps = [
+    { ar: "الرحلة", de: "Reise" },
+    { ar: "المسافرون", de: "Reisende" },
+    { ar: "التواصل", de: "Kontakt" },
+    { ar: "التأكيد", de: "Bestätigung" }
+  ];
    return (
     <RegCtx.Provider value={content}>
       {settings}
       {note}
 
   {adminS && (
-  <div dir={rtl ? "rtl" : "ltr"} className={`mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs ${rtl ? "text-right" : "text-left"}`}>
+   <div dir={rtl ? "rtl" : "ltr"} className={`mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs ${rtl ? "text-right" : "text-left"}`}>
     <div className="flex items-center justify-between mb-1">
       <span className="font-bold text-primary">
-        ⚙️ <LangText ar="وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة" de="Admin: Direkte Navigation im Formular" />
+        ⚙️ <LangText ar="وضع الإدارة: تنقّل مباشر لمراجعة الاستمارة" de="Admin: Direkte Formular-Navigation" />
       </span>
       <span className="text-[10px] text-muted-foreground">
-        <LangText ar="(بدون ملء بيانات وهمية)" de="(ohne Testdaten)" />
+        <LangText ar="(تنقل حر)" de="(Direktansicht)" />
       </span>
     </div>
     <div className="grid grid-cols-4 gap-1">
       {[
         { idx: 0, ar: "1. الرحلة", de: "1. Reise" },
-        { idx: 1, ar: "2. التواصل", de: "2. Kontakt" },
-        { idx: 2, ar: "3. الجوازات", de: "3. Pässe" },
+        { idx: 1, ar: "2. المسافرون", de: "2. Reisende" },
+        { idx: 2, ar: "3. التواصل", de: "3. Kontakt" },
         { idx: 3, ar: "4. التأكيد", de: "4. Bestätigung" },
       ].map((st) => (
+        <button
+          key={st.idx}
+          type="button"
+          onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          className={`rounded px-1.5 py-1 text-center text-[11px] font-bold transition-all ${
+            step === st.idx
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-card border border-border text-primary hover:bg-accent"
+          }`}
+        >
+          <LangText ar={st.ar} de={st.de} />
+        </button>
+      ))}
+    </div>
+   </div>
+)}
         <button
           key={st.idx}
           type="button"
