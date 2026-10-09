@@ -366,30 +366,34 @@ export function BookingForm({ content }: { content: SiteContent }) {
       {settings}
       {note}
 
-      {adminS && (
+        {adminS && (
         <div className="mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs">
           <div className="flex items-center justify-between mb-1">
-            <span className="font-bold text-primary">⚙️ وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة</span>
-            <span className="text-[10px] text-muted-foreground">(بدون ملء بيانات وهمية)</span>
+            <span className="font-bold text-primary">
+              ⚙️ {bi("وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة | Admin: Direkte Navigation")}
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              {bi("(بدون ملء بيانات وهمية) | (ohne Testdaten)")}
+            </span>
           </div>
           <div className="grid grid-cols-4 gap-1">
             {[
-              { idx: 0, label: "1. الرحلة" },
-              { idx: 1, label: "2. التواصل" },
-              { idx: 2, label: "3. الجوازات" },
-              { idx: 3, label: "4. التأكيد" },
+              { idx: 0, ar: "1. الرحلة", de: "1. Reise" },
+              { idx: 1, ar: "2. التواصل", de: "2. Kontakt" },
+              { idx: 2, ar: "3. الجوازات", de: "3. Pässe" },
+              { idx: 3, ar: "4. التأكيد", de: "4. Bestätigung" },
             ].map((st) => (
               <button
                 key={st.idx}
                 type="button"
                 onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className={`rounded px-1.5 py-1 text-center font-bold transition-all ${
+                className={`rounded px-1.5 py-1 text-center text-[11px] font-bold transition-all ${
                   step === st.idx
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "bg-card border border-border text-primary hover:bg-accent"
                 }`}
               >
-                {st.label}
+                {bi(`${st.ar} | ${st.de}`)}
               </button>
             ))}
           </div>
@@ -599,23 +603,27 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
-   // الرحلات المعلنة الحالية من إعدادات الحملة
+   // الرحلات المعلنة الحالية من إعدادات الحملة (المصدر الأساسي)
   const announcedTrips = useMemo(() => {
     return content.trips.filter((t) => !t.hidden).map((t) => ({
-      key: `${t.ar} | ${t.de}${t.date ? ` | ${t.date}` : ""}`,
+      key: `${t.ar} | ${t.de}${t.date ? ` — ${t.date}` : ""}`,
       raw: `${t.ar} | ${t.de}`,
       ar: t.ar,
+      de: t.de,
       date: t.date ?? "",
     }));
   }, [content.trips]);
 
-  // دمج كل الرحلات المعلنة + أي رحلات سابقة لا تزال بالحجوزات
+  // دمج الرحلات المعلنة مع أي رحلات بالحجوزات دون تكرار
   const trips = useMemo(() => {
     const list: string[] = [];
     announcedTrips.forEach((a) => list.push(a.key));
     (rows ?? []).filter((r) => r.status !== "deleted").forEach((r) => {
       const k = groupKey(r);
-      if (!list.includes(k)) list.push(k);
+      const isAnnounced = announcedTrips.some(
+        (a) => a.key === k || a.raw === r.trip || k.includes(a.ar)
+      );
+      if (!isAnnounced && !list.includes(k)) list.push(k);
     });
     return list;
   }, [announcedTrips, rows]);
@@ -680,7 +688,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
       <button type="button" aria-label="سلة المحذوفات | Papierkorb" title="سلة المحذوفات | Papierkorb" onClick={() => setTrashView(!trashView)} className={`relative grid h-8 w-8 place-items-center rounded-full border border-border ${trashView ? "bg-primary text-primary-foreground" : "text-primary"}`}><Trash2 className="h-4 w-4" />{trashed.length > 0 && <span className="absolute -end-1 -top-1 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">{trashed.length}</span>}</button>
     </div>
     <Button variant="outline" size="sm" className="mt-2 w-full whitespace-normal text-xs" onClick={async () => { setPush("…"); try { const r = await enablePush(); setPush(r === "registered" ? "✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv" : r === "open-in-new-tab" ? "افتح التطبيق مباشرة (خارج المعاينة) ثم فعّل | Bitte App direkt öffnen" : r === "denied" ? "الإذن مرفوض — اسمح بالإشعارات في إعدادات الهاتف | Erlaubnis verweigert" : r === "unsupported" ? "على الآيفون: أضف التطبيق للشاشة الرئيسية أولاً | iPhone: zum Home-Bildschirm hinzufügen" : r); } catch { setPush("✗"); } }}><Bell className="h-3.5 w-3.5" />{bi(push || "تفعيل تنبيهات الحجوزات على هذا الهاتف | Buchungsalarm aktivieren")}</Button>
-    <select value={filter} onChange={(e) => { setFilter(e.target.value); setLimit(60); setShowLists(false); }} className={inputCls}>
+      <select value={filter} onChange={(e) => { setFilter(e.target.value); setLimit(60); setShowLists(false); }} className={inputCls}>
       <option value="all">{bi("اختر الرحلة لعرض حجوزاتها | Reise wählen...")}</option>
       {trips.map((t) => (
         <option key={t} value={t}>{tripLabel(t, bi)}</option>
@@ -944,10 +952,10 @@ export function RoomCalcPanel() {
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
     </div>
     <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
-        {/* كشف محاسبة الفنادق التلقائي بين الحاج وإدارة الفندق */}
+   {/* كشف الفنادق وحساب الغرف المرن للحاج مع إدارة الفنادق لأي وجهة */}
     <div className="mt-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2.5 text-xs">
       <div className="flex items-center justify-between mb-2">
-        <span className="font-bold text-primary">🏨 كشف محاسبة الفندق التلقائي (حسب أفراد الحجز)</span>
+        <span className="font-bold text-primary">🏨 {bi("كشف محاسبة الفنادق الميداني | Hotel-Abrechnung")}</span>
         <button
           type="button"
           onClick={() => {
@@ -955,42 +963,42 @@ export function RoomCalcPanel() {
             const doubles = byTrip.filter((r) => r.travelers.length === 2).length;
             const triples = byTrip.filter((r) => r.travelers.length === 3).length;
             const quads = byTrip.filter((r) => r.travelers.length >= 4).length;
-            const totalRooms = singles + doubles + triples + quads;
-            const text = `كشف غرف الحملة (${tripLabel(trip, bi)}):\n` +
+            const text = `🏨 كشف تسكين وغرف حملة عشاق الحسين (${tripLabel(trip, bi)}):\n` +
               `• غرف ثنائية: ${doubles}\n` +
               `• غرف ثلاثية: ${triples}\n` +
               `• غرف رباعية: ${quads}\n` +
-              `• غرف فردية/منفرد: ${singles}\n` +
+              `• غرف فردية: ${singles}\n` +
               `───────────────\n` +
-              `المجموع: ${totalRooms} غرفة لـ ${pax} زائر`;
+              `إجمالي الغرف التقديرية: ${singles + doubles + triples + quads} غرفة لـ ${pax} زائر`;
             navigator.clipboard.writeText(text);
-            window.alert("تم نسخ كشف المحاسبة بنجاح! يمكنك إرساله لإدارة الفندق عبر الواتساب.");
+            window.alert(bi("تم نسخ كشف المحاسبة بنجاح! | Kopiert!"));
           }}
-          className="rounded bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground hover:opacity-90"
+          className="rounded bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground hover:opacity-90"
         >
-          📋 نسخ الكشف للفندق
+          📋 {bi("نسخ الكشف | Kopieren")}
         </button>
       </div>
+
       <div className="grid grid-cols-4 gap-1 text-center font-bold">
         <div className="rounded bg-card p-1.5 border border-border">
-          <span className="text-[10px] text-muted-foreground block">ثنائية (2)</span>
+          <span className="text-[10px] text-muted-foreground block">{bi("ثنائية | Doppel")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 2).length}</span>
         </div>
         <div className="rounded bg-card p-1.5 border border-border">
-          <span className="text-[10px] text-muted-foreground block">ثلاثية (3)</span>
+          <span className="text-[10px] text-muted-foreground block">{bi("ثلاثية | Dreibett")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 3).length}</span>
         </div>
         <div className="rounded bg-card p-1.5 border border-border">
-          <span className="text-[10px] text-muted-foreground block">رباعية (4)</span>
+          <span className="text-[10px] text-muted-foreground block">{bi("رباعية | Vierbett")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length >= 4).length}</span>
         </div>
         <div className="rounded bg-card p-1.5 border border-border">
-          <span className="text-[10px] text-muted-foreground block">فردية (1)</span>
+          <span className="text-[10px] text-muted-foreground block">{bi("فردية | Einzel")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 1).length}</span>
         </div>
       </div>
       <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-        إجمالي الغرف المطلوبة: <b>{byTrip.filter((r) => r.travelers.length === 1).length + byTrip.filter((r) => r.travelers.length === 2).length + byTrip.filter((r) => r.travelers.length === 3).length + byTrip.filter((r) => r.travelers.length >= 4).length}</b> غرفة لـ <b>{pax}</b> زائر
+        {bi(`المجموع: ${byTrip.filter((r) => r.travelers.length === 1).length + byTrip.filter((r) => r.travelers.length === 2).length + byTrip.filter((r) => r.travelers.length === 3).length + byTrip.filter((r) => r.travelers.length >= 4).length} غرفة لـ ${pax} زائر | Gesamt: ${pax} Pax`)}
       </p>
     </div>
     <div className="mt-2 grid grid-cols-2 gap-1.5">
