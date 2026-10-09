@@ -604,7 +604,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
                     {/* ترس إدارة المجلد الخارجي */}
                     {staff && (
                       <div
-                        className="absolute left-2 top-1/2 z-10 -translate-y-1/2"
+                        className="absolute left-2 top-1 z-10"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <FolderMenu
