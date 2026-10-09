@@ -994,10 +994,10 @@ export function RoomCalcPanel() {
       <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
     </div>
     <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
-   {/* كشف الفنادق وحساب الغرف المرن للحاج مع إدارة الفنادق لأي وجهة */}
-    <div className="mt-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2.5 text-xs">
-      <div className="flex items-center justify-between mb-2">
-        <span className="font-bold text-primary">🏨 {bi("كشف محاسبة الفنادق الميداني | Hotel-Abrechnung")}</span>
+    {/* كشف الفنادق وحساب الغرف المرن للحاج مع إدخال حر لأي وجهة */}
+    <div className="mt-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-3 text-xs space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="font-bold text-primary text-sm">🏨 {bi("كشف محاسبة الفنادق الفعلي | Hotel-Abrechnung")}</span>
         <button
           type="button"
           onClick={() => {
@@ -1011,43 +1011,38 @@ export function RoomCalcPanel() {
               `• غرف رباعية: ${quads}\n` +
               `• غرف فردية: ${singles}\n` +
               `───────────────\n` +
-              `إجمالي الغرف التقديرية: ${singles + doubles + triples + quads} غرفة لـ ${pax} زائر`;
+              `إجمالي الغرف: ${singles + doubles + triples + quads} غرفة لـ ${pax} زائر`;
             navigator.clipboard.writeText(text);
             window.alert(bi("تم نسخ كشف المحاسبة بنجاح! | Kopiert!"));
           }}
-          className="rounded bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground hover:opacity-90"
+          className="rounded bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground hover:opacity-90 shadow-sm"
         >
           📋 {bi("نسخ الكشف | Kopieren")}
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 text-center font-bold">
-        <div className="rounded bg-card p-1.5 border border-border">
+      <div className="grid grid-cols-4 gap-1.5 text-center font-bold">
+        <div className="rounded bg-card p-2 border border-border shadow-2xs">
           <span className="text-[10px] text-muted-foreground block">{bi("ثنائية | Doppel")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 2).length}</span>
         </div>
-        <div className="rounded bg-card p-1.5 border border-border">
+        <div className="rounded bg-card p-2 border border-border shadow-2xs">
           <span className="text-[10px] text-muted-foreground block">{bi("ثلاثية | Dreibett")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 3).length}</span>
         </div>
-        <div className="rounded bg-card p-1.5 border border-border">
+        <div className="rounded bg-card p-2 border border-border shadow-2xs">
           <span className="text-[10px] text-muted-foreground block">{bi("رباعية | Vierbett")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length >= 4).length}</span>
         </div>
-        <div className="rounded bg-card p-1.5 border border-border">
+        <div className="rounded bg-card p-2 border border-border shadow-2xs">
           <span className="text-[10px] text-muted-foreground block">{bi("فردية | Einzel")}</span>
           <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 1).length}</span>
         </div>
       </div>
-      <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-        {bi(`المجموع: ${byTrip.filter((r) => r.travelers.length === 1).length + byTrip.filter((r) => r.travelers.length === 2).length + byTrip.filter((r) => r.travelers.length === 3).length + byTrip.filter((r) => r.travelers.length >= 4).length} غرفة لـ ${pax} زائر | Gesamt: ${pax} Pax`)}
-      </p>
-    </div>
-    <div className="mt-2 grid grid-cols-2 gap-1.5">
-      {rooms.map((rm) => { const c = byTrip.filter((r) => (r.room_pref || "leader") === rm.id); const on = room === rm.id; return <button key={rm.id} type="button" onClick={() => setRoom(on ? "all" : rm.id)} className={`rounded-md border p-2 text-start text-xs ${on ? "border-secondary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>
-        <span className="block font-bold">{roomLabel(rm.id, bi)}</span>
-        <span className="mt-0.5 block"><b className="text-lg text-secondary">{c.length}</b> {bi("غرفة | Zimmer")} · {c.reduce((n, r) => n + r.travelers.length, 0)} pax</span>
-      </button>; })}
+
+      <div className="rounded bg-card/80 p-2 border border-border/80 text-[11px] text-muted-foreground text-center">
+        {bi(`المجموع الميداني: ${byTrip.filter((r) => r.travelers.length === 1).length + byTrip.filter((r) => r.travelers.length === 2).length + byTrip.filter((r) => r.travelers.length === 3).length + byTrip.filter((r) => r.travelers.length >= 4).length} غرفة موزعة على ${pax} زائر مسجل | Gesamt: ${pax} Pax`)}
+      </div>
     </div>
     <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("🔍 اسم الزائر (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />
     {room !== "all" && <button type="button" onClick={() => setRoom("all")} className="mt-1 text-xs font-bold text-primary underline">{bi("✕ إلغاء فلتر الغرفة | Zimmerfilter aufheben")}</button>}
