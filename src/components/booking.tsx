@@ -442,11 +442,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
           <div className="grid grid-cols-3 gap-1.5">{cats.map((c) => <button key={c.id} type="button" onClick={() => setT(i, { category: c.id })} className={`rounded-md border px-1 py-2 text-[11px] font-bold ${t.category === c.id ? "border-secondary bg-accent text-primary" : "border-border"}`}><LangText ar={c.ar} de={c.de} center /></button>)}</div>
           <ScanButton reg={reg} onFill={(p) => setT(i, p)} pen={i === 0 ? <EditPen content={content} k="ocrNote" label="إرشاد تصوير الجواز" /> : null} />
           {i > 0 && <label className="block font-bold"><L ar="صلة القرابة" de="Verwandtschaft" /><input list="bk-rel" autoComplete="off" value={t.relation} onChange={(e) => setT(i, { relation: e.target.value })} maxLength={60} className={inputCls} /></label>}
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="off" list="bk-first" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
-            <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="off" list="bk-last" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
-          </div>
-          <label className="block font-bold"><L ar="الاسم الكامل بالعربية (لبطاقات الأمتعة)" de="Vollständiger Name auf Arabisch (für Gepäckanhänger)" /><span className="block text-[11px] font-normal text-muted-foreground"><L ar="(الاسم الثلاثي أو الرباعي لتجنب تشابه الأسماء)" de="(Drei- oder vierteiliger Name, um Verwechslungen zu vermeiden)" /></span><input dir="rtl" autoComplete="off" value={t.arabicName} onChange={(e) => setT(i, { arabicName: e.target.value })} maxLength={120} placeholder="علي حسن محمد" className={inputCls} /></label>
+          {/* 1. خانة اللقب Anrede في البداية قبل الأسماء */}
           <label className="block font-bold">
             <L ar="اللقب (الجنس)" de="Anrede" />
             <div className="mt-1 grid grid-cols-2 gap-2">
@@ -474,6 +470,15 @@ export function BookingForm({ content }: { content: SiteContent }) {
               </button>
             </div>
           </label>
+
+          {/* 2. الاسم الأول واسم العائلة باللاتينية */}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block font-bold"><L ar="الاسم الأول (لاتيني)" de="Vorname" /><input dir="ltr" autoComplete="off" list="bk-first" value={t.firstName} onChange={(e) => setT(i, { firstName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
+            <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="off" list="bk-last" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
+          </div>
+
+          {/* 3. الاسم الكامل بالعربية لبطاقات الأمتعة */}
+          <label className="block font-bold"><L ar="الاسم الكامل بالعربية (لبطاقات الأمتعة)" de="Vollständiger Name auf Arabisch (für Gepäckanhänger)" /><span className="block text-[11px] font-normal text-muted-foreground"><L ar="(الاسم الثلاثي أو الرباعي لتجنب تشابه الأسماء)" de="(Drei- oder vierteiliger Name, um Verwechslungen zu vermeiden)" /></span><input dir="rtl" autoComplete="off" value={t.arabicName} onChange={(e) => setT(i, { arabicName: e.target.value })} maxLength={120} placeholder="علي حسن محمد" className={inputCls} /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block font-bold"><L ar="تاريخ الميلاد" de="Geburtsdatum" /><input dir="ltr" type="date" value={t.birthDate} onChange={(e) => setT(i, { birthDate: e.target.value, ...(e.target.value ? { category: catOf(e.target.value) } : {}) })} className={inputCls} /></label>
             <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input list="bk-nat" autoComplete="off" value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
