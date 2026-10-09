@@ -834,10 +834,11 @@ function EditPen({ content, k, label }: { content: SiteContent; k: "title" | "in
     <input dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="النص بالعربية" className={inputCls + " text-xs"} />
     <input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Text auf Deutsch" className={inputCls + " text-xs"} />
     <div className="flex gap-1.5 pt-1">
-      <Button size="sm" className="flex-1 h-7 text-xs font-bold" onClick={() => void save(ar, de)}>حفظ | Speichern</Button>
+           <Button size="sm" className="flex-1 h-7 text-xs font-bold" onClick={() => void save(ar, de)}>حفظ | Speichern</Button>
       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void save("", "")}>استعادة الافتراضي</Button>
     </div>
   </div>;
+}
 
 /** Admin quick switches placed directly above the registration form; texts are edited with the pencils in place. */
 function RegSettings({ content }: { content: SiteContent }) {
