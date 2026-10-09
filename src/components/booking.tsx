@@ -12,7 +12,7 @@ import { enablePush } from "@/lib/push";
 import { addManualBooking, bookingFileUrl, listBookings, scanPassport, submitBooking, updateBooking, type BookingRow } from "@/lib/bookings.functions";
 import { buildXlsx, type XSheet } from "@/lib/xlsx";
 import type { SiteContent } from "@/lib/site-content";
-
+function Pair({ ar, de }: { ar: string; de: string }) { return <LangText ar={ar} de={de} />; }
 type Cat = "adult" | "child" | "infant";
 type FileData = { name: string; type: string; data: string };
 type Traveler = { category: Cat; relation: string; firstName: string; lastName: string; arabicName: string; gender: "m" | "f" | ""; birthDate: string; nationality: string; passportNo: string; passportExpiry: string; passportFile?: FileData | undefined; photoFile?: FileData | undefined };
