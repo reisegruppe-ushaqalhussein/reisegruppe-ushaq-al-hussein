@@ -403,59 +403,330 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
   const showHidden = useShowHidden();
   const save = useSaveContent(staff?.password ?? "");
+
   const [page, setPage] = useState(false);
   const [folder, setFolder] = useState<string | null>(null);
   const [manage, setManage] = useState(false);
+
   const all = content.guidelines ?? [];
   const items = all.filter((g) => showHidden || !g.hidden);
-  const title = labelOf(content, "guidelines", "إرشادات وآداب الزيارة", "Hinweise & Etikette");
-  const sectionHidden = content.labels?.["guidelines"]?.hidden ?? false;
-  const commit = (guidelines: GuidelineEntry[]) => save({ ...content, guidelines });
-  const keyOf = (g: GuidelineEntry) => (g.destAr || g.destDe || g.ar.slice(0, 30)).trim();
-  const folders: { key: string; ar: string; de: string; posts: GuidelineEntry[] }[] = [];
-  for (const g of items) { const k = keyOf(g); const f = folders.find((x) => x.key === k); if (f) f.posts.push(g); else folders.push({ key: k, ar: g.destAr || g.ar.slice(0, 30), de: g.destDe || g.de.slice(0, 30), posts: [g] }); }
-  const cur = folders.find((f) => f.key === folder) ?? null;
-  const toggleSection = () => save({ ...content, labels: { ...(content.labels ?? {}), guidelines: { ar: content.labels?.["guidelines"]?.ar ?? "", de: content.labels?.["guidelines"]?.de ?? "", hidden: !sectionHidden } } });
-  const addNew = (row: Record<string, unknown>) => commit([...all, { ...(row as GuidelineEntry), id: `gd${Date.now()}` }]);
-  const sectionMenu = staff && <GearMenu>
-    <RenameTitle content={content} labelKey="guidelines" ar={title.ar} de={title.de} />
-    <AddButton inline label={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} />
-    {showHidden && <IconBtn label={sectionHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleSection()}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
-    <IconBtn label="إدارة | Verwalten" onClick={() => setManage(true)}><Settings className="h-3.5 w-3.5" /></IconBtn>
-  </GearMenu>;
+
+  const title = labelOf(
+    content,
+    "guidelines",
+    "إرشادات وآداب الزيارة",
+    "Hinweise & Etikette"
+  );
+
+  const sectionHidden =
+    content.labels?.["guidelines"]?.hidden ?? false;
+
+  const commit = (guidelines: GuidelineEntry[]) =>
+    save({ ...content, guidelines });
+
+  const keyOf = (g: GuidelineEntry) =>
+    (g.destAr || g.destDe || g.ar.slice(0, 30)).trim();
+
+  const folders: {
+    key: string;
+    ar: string;
+    de: string;
+    posts: GuidelineEntry[];
+  }[] = [];
+
+  for (const g of items) {
+    const k = keyOf(g);
+    const existing = folders.find((x) => x.key === k);
+
+    if (existing) {
+      existing.posts.push(g);
+    } else {
+      folders.push({
+        key: k,
+        ar: g.destAr || g.ar.slice(0, 30),
+        de: g.destDe || g.de.slice(0, 30),
+        posts: [g],
+      });
+    }
+  }
+
+  const toggleSection = () =>
+    save({
+      ...content,
+      labels: {
+        ...(content.labels ?? {}),
+        guidelines: {
+          ar: content.labels?.["guidelines"]?.ar ?? "",
+          de: content.labels?.["guidelines"]?.de ?? "",
+          hidden: !sectionHidden,
+        },
+      },
+    });
+
+  const addNew = (row: Record<string, unknown>) =>
+    commit([
+      ...all,
+      {
+        ...blankGuide,
+        ...(row as GuidelineEntry),
+        id: `gd${Date.now()}`,
+      },
+    ]);
+
+  const sectionMenu = staff && (
+    <GearMenu>
+      <RenameTitle
+        content={content}
+        labelKey="guidelines"
+        ar={title.ar}
+        de={title.de}
+      />
+
+      <AddButton
+        inline
+        label={{
+          ar: "إضافة مجلد زيارة",
+          de: "Ziyarat-Ordner hinzufügen",
+        }}
+        fields={guideFields}
+        blank={blankGuide}
+        onAdd={addNew}
+      />
+
+      {showHidden && (
+        <IconBtn
+          label={
+            sectionHidden
+              ? "إرجاع | Wiederherstellen"
+              : "إخفاء | Verbergen"
+          }
+          onClick={() => void toggleSection()}
+        >
+          {sectionHidden ? (
+            <Eye className="h-3.5 w-3.5" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5" />
+          )}
+        </IconBtn>
+      )}
+
+      <IconBtn
+        label="إدارة | Verwalten"
+        onClick={() => setManage(true)}
+      >
+        <Settings className="h-3.5 w-3.5" />
+      </IconBtn>
+    </GearMenu>
+  );
 
   if (sectionHidden && !showHidden) return null;
-  return <section className={`mt-3 min-w-0 ${sectionHidden ? "opacity-60" : ""}`}>
-    <FolderCard icon={BookMarked} ar={title.ar} de={title.de} count={folders.length} onOpen={() => setPage(true)} menu={sectionMenu} />
 
-    {page && !cur && <FullPage title={title} onBack={() => setPage(false)} menu={sectionMenu}>
-      <div className="grid grid-cols-2 gap-3">
-        {folders.map((f) => <button key={f.key} type="button" onClick={() => setFolder(f.key)} className={`flex min-h-28 min-w-0 flex-col items-start gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right shadow-sm ${f.posts.every((p) => p.hidden) ? "opacity-60" : ""}`}>
-          <Folder className="h-7 w-7 text-secondary" />
-          <span className="min-w-0 text-sm font-bold text-primary"><Pair ar={f.ar} de={f.de} /></span>
-          <span className="text-xs text-muted-foreground">{f.posts.length}</span>
-        </button>)}
-        {folders.length === 0 && <p className="col-span-2 py-6 text-center text-xs text-muted-foreground">لا توجد إرشادات بعد | Noch keine Hinweise</p>}
-      </div>
-    </FullPage>}
+  return (
+    <section
+      className={`mt-3 min-w-0 ${
+        sectionHidden ? "opacity-60" : ""
+      }`}
+    >
+      {/* القسم الرئيسي */}
+      <FolderCard
+        icon={BookMarked}
+        ar={title.ar}
+        de={title.de}
+        count={folders.length}
+        onOpen={() => {
+          setPage(true);
+          setFolder(null);
+        }}
+        menu={sectionMenu}
+      />
 
-    {page && cur && <FullPage title={{ ar: cur.ar, de: cur.de }} onBack={() => setFolder(null)}
-      menu={staff && <FolderMenu cur={cur} all={all} commit={commit} addNew={addNew} onDeleted={() => setFolder(null)} />}>
-      {cur.posts.map((g) => <GuidePost key={g.id} g={g} fallbackPdf={content.guidelinesPdf}
-        onUpdate={(next) => commit(all.map((x) => x.id === g.id ? next : x))}
-        onDelete={async () => { await commit(all.filter((x) => x.id !== g.id)); if (cur.posts.length <= 1) setFolder(null); }} />)}
-    </FullPage>}
+      {/* صفحة الإرشادات: مجلدات Accordion قابلة للفتح والإغلاق */}
+      {page && (
+        <FullPage
+          title={title}
+          onBack={() => {
+            setPage(false);
+            setFolder(null);
+          }}
+          menu={sectionMenu}
+        >
+          <div className="space-y-3">
+            {folders.map((f) => {
+              const isOpen = folder === f.key;
 
-    {staff && <ManageDialog open={manage} onOpenChange={setManage} ar={title.ar} de={title.de}>
-      <div className="space-y-2">
-        {items.map((g) => <ManageRow key={g.id} title={g.destAr || g.ar.slice(0, 40)} subtitle={g.destDe || g.de.slice(0, 40)} fields={guideFields} item={g} hidden={g.hidden ?? false}
-          onVisibilityChange={(hidden) => commit(all.map((x) => x.id === g.id ? { ...x, hidden } : x))}
-          onSave={(row) => commit(all.map((x) => x.id === g.id ? { ...(row as GuidelineEntry), id: g.id, hidden: g.hidden ?? false } : x))}
-          onDelete={() => commit(all.filter((x) => x.id !== g.id))} />)}
-      </div>
-      <AddButton label={{ ar: "إضافة مجلد إرشادات", de: "Hinweis-Ordner hinzufügen" }} fields={guideFields} blank={blankGuide} onAdd={addNew} />
-    </ManageDialog>}
-  </section>;
+              return (
+                <div
+                  key={f.key}
+                  className={`overflow-hidden rounded-xl border bg-card shadow-sm transition-colors ${
+                    isOpen
+                      ? "border-secondary"
+                      : "border-secondary/40"
+                  } ${
+                    f.posts.every((p) => p.hidden)
+                      ? "opacity-60"
+                      : ""
+                  }`}
+                >
+                  {/* عنوان المجلد */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      onClick={() =>
+                        setFolder(isOpen ? null : f.key)
+                      }
+                      className="flex min-h-[76px] w-full items-center gap-3 p-3 pe-14 text-right transition-colors hover:bg-accent/50 active:bg-accent"
+                    >
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent text-secondary">
+                        <Folder className="h-6 w-6" />
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-bold text-primary">
+                          <Pair ar={f.ar} de={f.de} />
+                        </span>
+
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {f.posts.length}{" "}
+                          {f.posts.length === 1
+                            ? "فقرة | Beitrag"
+                            : "فقرات | Beiträge"}
+                        </span>
+                      </span>
+
+                      <ChevronLeft
+                        className={`h-5 w-5 shrink-0 text-secondary transition-transform duration-200 ${
+                          isOpen ? "-rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* ترس إدارة المجلد الخارجي */}
+                    {staff && (
+                      <div
+                        className="absolute left-2 top-1/2 z-10 -translate-y-1/2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <FolderMenu
+                          cur={f}
+                          all={all}
+                          commit={commit}
+                          addNew={addNew}
+                          onDeleted={() => setFolder(null)}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* المحتوى الداخلي: يظهر عند فتح المجلد */}
+                  {isOpen && (
+                    <div className="space-y-3 border-t border-secondary/30 bg-muted/30 p-3">
+                      {f.posts.map((g) => (
+                        <GuidePost
+                          key={g.id}
+                          g={g}
+                          fallbackPdf={content.guidelinesPdf}
+                          onUpdate={(next) =>
+                            commit(
+                              all.map((x) =>
+                                x.id === g.id ? next : x
+                              )
+                            )
+                          }
+                          onDelete={async () => {
+                            await commit(
+                              all.filter((x) => x.id !== g.id)
+                            );
+
+                            if (f.posts.length <= 1) {
+                              setFolder(null);
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {folders.length === 0 && (
+              <div className="rounded-xl border border-dashed border-secondary/50 bg-card p-8 text-center">
+                <Folder className="mx-auto mb-3 h-9 w-9 text-secondary" />
+
+                <p className="text-sm font-bold text-primary">
+                  لا توجد إرشادات بعد
+                </p>
+
+                <p
+                  dir="ltr"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  Noch keine Hinweise vorhanden
+                </p>
+              </div>
+            )}
+          </div>
+        </FullPage>
+      )}
+
+      {/* إدارة جميع الفقرات والمجلدات */}
+      {staff && (
+        <ManageDialog
+          open={manage}
+          onOpenChange={setManage}
+          ar={title.ar}
+          de={title.de}
+        >
+          <div className="space-y-2">
+            {items.map((g) => (
+              <ManageRow
+                key={g.id}
+                title={g.destAr || g.ar.slice(0, 40)}
+                subtitle={g.destDe || g.de.slice(0, 40)}
+                fields={guideFields}
+                item={g}
+                hidden={g.hidden ?? false}
+                onVisibilityChange={(hidden) =>
+                  commit(
+                    all.map((x) =>
+                      x.id === g.id ? { ...x, hidden } : x
+                    )
+                  )
+                }
+                onSave={(row) =>
+                  commit(
+                    all.map((x) =>
+                      x.id === g.id
+                        ? {
+                            ...(row as GuidelineEntry),
+                            id: g.id,
+                            hidden: g.hidden ?? false,
+                          }
+                        : x
+                    )
+                  )
+                }
+                onDelete={() =>
+                  commit(all.filter((x) => x.id !== g.id))
+                }
+              />
+            ))}
+          </div>
+
+          <AddButton
+            label={{
+              ar: "إضافة مجلد إرشادات",
+              de: "Hinweis-Ordner hinzufügen",
+            }}
+            fields={guideFields}
+            blank={blankGuide}
+            onAdd={addNew}
+          />
+        </ManageDialog>
+      )}
+    </section>
+  );
 }
 
 /** Header gear inside one visit folder: add post, rename folder, hide (admin), delete folder. Icons only. */
