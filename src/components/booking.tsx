@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Baby, Bell, Calculator, Camera, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, FileText, Loader2, MessageCircle, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LangText, Pair, display, useLang } from "@/lib/i18n";
+import { LangText, display, useLang } from "@/lib/i18n";
 import { useSectionEditMode } from "@/components/inline-admin";
 import { useAdminSession, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
