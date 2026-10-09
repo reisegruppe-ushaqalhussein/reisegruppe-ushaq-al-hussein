@@ -362,20 +362,38 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     setBlankOnly(false);
   };
 
-  const fetchTripNames = async () => {
+    const fetchTripNames = async () => {
     if (!s) return;
     setBusy(true);
     try {
       const res = await listFn({ data: { password: s.password } });
       const valid = (res.rows ?? []).filter((r) => r.status !== "deleted");
       setAllBookings(valid);
-      const uniqueTrips = [...new Set(valid.map((r) => {
+
+      // جلب جميع الرحلات المعلنة في التطبيق من الذاكرة المحلية أو الحجوزات
+      const savedContent = typeof window !== "undefined" ? localStorage.getItem("ushaq_offline_site-content") : null;
+      let declaredTrips: string[] = [];
+      if (savedContent) {
+        try {
+          const parsed = JSON.parse(savedContent);
+          if (Array.isArray(parsed?.trips)) {
+            declaredTrips = parsed.trips.map((t: { ar: string; de: string; date?: string }) =>
+              `${t.ar} | ${t.de}${t.date ? ` — ${t.date}` : ""}`.replace(/\s*\|\s*/g, " — ").trim()
+            );
+          }
+        } catch { /* ignore */ }
+      }
+
+      // دمج رحلات الحجوزات الفعلية مع الرحلات المعلنة ومنع التكرار
+      const bookedTrips = valid.map((r) => {
         const t = `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`.replace(/\s*\|\s*/g, " — ");
         return t.trim();
-      }).filter(Boolean))];
+      }).filter(Boolean);
+
+      const uniqueTrips = [...new Set([...declaredTrips, ...bookedTrips])].filter(Boolean);
 
       setTrips(uniqueTrips);
-      if (uniqueTrips[0]) {
+      if (uniqueTrips.length > 0 && !selectedTrip) {
         setSelectedTrip(uniqueTrips[0]);
         const lines = extractTripPilgrims(valid, uniqueTrips[0]);
         setBulk(lines.join("\n"));
