@@ -366,39 +366,39 @@ export function BookingForm({ content }: { content: SiteContent }) {
       {settings}
       {note}
 
-        {adminS && (
-        <div className="mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-bold text-primary">
-              ⚙️ {bi("وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة | Admin: Direkte Navigation")}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              {bi("(بدون ملء بيانات وهمية) | (ohne Testdaten)")}
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-1">
-            {[
-              { idx: 0, ar: "1. الرحلة", de: "1. Reise" },
-              { idx: 1, ar: "2. التواصل", de: "2. Kontakt" },
-              { idx: 2, ar: "3. الجوازات", de: "3. Pässe" },
-              { idx: 3, ar: "4. التأكيد", de: "4. Bestätigung" },
-            ].map((st) => (
-              <button
-                key={st.idx}
-                type="button"
-                onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className={`rounded px-1.5 py-1 text-center text-[11px] font-bold transition-all ${
-                  step === st.idx
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-card border border-border text-primary hover:bg-accent"
-                }`}
-              >
-                {bi(`${st.ar} | ${st.de}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+  {adminS && (
+  <div dir={rtl ? "rtl" : "ltr"} className={`mb-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-2 text-xs ${rtl ? "text-right" : "text-left"}`}>
+    <div className="flex items-center justify-between mb-1">
+      <span className="font-bold text-primary">
+        ⚙️ <LangText ar="وضع الإدارة: تنقّل مباشر لمراجعة وتعديل الاستمارة" de="Admin: Direkte Navigation im Formular" />
+      </span>
+      <span className="text-[10px] text-muted-foreground">
+        <LangText ar="(بدون ملء بيانات وهمية)" de="(ohne Testdaten)" />
+      </span>
+    </div>
+    <div className="grid grid-cols-4 gap-1">
+      {[
+        { idx: 0, ar: "1. الرحلة", de: "1. Reise" },
+        { idx: 1, ar: "2. التواصل", de: "2. Kontakt" },
+        { idx: 2, ar: "3. الجوازات", de: "3. Pässe" },
+        { idx: 3, ar: "4. التأكيد", de: "4. Bestätigung" },
+      ].map((st) => (
+        <button
+          key={st.idx}
+          type="button"
+          onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          className={`rounded px-1.5 py-1 text-center text-[11px] font-bold transition-all ${
+            step === st.idx
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-card border border-border text-primary hover:bg-accent"
+          }`}
+        >
+          <LangText ar={st.ar} de={st.de} />
+        </button>
+      ))}
+    </div>
+  </div>
+)}
 
       <section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
@@ -448,9 +448,33 @@ export function BookingForm({ content }: { content: SiteContent }) {
             <label className="block font-bold"><L ar="اسم العائلة (لاتيني)" de="Nachname" /><input dir="ltr" autoComplete="off" list="bk-last" value={t.lastName} onChange={(e) => setT(i, { lastName: e.target.value })} maxLength={80} autoCapitalize="characters" className={inputCls + " uppercase"} /></label>
           </div>
           <label className="block font-bold"><L ar="الاسم الكامل بالعربية (لبطاقات الأمتعة)" de="Vollständiger Name auf Arabisch (für Gepäckanhänger)" /><span className="block text-[11px] font-normal text-muted-foreground"><L ar="(الاسم الثلاثي أو الرباعي لتجنب تشابه الأسماء)" de="(Drei- oder vierteiliger Name, um Verwechslungen zu vermeiden)" /></span><input dir="rtl" autoComplete="off" value={t.arabicName} onChange={(e) => setT(i, { arabicName: e.target.value })} maxLength={120} placeholder="علي حسن محمد" className={inputCls} /></label>
-          <div className="grid grid-cols-2 gap-2">
-            {(["m", "f"] as const).map((g) => <button key={g} type="button" onClick={() => setT(i, { gender: g })} className={`rounded-md border py-2 font-bold ${t.gender === g ? "border-secondary bg-accent text-primary" : "border-border"}`}>{g === "m" ? <L ar="ذكر" de="Männlich" /> : <L ar="أنثى" de="Weiblich" />}</button>)}
-          </div>
+          <label className="block font-bold">
+            <L ar="اللقب (الجنس)" de="Anrede" />
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setT(i, { gender: "m" })}
+                className={`rounded-md border py-2 font-bold transition-all ${
+                  t.gender === "m"
+                    ? "border-secondary bg-accent text-primary ring-1 ring-secondary"
+                    : "border-border bg-card text-muted-foreground hover:bg-accent/50"
+                }`}
+              >
+                <L ar="السيد (ذكر)" de="Herr" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setT(i, { gender: "f" })}
+                className={`rounded-md border py-2 font-bold transition-all ${
+                  t.gender === "f"
+                    ? "border-secondary bg-accent text-primary ring-1 ring-secondary"
+                    : "border-border bg-card text-muted-foreground hover:bg-accent/50"
+                }`}
+              >
+                <L ar="السيدة (أنثى)" de="Frau" />
+              </button>
+            </div>
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block font-bold"><L ar="تاريخ الميلاد" de="Geburtsdatum" /><input dir="ltr" type="date" value={t.birthDate} onChange={(e) => setT(i, { birthDate: e.target.value, ...(e.target.value ? { category: catOf(e.target.value) } : {}) })} className={inputCls} /></label>
             <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input list="bk-nat" autoComplete="off" value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
