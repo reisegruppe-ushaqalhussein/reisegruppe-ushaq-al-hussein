@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+let qrMod: Promise<typeof import("qrcode")> | null = null;
 import { useServerFn } from "@tanstack/react-start";
 import { listBookings, type BookingRow } from "@/lib/bookings.functions";
 import { useAdminSession } from "@/lib/admin-session";
@@ -81,8 +81,9 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
     ctx.drawImage(im, X(x), Y(y), w * S, hh * S);
     return hh;
   };
-  const qr = (data: string, x: number, y: number, size: number, margin: number) => {
-    const q = QRCode.create(data, { errorCorrectionLevel: "M" });
+  const qr = async (data: string, x: number, y: number, size: number, margin: number) => {
+  const qrcodeLib = await (qrMod ??= import("qrcode"));
+    const q = qrcodeLib.create(data, { errorCorrectionLevel: "M" });
     const n = q.modules.size;
     const m = size / (n + margin * 2);
     ctx.fillStyle = "#ffffff";
@@ -93,7 +94,7 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
       const x0 = Math.round(X(x + (c + margin) * m)), x1 = Math.round(X(x + (c + margin + 1) * m));
       const y0 = Math.round(Y(y + (r + margin) * m)), y1 = Math.round(Y(y + (r + margin + 1) * m));
       ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-    }
+    {}
   };
   const rect = (x: number, y: number, w: number, h: number, o: { fill?: string; stroke?: string; lw?: number }) => {
     if (o.fill) { ctx.fillStyle = o.fill; ctx.fillRect(X(x), Y(y), w * S, h * S); }
