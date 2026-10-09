@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, Bell, Calculator, Camera, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, FileText, Loader2, MessageCircle, Plane, Pencil, Plus, RefreshCw, Trash2, Upload, User, Users } from "lucide-react";
+import { Baby, Bell, Calculator, Camera, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Eye, EyeOff, FileText, Loader2, MessageCircle, Plane, Pencil, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LangText, display, useLang } from "@/lib/i18n";
-import { useSectionEditMode } from "@/components/inline-admin";
-import { useAdminSession, useStaffSession } from "@/lib/admin-session";
+import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, toggleSectionEditMode, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
 import { saveOrQueue } from "@/lib/offline";
 import { enablePush } from "@/lib/push";
@@ -967,26 +967,38 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
     <div className="flex gap-1.5"><Button className="flex-1" disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{bi("حفظ | Speichern")}</Button><Button variant="ghost" onClick={() => void onDone()}>✕</Button></div>
   </div>;
 }
-
-/** كرت وملف حاسبة وفرز الغرف المستقل مع كامل أزرار التحكيم والإخفاء */
+/** كرت وملف حاسبة وفرز الغرف المستقل مع كامل أزرار التحكيم والإخفاء داخلياً وخارجياً */
 export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
   const adminS = useAdminSession();
+  const showHidden = useShowHidden();
+  const isEditing = useSectionEditMode();
   const list = useServerFn(listBookings);
   const { lang } = useLang();
   const bi = biFor(lang);
   const rtl = lang === "ar" || lang === "both";
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isCardHidden, setIsCardHidden] = useState(false);
+  const [editTitleOpen, setEditTitleOpen] = useState(false);
+  const [customTitle, setCustomTitle] = useState({
+    ar: "حاسبة وفرز الغرف",
+    de: "Zimmer-Rechner",
+    subAr: "كشف الفنادق وحساب الغرف الميداني",
+    subDe: "Zimmer & Abrechnung",
+  });
+
   const [rows, setRows] = useState<BookingRow[] | null>(null);
   const [trip, setTrip] = useState<string>("all");
   const [room, setRoom] = useState<string>("all");
   const [q, setQ] = useState("");
 
-  // بيانات الفنادق الميدانية للمحاسبة
-  const [hotels, setHotels] = useState<Array<{ id: string; city: string; name: string; d: number; t: number; q: number; s: number }>>([
-    { id: "h1", city: "كربلاء", name: "", d: 0, t: 0, q: 0, s: 0 }
+  // بيانات الفنادق الميدانية للمحاسبة مع أزرار التحكم
+  const [hotels, setHotels] = useState<Array<{ id: string; city: string; name: string; d: number; t: number; q: number; s: number; hidden?: boolean }>>([
+    { id: "h1", city: "كربلاء", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false }
   ]);
+
+  const [editingHotel, setEditingHotel] = useState<{ id: string; city: string; name: string } | null>(null);
 
   const load = async () => {
     if (!s) return;
@@ -1005,6 +1017,9 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const trips = useMemo(() => [...new Set(active.map(groupKey))], [active]);
 
   if (!s) return null;
+
+  // إذا تم إخفاء الكرت وكان المستخدم ليس إدارياً، لا يُعرض
+  if (isCardHidden && !showHidden && !adminS) return null;
 
   const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
   const words = norm(q).split(" ").filter(Boolean);
@@ -1025,10 +1040,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
 
   // نسخ كشف المحاسبة للفنادق
   const copyHotelReport = () => {
-    let report = `🏨 ${bi("كشف تسكين ومحاسبة فنادق حملة عشاق الحسين | Hotel-Abrechnung")}\n`;
+    let report = `🏨 ${bi(`${customTitle.ar} | ${customTitle.de}`)}\n`;
     report += `📌 ${tripLabel(trip, bi)} — (${pax} ${bi("زائر | Pax")})\n`;
     report += `─────────────────────\n`;
-    hotels.forEach((h, idx) => {
+    hotels.filter((h) => !h.hidden).forEach((h, idx) => {
       const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
       const totalRms = h.d + h.t + h.q + h.s;
       report += `📍 [${idx + 1}] ${h.city || "—"} / ${h.name || bi("فندق | Hotel")}:\n`;
@@ -1043,8 +1058,8 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   };
 
   return (
-    <section className="mb-4 min-w-0">
-      {/* 1. كرت الملف الخارجي القابل للنقر مع أزرار التحكيم الخارجية */}
+    <section className={`mb-4 min-w-0 ${isCardHidden ? "opacity-50 border-dashed" : ""}`}>
+      {/* 1. كرت الملف الخارجي القابل للنقر مع أزرار التحكيم الخارجية الكاملة */}
       <div className="flex items-center gap-1.5 rounded-lg border-2 border-secondary/60 bg-card p-2.5 shadow-sm transition-all">
         <button
           type="button"
@@ -1056,11 +1071,12 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="font-bold text-primary text-sm flex items-center gap-2">
-              <Pair ar="حاسبة وفرز الغرف" de="Zimmer-Rechner" />
+              <LangText ar={customTitle.ar} de={customTitle.de} />
+              {isCardHidden && <span className="text-[10px] text-destructive font-normal">(مخفي | Versteckt)</span>}
               <span className="text-xs text-muted-foreground font-normal">({byTrip.length} / {pax} pax)</span>
             </h3>
             <p className="text-[11px] text-muted-foreground">
-              {isOpen ? bi("انقر للإغلاق والطي | Zum Schließen tippen") : bi("كشف الفنادق وحساب الغرف الميداني | Zimmer & Abrechnung")}
+              {isOpen ? bi("انقر للإغلاق والطي | Zum Schließen tippen") : bi(`${customTitle.subAr} | ${customTitle.subDe}`)}
             </p>
           </div>
           <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground" dir="ltr">
@@ -1069,27 +1085,104 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           <span className="text-muted-foreground text-xs px-1">{isOpen ? "▲" : "▼"}</span>
         </button>
 
-        {/* أزرار التحكيم الخارجية (الترس والتحديث السريع) */}
+        {/* أزرار التحكيم الخارجية (تعديل، إخفاء/إظهار، ترس) */}
         <div className="flex items-center gap-1 border-s border-border ps-1.5">
           <button
             type="button"
             onClick={() => void load()}
             title={bi("تحديث | Aktualisieren")}
-            className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary hover:bg-accent"
+            className="grid h-7 w-7 place-items-center rounded-full border border-border text-primary hover:bg-accent"
           >
             <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+
+          {/* زر قلم تعديل عنوان ووصف الكرت الخارجي */}
+          <button
+            type="button"
+            onClick={() => setEditTitleOpen(true)}
+            title={bi("تعديل العنوان | Titel bearbeiten")}
+            className="grid h-7 w-7 place-items-center rounded-full border border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+
+          {/* زر عين الإخفاء والإظهار الخارجي */}
+          <button
+            type="button"
+            onClick={() => setIsCardHidden(!isCardHidden)}
+            title={isCardHidden ? bi("إظهار | Anzeigen") : bi("إخفاء | Verbergen")}
+            className="grid h-7 w-7 place-items-center rounded-full border border-border text-muted-foreground hover:text-primary"
+          >
+            {isCardHidden ? <Eye className="h-3.5 w-3.5 text-primary font-bold" /> : <EyeOff className="h-3.5 w-3.5" />}
           </button>
         </div>
       </div>
 
+      {/* نافذة تعديل العناوين الخارجية */}
+      {editTitleOpen && (
+        <Dialog open={editTitleOpen} onOpenChange={setEditTitleOpen}>
+          <DialogContent className="max-w-[360px]" dir="rtl">
+            <DialogHeader className="text-right">
+              <DialogTitle className="text-base font-bold text-primary">
+                {bi("تعديل تسمية حاسبة الغرف | Bereich bearbeiten")}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2.5 text-xs">
+              <label className="block font-bold">
+                العنوان بالعربية:
+                <input
+                  value={customTitle.ar}
+                  onChange={(e) => setCustomTitle((prev) => ({ ...prev, ar: e.target.value }))}
+                  className="mt-1 w-full rounded border border-border p-2"
+                />
+              </label>
+              <label className="block font-bold">
+                العنوان بالألمانية (Titel):
+                <input
+                  dir="ltr"
+                  value={customTitle.de}
+                  onChange={(e) => setCustomTitle((prev) => ({ ...prev, de: e.target.value }))}
+                  className="mt-1 w-full rounded border border-border p-2"
+                />
+              </label>
+              <label className="block font-bold">
+                الوصف التوضيحي (عربي):
+                <input
+                  value={customTitle.subAr}
+                  onChange={(e) => setCustomTitle((prev) => ({ ...prev, subAr: e.target.value }))}
+                  className="mt-1 w-full rounded border border-border p-2"
+                />
+              </label>
+              <Button onClick={() => setEditTitleOpen(false)} className="w-full mt-2">
+                {bi("حفظ التعديل | Speichern")}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* 2. محتوى الملف الكامل عند فتحه */}
       {isOpen && (
         <div className="mt-2 rounded-lg border border-border bg-card p-3 shadow-md space-y-3">
-          {/* شريط الإدارة الداخلي */}
+          {/* شريط الإدارة والتحكيم الداخلي */}
           <div className="flex items-center justify-between border-b border-border pb-2">
-            <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-              <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
+              </span>
+              {/* زر تفعيل وضع التعديل العام ✏️ */}
+              <button
+                type="button"
+                onClick={() => toggleSectionEditMode()}
+                className={`rounded px-2 py-0.5 text-[11px] font-bold border transition-colors ${
+                  isEditing ? "bg-secondary text-secondary-foreground border-secondary" : "bg-card text-muted-foreground border-border"
+                }`}
+                title={bi("تشغيل/إيقاف أقلام التعديل | Bearbeitungsmodus")}
+              >
+                ✏️ {isEditing ? bi("التعديل مفعّل | Aktiv") : bi("وضع التعديل | Bearbeiten")}
+              </button>
+            </div>
+
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -1126,7 +1219,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             </select>
           </label>
 
-          {/* حاسبة الفنادق الميدانية المرنة لأي وجهة (العراق، العمرة، إيران) */}
+          {/* حاسبة الفنادق الميدانية المرنة مع أزرار التحكيم لكل فندق */}
           <div className="rounded-lg border-2 border-secondary/50 bg-secondary/10 p-2.5 text-xs space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-primary">🏨 {bi("محاسبة الفنادق الفعلية (للحاج) | Hotel-Abrechnung")}</span>
@@ -1135,12 +1228,13 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                 onClick={() =>
                   setHotels((prev) => [
                     ...prev,
-                    { id: `h_${Date.now()}`, city: "", name: "", d: 0, t: 0, q: 0, s: 0 },
+                    { id: `h_${Date.now()}`, city: "", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false },
                   ])
                 }
-                className="rounded border border-secondary bg-card px-2 py-0.5 text-[11px] font-bold text-primary hover:bg-accent"
+                className="rounded border border-secondary bg-card px-2 py-0.5 text-[11px] font-bold text-primary hover:bg-accent flex items-center gap-1 shadow-sm"
               >
-                + {bi("إضافة فندق آخر | Weiteres Hotel")}
+                <Plus className="h-3 w-3" />
+                <span>{bi("إضافة فندق | Hotel hinzufügen")}</span>
               </button>
             </div>
 
@@ -1148,7 +1242,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
               const totalRms = h.d + h.t + h.q + h.s;
               return (
-                <div key={h.id} className="rounded-md border border-border bg-card p-2 space-y-1.5">
+                <div key={h.id} className={`rounded-md border border-border bg-card p-2 space-y-1.5 transition-opacity ${h.hidden ? "opacity-50 border-dashed" : ""}`}>
                   <div className="flex items-center gap-1.5">
                     <input
                       value={h.city}
@@ -1168,16 +1262,33 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                       placeholder={bi("اسم الفندق | Hotelname")}
                       className="flex-1 rounded border border-border px-2 py-1 text-xs"
                     />
-                    {hotels.length > 1 && (
+
+                    {/* أزرار التحكيم الخاصة بكل فندق (تعديل ✏️، إخفاء 👁️، حذف 🗑️) */}
+                    <div className="flex items-center gap-0.5">
                       <button
                         type="button"
-                        onClick={() => setHotels((all) => all.filter((_, idx) => idx !== i))}
-                        className="text-destructive px-1 font-bold text-sm"
-                        title={bi("حذف | Löschen")}
+                        onClick={() =>
+                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, hidden: !x.hidden } : x)))
+                        }
+                        title={h.hidden ? bi("إظهار الفندق | Anzeigen") : bi("إخفاء الفندق | Verbergen")}
+                        className="p-1 text-muted-foreground hover:text-primary"
                       >
-                        ✕
+                        {h.hidden ? <Eye className="h-3.5 w-3.5 text-primary" /> : <EyeOff className="h-3.5 w-3.5" />}
                       </button>
-                    )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(bi("هل أنت متأكد من حذف هذا الفندق؟ | Hotel löschen?"))) {
+                            setHotels((all) => all.filter((_, idx) => idx !== i));
+                          }
+                        }}
+                        className="p-1 text-destructive hover:opacity-80"
+                        title={bi("حذف الفندق | Löschen")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* إدخال أعداد الغرف */}
@@ -1249,7 +1360,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             })}
           </div>
 
-          {/* البحث بالاسم أو الهاتف */}
+          {/* البحث بالاسم أو الهاتف وقائمة الزوار المفرزة */}
           <div className="space-y-1.5 pt-1">
             <input
               value={q}
@@ -1272,18 +1383,25 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             ) : (
               <ul className="mt-2 space-y-1.5 max-h-60 overflow-y-auto">
                 {shown.map((r) => (
-                  <li key={r.id} className="rounded-md border border-border p-2 text-xs">
-                    <p dir="ltr" className="text-start font-bold text-primary">
-                      {r.travelers
-                        .map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim())
-                        .join(" · ")}
-                    </p>
-                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-muted-foreground">
-                      <span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">
-                        🛏 {roomLabel(r.room_pref, bi)}
-                      </span>
-                      <span>{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span>
-                    </p>
+                  <li key={r.id} className="rounded-md border border-border p-2 text-xs flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p dir="ltr" className="text-start font-bold text-primary">
+                        {r.travelers
+                          .map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim())
+                          .join(" · ")}
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                        <span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">
+                          🛏 {roomLabel(r.room_pref, bi)}
+                        </span>
+                        <span>{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span>
+                      </p>
+                    </div>
+
+                    {/* أزرار التحكيم المباشر على الحجز للزائر */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] font-mono text-muted-foreground">{r.ref}</span>
+                    </div>
                   </li>
                 ))}
                 {shown.length === 0 && (
