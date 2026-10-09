@@ -968,108 +968,333 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
   </div>;
 }
 
-/** Staff-only room calculator: counts rooms per type from the bookings and searches visitors by name. */
-export function RoomCalcPanel() {
+/** كرت وملف حاسبة وفرز الغرف المستقل مع كامل أزرار التحكيم والإخفاء */
+export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
+  const adminS = useAdminSession();
   const { lang } = useLang();
   const bi = biFor(lang);
-  const list = useServerFn(listBookings);
+  const rtl = lang === "ar" || lang === "both";
+
+  const [isOpen, setIsOpen] = useState(false);
   const [rows, setRows] = useState<BookingRow[] | null>(null);
-  const [trip, setTrip] = useState("all");
-  const [room, setRoom] = useState("all");
+  const [trip, setTrip] = useState<string>("all");
+  const [room, setRoom] = useState<string>("all");
   const [q, setQ] = useState("");
-  const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
-  useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
-  const active = useMemo(() => (rows ?? []).filter((r) => r.status !== "deleted" && r.status !== "cancelled"), [rows]);
+
+  // بيانات الفنادق الميدانية للمحاسبة
+  const [hotels, setHotels] = useState<Array<{ id: string; city: string; name: string; d: number; t: number; q: number; s: number }>>([
+    { id: "h1", city: "كربلاء", name: "", d: 0, t: 0, q: 0, s: 0 }
+  ]);
+
+  const load = async () => {
+    if (!s) return;
+    const r = await list({ data: { password: s.password } });
+    setRows(r.rows);
+  };
+
+  useEffect(() => {
+    void load();
+  }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const active = useMemo(
+    () => (rows ?? []).filter((r) => r.status !== "deleted" && r.status !== "cancelled"),
+    [rows]
+  );
   const trips = useMemo(() => [...new Set(active.map(groupKey))], [active]);
+
   if (!s) return null;
+
   const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
   const words = norm(q).split(" ").filter(Boolean);
-  const hit = (r: BookingRow) => words.every((w) => [r.ref, r.contact_phone.replace(/[^0-9]/g, ""), ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`)].some((v) => norm(v).includes(w)));
+  const hit = (r: BookingRow) =>
+    words.every((w) =>
+      [
+        r.ref,
+        r.contact_phone.replace(/[^0-9]/g, ""),
+        ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`),
+      ].some((v) => norm(v).includes(w))
+    );
   const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && hit(r));
-  const hiddenByRoom = words.length > 0 && room !== "all" ? byTrip.filter((r) => (r.room_pref || "leader") !== room && hit(r)).length : 0;
+  const hiddenByRoom =
+    words.length > 0 && room !== "all"
+      ? byTrip.filter((r) => (r.room_pref || "leader") !== room && hit(r)).length
+      : 0;
   const pax = byTrip.reduce((n, r) => n + r.travelers.length, 0);
-  return <section className="mb-6 rounded-lg border-2 border-secondary bg-card p-3 shadow-sm">
-    <div className="flex items-center gap-2"><h2 className="flex-1 text-base font-bold text-primary">{bi("🛏️ حاسبة وفرز الغرف | Zimmer-Rechner ")}<span className="text-xs text-muted-foreground">({byTrip.length} / {pax} pax)</span></h2>
-      <button type="button" aria-label="تحديث | Aktualisieren" onClick={() => void load()} className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary"><RefreshCw className="h-4 w-4" /></button>
-    </div>
-    <select value={trip} onChange={(e) => setTrip(e.target.value)} className={inputCls}><option value="all">{bi("كل الرحلات | Alle Reisen")}</option>{trips.map((t) => <option key={t} value={t}>{tripLabel(t, bi)}</option>)}</select>
-    {/* كشف الفنادق وحساب الغرف المرن للحاج مع إدخال حر لأي وجهة */}
-    <div className="mt-3 rounded-lg border-2 border-secondary/60 bg-secondary/10 p-3 text-xs space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="font-bold text-primary text-sm">🏨 {bi("كشف محاسبة الفنادق الفعلي | Hotel-Abrechnung")}</span>
+
+  // نسخ كشف المحاسبة للفنادق
+  const copyHotelReport = () => {
+    let report = `🏨 ${bi("كشف تسكين ومحاسبة فنادق حملة عشاق الحسين | Hotel-Abrechnung")}\n`;
+    report += `📌 ${tripLabel(trip, bi)} — (${pax} ${bi("زائر | Pax")})\n`;
+    report += `─────────────────────\n`;
+    hotels.forEach((h, idx) => {
+      const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
+      const totalRms = h.d + h.t + h.q + h.s;
+      report += `📍 [${idx + 1}] ${h.city || "—"} / ${h.name || bi("فندق | Hotel")}:\n`;
+      if (h.d > 0) report += `  • ثنائية (×2): ${h.d}\n`;
+      if (h.t > 0) report += `  • ثلاثية (×3): ${h.t}\n`;
+      if (h.q > 0) report += `  • رباعية (×4): ${h.q}\n`;
+      if (h.s > 0) report += `  • مفردة (×1): ${h.s}\n`;
+      report += `  ← مجموع الغرف: ${totalRms} (${cap} سرير/زائر)\n\n`;
+    });
+    navigator.clipboard.writeText(report.trim());
+    window.alert(bi("تم نسخ كشف المحاسبة بنجاح! | Bericht kopiert!"));
+  };
+
+  return (
+    <section className="mb-4 min-w-0">
+      {/* 1. كرت الملف الخارجي القابل للنقر مع أزرار التحكيم الخارجية */}
+      <div className="flex items-center gap-1.5 rounded-lg border-2 border-secondary/60 bg-card p-2.5 shadow-sm transition-all">
         <button
           type="button"
-          onClick={() => {
-            const singles = byTrip.filter((r) => r.travelers.length === 1).length;
-            const doubles = byTrip.filter((r) => r.travelers.length === 2).length;
-            const triples = byTrip.filter((r) => r.travelers.length === 3).length;
-            const quads = byTrip.filter((r) => r.travelers.length >= 4).length;
-            const text = `🏨 كشف تسكين وغرف حملة عشاق الحسين (${tripLabel(trip, bi)}):\n` +
-              `• غرف ثنائية: ${doubles}\n` +
-              `• غرف ثلاثية: ${triples}\n` +
-              `• غرف رباعية: ${quads}\n` +
-              `• غرف فردية: ${singles}\n` +
-              `───────────────\n` +
-              `إجمالي الغرف: ${singles + doubles + triples + quads} غرفة لـ ${pax} زائر`;
-            navigator.clipboard.writeText(text);
-            window.alert(bi("تم نسخ كشف المحاسبة بنجاح! | Kopiert!"));
-          }}
-          className="rounded bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground hover:opacity-90 shadow-sm"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 text-start"
         >
-          📋 {bi("نسخ الكشف | Kopieren")}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-4 gap-1.5 text-center font-bold">
-        <div className="rounded bg-card p-2 border border-border shadow-2xs">
-          <span className="text-[10px] text-muted-foreground block">{bi("ثنائية | Doppel")}</span>
-          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 2).length}</span>
-        </div>
-        <div className="rounded bg-card p-2 border border-border shadow-2xs">
-          <span className="text-[10px] text-muted-foreground block">{bi("ثلاثية | Dreibett")}</span>
-          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 3).length}</span>
-        </div>
-        <div className="rounded bg-card p-2 border border-border shadow-2xs">
-          <span className="text-[10px] text-muted-foreground block">{bi("رباعية | Vierbett")}</span>
-          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length >= 4).length}</span>
-        </div>
-        <div className="rounded bg-card p-2 border border-border shadow-2xs">
-          <span className="text-[10px] text-muted-foreground block">{bi("فردية | Einzel")}</span>
-          <span className="text-base text-primary">{byTrip.filter((r) => r.travelers.length === 1).length}</span>
-        </div>
-      </div>
-
-      <div className="rounded bg-card/80 p-2 border border-border/80 text-[11px] text-muted-foreground text-center">
-        {bi(`المجموع الميداني: ${byTrip.filter((r) => r.travelers.length === 1).length + byTrip.filter((r) => r.travelers.length === 2).length + byTrip.filter((r) => r.travelers.length === 3).length + byTrip.filter((r) => r.travelers.length >= 4).length} غرفة موزعة على ${pax} زائر مسجل | Gesamt: ${pax} Pax`)}
-      </div>
-    </div>
-    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={bi("🔍 اسم الزائر (لاتيني كما في الجواز) أو الهاتف أو رقم الحجز | Name (wie im Pass), Telefon, Nr.")} className={inputCls} />
-    {room !== "all" && <button type="button" onClick={() => setRoom("all")} className="mt-1 text-xs font-bold text-primary underline">{bi("✕ إلغاء فلتر الغرفة | Zimmerfilter aufheben")}</button>}
-    {hiddenByRoom > 0 && <p className="mt-1 rounded-md bg-accent p-2 text-xs">{bi(`يوجد ${hiddenByRoom} نتيجة بنوع غرفة آخر — ألغِ فلتر الغرفة لرؤيتها | ${hiddenByRoom} Treffer in anderer Zimmerart`)}</p>}
-    {rows === null ? (
-      <Loader2 className="mx-auto mt-3 animate-spin" />
-    ) : words.length === 0 ? (
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        {bi("💡 اكتب اسم الزائر في البحث أعلاه للتحقق من نوع غرفته | Namen eingeben zum Prüfen")}
-      </p>
-    ) : (
-      <ul className="mt-2 space-y-1.5">
-        {shown.map((r) => (
-          <li key={r.id} className="rounded-md border border-border p-2 text-xs">
-            <p dir="ltr" className="text-start font-bold text-primary">{r.travelers.map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim()).join(" · ")}</p>
-            <p className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">🛏 {roomLabel(r.room_pref, bi)}</span>
-              <span className="text-muted-foreground">{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span>
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary/20 text-secondary">
+            <Calculator className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-primary text-sm flex items-center gap-2">
+              <Pair ar="حاسبة وفرز الغرف" de="Zimmer-Rechner" />
+              <span className="text-xs text-muted-foreground font-normal">({byTrip.length} / {pax} pax)</span>
+            </h3>
+            <p className="text-[11px] text-muted-foreground">
+              {isOpen ? bi("انقر للإغلاق والطي | Zum Schließen tippen") : bi("كشف الفنادق وحساب الغرف الميداني | Zimmer & Abrechnung")}
             </p>
-          </li>
-        ))}
-        {shown.length === 0 && (
-          <li className="py-3 text-center text-xs text-muted-foreground">
-            {bi(/[\u0600-\u06FF]/.test(q) ? "لا توجد نتائج — الأسماء محفوظة بالأحرف اللاتينية كما في الجواز | Keine Treffer – Namen lateinisch eingeben" : "لا توجد نتائج | Keine Einträge")}
-          </li>
-        )}
-      </ul>
-    )}
-  </section>;
+          </div>
+          <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground" dir="ltr">
+            {pax}
+          </span>
+          <span className="text-muted-foreground text-xs px-1">{isOpen ? "▲" : "▼"}</span>
+        </button>
+
+        {/* أزرار التحكيم الخارجية (الترس والتحديث السريع) */}
+        <div className="flex items-center gap-1 border-s border-border ps-1.5">
+          <button
+            type="button"
+            onClick={() => void load()}
+            title={bi("تحديث | Aktualisieren")}
+            className="grid h-8 w-8 place-items-center rounded-full border border-border text-primary hover:bg-accent"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* 2. محتوى الملف الكامل عند فتحه */}
+      {isOpen && (
+        <div className="mt-2 rounded-lg border border-border bg-card p-3 shadow-md space-y-3">
+          {/* شريط الإدارة الداخلي */}
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+              <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={copyHotelReport}
+                className="rounded bg-secondary px-2.5 py-1 text-xs font-bold text-secondary-foreground hover:opacity-90 flex items-center gap-1 shadow-sm"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>{bi("نسخ التقرير | Kopieren")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="grid h-7 w-7 place-items-center rounded-full border border-border text-xs hover:bg-accent text-muted-foreground"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* اختيار الرحلة */}
+          <label className="block text-xs font-bold text-muted-foreground">
+            {bi("اختر الرحلة للفرز | Reise wählen")}:
+            <select
+              value={trip}
+              onChange={(e) => setTrip(e.target.value)}
+              className={inputCls + " mt-1"}
+            >
+              <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
+              {trips.map((t) => (
+                <option key={t} value={t}>
+                  {tripLabel(t, bi)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* حاسبة الفنادق الميدانية المرنة لأي وجهة (العراق، العمرة، إيران) */}
+          <div className="rounded-lg border-2 border-secondary/50 bg-secondary/10 p-2.5 text-xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-primary">🏨 {bi("محاسبة الفنادق الفعلية (للحاج) | Hotel-Abrechnung")}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setHotels((prev) => [
+                    ...prev,
+                    { id: `h_${Date.now()}`, city: "", name: "", d: 0, t: 0, q: 0, s: 0 },
+                  ])
+                }
+                className="rounded border border-secondary bg-card px-2 py-0.5 text-[11px] font-bold text-primary hover:bg-accent"
+              >
+                + {bi("إضافة فندق آخر | Weiteres Hotel")}
+              </button>
+            </div>
+
+            {hotels.map((h, i) => {
+              const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
+              const totalRms = h.d + h.t + h.q + h.s;
+              return (
+                <div key={h.id} className="rounded-md border border-border bg-card p-2 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={h.city}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, city: val } : x)));
+                      }}
+                      placeholder={bi("المدينة (مثلاً كربلاء، مكة...) | Stadt")}
+                      className="w-1/3 rounded border border-border px-2 py-1 text-xs"
+                    />
+                    <input
+                      value={h.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, name: val } : x)));
+                      }}
+                      placeholder={bi("اسم الفندق | Hotelname")}
+                      className="flex-1 rounded border border-border px-2 py-1 text-xs"
+                    />
+                    {hotels.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setHotels((all) => all.filter((_, idx) => idx !== i))}
+                        className="text-destructive px-1 font-bold text-sm"
+                        title={bi("حذف | Löschen")}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* إدخال أعداد الغرف */}
+                  <div className="grid grid-cols-4 gap-1 text-center font-bold">
+                    <div className="rounded border border-border/80 bg-accent/30 p-1">
+                      <span className="block text-[10px] text-muted-foreground">{bi("ثنائية ×2 | 2er")}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={h.d || ""}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value) || 0;
+                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, d: n } : x)));
+                        }}
+                        className="w-full text-center font-bold text-sm bg-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="rounded border border-border/80 bg-accent/30 p-1">
+                      <span className="block text-[10px] text-muted-foreground">{bi("ثلاثية ×3 | 3er")}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={h.t || ""}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value) || 0;
+                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, t: n } : x)));
+                        }}
+                        className="w-full text-center font-bold text-sm bg-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="rounded border border-border/80 bg-accent/30 p-1">
+                      <span className="block text-[10px] text-muted-foreground">{bi("رباعية ×4 | 4er")}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={h.q || ""}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value) || 0;
+                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, q: n } : x)));
+                        }}
+                        className="w-full text-center font-bold text-sm bg-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="rounded border border-border/80 bg-accent/30 p-1">
+                      <span className="block text-[10px] text-muted-foreground">{bi("مفردة ×1 | 1er")}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={h.s || ""}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value) || 0;
+                          setHotels((all) => all.map((x, idx) => (idx === i ? { ...x, s: n } : x)));
+                        }}
+                        className="w-full text-center font-bold text-sm bg-transparent"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-0.5">
+                    <span>{bi(`المجموع: ${totalRms} غرفة | ${totalRms} Zimmer`)}</span>
+                    <span className="font-bold text-primary">{bi(`الاستيعاب: ${cap} سرير / زائر`)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* البحث بالاسم أو الهاتف */}
+          <div className="space-y-1.5 pt-1">
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={bi("🔍 ابحث عن اسم الزائر أو الهاتف... | Name suchen")}
+              className={inputCls}
+            />
+            {hiddenByRoom > 0 && (
+              <p className="rounded-md bg-accent p-2 text-xs">
+                {bi(`يوجد ${hiddenByRoom} نتيجة بنوع غرفة آخر | ${hiddenByRoom} Treffer`)}
+              </p>
+            )}
+
+            {rows === null ? (
+              <Loader2 className="mx-auto mt-3 animate-spin" />
+            ) : words.length === 0 ? (
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                {bi("💡 اكتب اسم الزائر للتحقق من بياناته وغرفته | Namen eingeben zum Prüfen")}
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-1.5 max-h-60 overflow-y-auto">
+                {shown.map((r) => (
+                  <li key={r.id} className="rounded-md border border-border p-2 text-xs">
+                    <p dir="ltr" className="text-start font-bold text-primary">
+                      {r.travelers
+                        .map((t) => `${t["lastName"] ?? ""} ${t["firstName"] ?? ""}`.trim())
+                        .join(" · ")}
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                      <span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">
+                        🛏 {roomLabel(r.room_pref, bi)}
+                      </span>
+                      <span>{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span>
+                    </p>
+                  </li>
+                ))}
+                {shown.length === 0 && (
+                  <li className="py-2 text-center text-xs text-muted-foreground">
+                    {bi("لا توجد نتائج مطابقة | Keine Treffer")}
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
