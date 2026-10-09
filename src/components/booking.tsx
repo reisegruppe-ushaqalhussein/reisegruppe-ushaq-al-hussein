@@ -446,14 +446,8 @@ export function BookingForm({ content }: { content: SiteContent }) {
         {airportSel === OTHER && <input value={otherAirport} onChange={(e) => setOtherAirport(e.target.value)} maxLength={80} placeholder="z.B. Leipzig (LEJ)" className={inputCls} />}
       </>}
 
+      {/* الخطوة 1: المسافرون والجوازات */}
       {step === 1 && <>
-        <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" list="bk-emails" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /><Sugg id="bk-emails" items={hist.email} /></label>
-        <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" list="bk-phones" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /><Sugg id="bk-phones" items={hist.phone} /></label>
-        <ExtraFields content={content} step={1} values={extras} onChange={setExtras} />
-        <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground"><L ar="للاستفسار: ushaqalhussein.contact@gmail.com" de="Fragen: ushaqalhussein.contact@gmail.com" /></p>
-      </>}
-
-      {step === 2 && <>
         <p className="rounded-md bg-muted p-3 text-xs leading-relaxed"><L ar="أدخل كل مسافر بما فيهم الأطفال والرضّع. الأسماء بالأحرف اللاتينية حرفياً كما في الجواز، لأن تذاكر الخطوط التركية (ألمانيا ← إسطنبول ← بغداد) تصدر بالاسم المطابق للجواز." de="Bitte jede reisende Person inkl. Kinder und Kleinkinder eintragen. Namen exakt wie im Reisepass – Turkish-Airlines-Tickets (Deutschland → Istanbul → Bagdad) werden passgenau ausgestellt." /></p>
         {travelers.map((t, i) => <article key={i} className="space-y-3 rounded-lg border border-border p-3">
           <div className="flex items-center gap-2">
@@ -507,6 +501,14 @@ export function BookingForm({ content }: { content: SiteContent }) {
         </article>)}
         <Sugg id="bk-rel" items={hist.relation} /><Sugg id="bk-first" items={hist.firstName} /><Sugg id="bk-last" items={hist.lastName} /><Sugg id="bk-nat" items={hist.nationality} /><Sugg id="bk-pass" items={hist.passportNo} />
         {travelers.length < 15 && <Button type="button" variant="outline" className="h-11 w-full border-dashed border-secondary" onClick={() => setTravelers((l) => [...l, blank()])}><Plus /><L ar="إضافة مرافق" de="Begleitperson hinzufügen" /></Button>}
+      </>}
+
+      {/* الخطوة 2: معلومات التواصل */}
+      {step === 2 && <>
+        <label className="block font-bold"><L ar="البريد الإلكتروني (لاستلام التأكيد)" de="E-Mail (für die Bestätigung)" /><input dir="ltr" type="email" autoComplete="email" list="bk-emails" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} className={inputCls} /><Sugg id="bk-emails" items={hist.email} /></label>
+        <label className="block font-bold"><L ar="رقم الواتساب مع رمز الدولة" de="WhatsApp-Nummer mit Ländervorwahl" /><input dir="ltr" type="tel" autoComplete="tel" list="bk-phones" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+49 …" maxLength={30} className={inputCls} /><Sugg id="bk-phones" items={hist.phone} /></label>
+        <ExtraFields content={content} step={2} values={extras} onChange={setExtras} />
+        <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground"><L ar="للاستفسار: ushaqalhussein.contact@gmail.com" de="Fragen: ushaqalhussein.contact@gmail.com" /></p>
       </>}
 
       {step === 3 && <>
@@ -839,14 +841,19 @@ function EditPen({ content, k, label }: { content: SiteContent; k: "title" | "in
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, [kA]: a.trim(), [kD]: d.trim() } } as never }, "التسجيل | Anmeldung", qc); setOpen(false); }
     catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
   };
-  if (!open) return <button type="button" aria-label={`تعديل ${label}`} title={`تعديل ${label}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAr(String(reg[kA] ?? "")); setDe(String(reg[kD] ?? "")); setOpen(true); }} className="ms-1 inline-grid h-6 w-6 shrink-0 place-items-center rounded-full bg-secondary align-middle text-secondary-foreground shadow-sm"><Pencil className="h-3 w-3" /></button>;
-  return <div className="my-2 space-y-1.5 rounded-md border-2 border-secondary bg-card p-2 text-xs text-foreground" onClick={(e) => e.stopPropagation()}>
-    <p className="font-bold text-primary">✏️ {label}</p>
-    <textarea dir="rtl" rows={2} value={ar} onChange={(e) => setAr(e.target.value)} placeholder="عربي" className={inputCls} />
-    <textarea dir="ltr" rows={2} value={de} onChange={(e) => setDe(e.target.value)} placeholder="Deutsch" className={inputCls} />
-    <div className="flex gap-1.5"><Button size="sm" className="flex-1" onClick={() => void save(ar, de)}>حفظ | Speichern</Button><Button size="sm" variant="outline" onClick={() => void save("", "")}>افتراضي</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>✕</Button></div>
+  if (!open) return <button type="button" aria-label={`تعديل ${label}`} title={`تعديل ${label}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAr(String(reg[kA] ?? "")); setDe(String(reg[kD] ?? "")); setOpen(true); }} className="ms-1 inline-grid h-5 w-5 shrink-0 place-items-center rounded-full bg-secondary align-middle text-secondary-foreground shadow-xs hover:scale-105 transition-all"><Pencil className="h-2.5 w-2.5" /></button>;
+  return <div className="my-2 space-y-2 rounded-lg border-2 border-secondary bg-popover p-3 text-xs text-popover-foreground shadow-xl ring-2 ring-primary/20 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center justify-between border-b pb-1">
+      <span className="font-bold text-primary">✏️ {label}</span>
+      <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground font-bold">✕</button>
+    </div>
+    <input dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="النص بالعربية" className={inputCls + " text-xs"} />
+    <input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Text auf Deutsch" className={inputCls + " text-xs"} />
+    <div className="flex gap-1.5 pt-1">
+      <Button size="sm" className="flex-1 h-7 text-xs font-bold" onClick={() => void save(ar, de)}>حفظ | Speichern</Button>
+      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void save("", "")}>استعادة الافتراضي</Button>
+    </div>
   </div>;
-}
 
 /** Admin quick switches placed directly above the registration form; texts are edited with the pencils in place. */
 function RegSettings({ content }: { content: SiteContent }) {
