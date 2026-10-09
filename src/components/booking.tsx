@@ -404,22 +404,6 @@ export function BookingForm({ content }: { content: SiteContent }) {
     </div>
    </div>
 )}
-        <button
-          key={st.idx}
-          type="button"
-          onClick={() => { setStep(st.idx); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-          className={`rounded px-1.5 py-1 text-center text-[11px] font-bold transition-all ${
-            step === st.idx
-              ? "bg-primary text-primary-foreground shadow-xs"
-              : "bg-card border border-border text-primary hover:bg-accent"
-          }`}
-        >
-          <LangText ar={st.ar} de={st.de} />
-        </button>
-      ))}
-    </div>
-  </div>
-)}
 
       <section dir={rtl ? "rtl" : "ltr"} className={`overflow-hidden ${rtl ? "text-right" : "text-left"} rounded-lg border border-secondary/60 bg-card shadow-md`}>
     <div className="bg-primary px-4 py-4 text-primary-foreground">
