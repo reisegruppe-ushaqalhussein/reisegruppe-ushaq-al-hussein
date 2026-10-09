@@ -123,7 +123,7 @@ function LabelPen({ content, id, cur, renamed }: { content: SiteContent; id: str
 }
 
 /** City + admin-added fields for one form step, with add / delete / required controls for the admin. */
-function ExtraFields({ content, step, values, onChange }: { content: SiteContent; step: 1 | 3; values: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
+function ExtraFields({ content, step, values, onChange }: { content: SiteContent; step: 1 | 2 | 3; values: Record<string, string>; onChange: (v: Record<string, string>) => void }) {
   const reg = regOf(content);
   const save = useRegSave(content);
   const [adding, setAdding] = useState(false);
@@ -255,7 +255,7 @@ function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Tra
 
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
 type Lbl = { ar: string; de: string };
-type ExtraField = { id: string; ar: string; de: string; step: 1 | 3; required?: boolean };
+type ExtraField = { id: string; ar: string; de: string; step: 1 | 2 | 3; required?: boolean };
 type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string> };
 const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 2 };
 const extraFields = (reg: RegCfg) => [...(reg.cityOff ? [] : [CITY]), ...(reg.extra ?? [])];
