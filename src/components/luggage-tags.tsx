@@ -311,6 +311,12 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [ar, setAr] = useState(nameAr);
   const [de, setDe] = useState(nameDe);
   const [bulk, setBulk] = useState("");
+  const [manualAr, setManualAr] = useState("");
+  const [manualDe, setManualDe] = useState("");
+  const [manualColor, setManualColor] =
+  useState<NameColor>("black");
+  const [bulkColors, setBulkColors] =
+  useState<NameColor[]>([]);
   const [copies, setCopies] = useState<1 | 2>(2);
   const [blankOnly, setBlankOnly] = useState(false);
   const [busy, setBusy] = useState(false);
