@@ -322,7 +322,6 @@ function HomeView({ open, content, payment }: { open: (id: string) => void; cont
 
       <InstallButton />
       <PrayerTimesCard content={content} />
-      const { lang } = useLang();
       {payment?.visible && <PaymentCard payment={payment} />}
     </div>
   );
