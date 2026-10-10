@@ -339,7 +339,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
       // Extra answers (city + admin-added fields) travel inside the notes, so they reach emails, lists and exports.
       const extraLines = fields.filter((f) => (extras[f.id] ?? "").trim()).map((f) => `${f.id === "city" ? "📍" : "•"} ${labelOf(reg, f).ar} / ${labelOf(reg, f).de}: ${extras[f.id]!.trim()}`);
       const fullNotes = [...extraLines, notes.trim()].filter(Boolean).join("\n").slice(0, 2000);
-      const r = await submit({ data: { trip: tripName, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes: fullNotes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
+      const r = await submit({ data: { trip: tripName, tripId: chosen?.id, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes: fullNotes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
       try { localStorage.setItem(HIST_KEY, JSON.stringify(remember(hist, { email: [email], phone: [phone], firstName: travelers.map((t) => t.firstName), lastName: travelers.map((t) => t.lastName), nationality: travelers.map((t) => t.nationality), passportNo: travelers.map((t) => t.passportNo), relation: travelers.map((t) => t.relation) }))); } catch { /* ignore */ }
       setDone(r.ref);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -885,7 +885,7 @@ type MT = Record<string, string>;
 const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", arabicName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
 
 /** Staff form to add a notebook booking (or edit any booking). Files optional, no emails sent. */
-function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string }>; rows: BookingRow[]; password: string; onDone: () => Promise<void> }) {
+function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string; trip_id?: string | null }>; rows: BookingRow[]; password: string; onDone: () => Promise<void> }) {
   const { lang } = useLang();
   const bi = biFor(lang);
   const add = useServerFn(addManualBooking);
@@ -920,7 +920,7 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
     const travelers = tr.map((t) => Object.fromEntries(Object.entries({ ...t, firstName: t["firstName"]!.trim().toUpperCase(), lastName: t["lastName"]!.trim().toUpperCase(), passportNo: (t["passportNo"] ?? "").trim().toUpperCase() }).filter(([, v]) => typeof v === "string")) as MT);
     setBusy(true);
     try {
-      const common = { trip: trip.trim(), trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), room_pref: room, notes, travelers };
+      const common = { trip: trip.trim(), trip_id: trips.find((t) => t.trip === trip.trim())?.trip_id ?? row?.trip_id ?? null, trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), room_pref: room, notes, travelers };
       if (row) await update({ data: { password, id: row.id, ...common, ...(row.status === "new" || row.status === "confirmed" ? { status } : {}), payment_status: pay, paid_amount: paid, total_amount: total } });
       else { const r = await add({ data: { password, ...common, status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
       await onDone();
