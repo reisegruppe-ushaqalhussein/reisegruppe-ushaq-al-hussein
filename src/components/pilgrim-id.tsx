@@ -167,7 +167,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const qr = [`${p.nameAr} ${p.nameDe}`.trim(), "حملة عشاق الحسين - Reisegruppe Ushaq al-Hussein", ...phones.map((x) => `Tel: ${x}`), current ? `${cityOf(current.city).de}: ${current.hotel} / ${current.floor} / ${current.room}` : ""].filter(Boolean).join("\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
-    <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
+    <div dir="rtl" className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
       {staff && <div className="relative">
         <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
         {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-background bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
@@ -255,7 +255,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
 
 
     <section className="min-w-0 rounded-lg border-2 border-destructive/40 bg-card p-3">
-      <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+      <div dir="rtl" className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
         <h3 className="min-w-0 font-bold text-destructive"><T ar={st.emTitleAr || "🚨 طوارئ — بدون إنترنت"} de={st.emTitleDe || "🚨 Notfall — ohne Internet"} /></h3>
         {staff && <GearMenu>
           {staff.role === "admin" && <IconBtn label="تعديل النصوص | Texte bearbeiten" onClick={() => setTextOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
