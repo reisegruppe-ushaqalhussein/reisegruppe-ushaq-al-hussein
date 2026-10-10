@@ -449,6 +449,26 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
   };
 
   const isUmrahTrip = (tripName: string) => /عمرة|عمره|umrah/i.test(tripName);
+  const localizedTripOption = (value: string) => {
+    const declared = content.trips.find((t) =>
+      value.startsWith(`${t.ar} — `) ||
+      value.startsWith(`${t.ar} | `) ||
+      (!!t.date && value.endsWith(` — ${t.date}`))
+    );
+    if (declared) {
+      const label = display(lang, declared.ar, toGerman(declared.de));
+      return [label.main, label.sub].filter(Boolean).join(" | ") + (declared.date ? ` — ${declared.date}` : "");
+    }
+    const parts = value.split(" — ");
+    const maybeDate = parts.length > 1 ? parts[parts.length - 1] : "";
+    const base = maybeDate && /\\d/.test(maybeDate) ? parts.slice(0, -1).join(" — ") : value;
+    const pair = base.split(" | ");
+    if (pair.length > 1) {
+      const label = display(lang, pair[0]!, toGerman(pair.slice(1).join(" | ")));
+      return [label.main, label.sub].filter(Boolean).join(" | ") + (maybeDate && /\\d/.test(maybeDate) ? ` — ${maybeDate}` : "");
+    }
+    return toGerman(base) + (maybeDate && /\\d/.test(maybeDate) ? ` — ${maybeDate}` : "");
+  };
 
   const applyTripPilgrims = (tripName: string, mode = pullLang) => {
     setSelectedTrip(tripName);
@@ -632,7 +652,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
                 </div>
                 <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
                   <option value="">{lang === "de" ? "Passende Reise auswählen" : lang === "en" ? "Select the appropriate trip" : "اختر الرحلة المناسبة"}</option>
-                  {trips.filter((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)).map((t) => <option key={t} value={t}>{t}</option>)}
+                  {trips.filter((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)).map((t) => <option key={t} value={t}>{localizedTripOption(t)}</option>)}
                 </select>
                 {!trips.some((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)) && (
                   <p className="text-[11px] text-muted-foreground">
