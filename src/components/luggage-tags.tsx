@@ -55,7 +55,6 @@ async function loadAssets(): Promise<Assets> {
     assetsP.catch(() => { assetsP = null; });
   }
   const base = await assetsP;
-  if (!qrLib) qrLib = await (qrMod ??= import("qrcode"));
   let custom: HTMLImageElement | null = null;
   const src = typeof localStorage !== "undefined" ? localStorage.getItem(CUSTOM_KEY) : null;
   if (src) {
