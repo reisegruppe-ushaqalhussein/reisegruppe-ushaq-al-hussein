@@ -203,10 +203,63 @@ export function LangProvider({ children }: { children: ReactNode }) {
 export const useLang = () => useContext(LangContext);
 
 /** Shared bilingual text: one language per mode, Arabic above German in "both"; aligns to the start of its own script. */
-export function LangText({ ar, de, en: enText, inverse, center }: { ar: string; de: string; en?: string | undefined; inverse?: boolean | undefined; center?: boolean | undefined }) {
+export function LangText({
+  ar,
+  de,
+  en: enText,
+  inverse,
+  center,
+}: {
+  ar: string;
+  de: string;
+  en?: string | undefined;
+  inverse?: boolean | undefined;
+  center?: boolean | undefined;
+}) {
   const { lang } = useLang();
-  const { main, sub } = lang === "en" && enText ? { main: enText, sub: "" } : display(lang, ar, de);
-  const rtl = ARABIC.test(main);
-  if (!sub) return <span dir={rtl ? "rtl" : "ltr"} className={`block ${center ? "text-center" : rtl ? "text-right" : "text-left"}`}>{main}</span>;
-  return <span className={`block ${center ? "text-center" : ""}`}>{main && <span className="block">{main}</span>}<span lang="de" dir="ltr" className={`block text-[0.8em] italic ${inverse ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{sub}</span></span>;
+
+  const { main, sub } =
+    lang === "en" && enText
+      ? { main: enText, sub: "" }
+      : display(lang, ar, de);
+
+  const rtl = lang === "ar" || lang === "both";
+
+  if (!sub) {
+    return (
+      <span
+        dir={rtl ? "rtl" : "ltr"}
+        className={`block ${
+          center ? "text-center" : rtl ? "text-right" : "text-left"
+        }`}
+      >
+        {main}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      dir={rtl ? "rtl" : "ltr"}
+      className={`block ${center ? "text-center" : ""}`}
+    >
+      {main && (
+        <span dir={rtl ? "rtl" : "ltr"} className="block">
+          {main}
+        </span>
+      )}
+
+      <span
+        lang="de"
+        dir="ltr"
+        className={`block text-[0.8em] italic ${
+          inverse
+            ? "text-primary-foreground/70"
+            : "text-muted-foreground"
+        }`}
+      >
+        {sub}
+      </span>
+    </span>
+  );
 }
