@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Baby, Bell, Calculator, Camera, CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, Eye, EyeOff, FileText, Loader2, MessageCircle, Plane, Pencil, Plus, RefreshCw, Settings, Trash2, Upload, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LangText, display, useLang } from "@/lib/i18n";
+import { LangText, display, toGerman, useLang } from "@/lib/i18n";
 import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionAdminBar, toggleSectionEditMode, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
 import { useQueryClient } from "@tanstack/react-query";
@@ -315,7 +315,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes, extras]);
 
   const chosen = trips.find((t) => t.id === trip);
-  const tripName = trip === OTHER ? otherTrip.trim() : chosen ? [chosen.ar, chosen.de].filter(Boolean).join(" | ") : "";
+  const tripName = trip === OTHER ? otherTrip.trim() : chosen ? [chosen.ar, toGerman(chosen.de)].filter(Boolean).join(" | ") : "";
   const tripDate = trip === OTHER ? otherDate.trim() : chosen?.date ?? "";
   const airport = airportSel === OTHER ? otherAirport.trim() : airportSel;
   const setT = (i: number, patch: Partial<Traveler>) => setTravelers((l) => l.map((t, j) => (j === i ? { ...t, ...patch } : t)));
