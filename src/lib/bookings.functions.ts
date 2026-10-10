@@ -161,6 +161,7 @@ export const listBookings = createServerFn({ method: "POST" })
     const currentTrips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string; aliases?: string[] }> } | null)?.trips ?? []);
     const dateKey = (s: string | null | undefined) => (s ?? "").replace(/[^0-9]/g, "");
     const nameKey = (s: string | null | undefined) => (s ?? "").toLocaleLowerCase().replace(/[ |—–-]+/g, " ").trim();
+    const repairs: Promise<unknown>[] = [];
     const normalized = ((rows ?? []) as unknown as BookingRow[]).map((row) => {
       const byId = row.trip_id ? currentTrips.find((t) => t.id === row.trip_id) : undefined;
       const byDate = currentTrips.filter((t) => dateKey(t.date) && dateKey(t.date) === dateKey(row.trip_date));
@@ -178,10 +179,11 @@ export const listBookings = createServerFn({ method: "POST" })
       const trip = [match.ar, match.de].filter(Boolean).join(" | ");
       const tripDate = match.date ?? row.trip_date;
       if (row.trip_id !== match.id || row.trip !== trip || row.trip_date !== tripDate) {
-        void supabaseAdmin.from("bookings").update({ trip_id: match.id, trip, trip_date: tripDate }).eq("id", row.id);
+        repairs.push(supabaseAdmin.from("bookings").update({ trip_id: match.id, trip, trip_date: tripDate }).eq("id", row.id));
       }
       return { ...row, trip_id: match.id, trip, trip_date: tripDate };
     });
+    if (repairs.length) await Promise.allSettled(repairs);
     return { ok: true as const, rows: normalized };
   });
 
@@ -206,8 +208,18 @@ export const updateBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!(await isStaff(data.password))) return { ok: false as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { password: _p, id, remove, ...patch } = data;
-    const q = remove ? supabaseAdmin.from("bookings").delete().eq("id", id) : supabaseAdmin.from("bookings").update(Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as never).eq("id", id);
+    const { password: _p, id, remove, ...inputPatch } = data;
+    const patch: Record<string, unknown> = Object.fromEntries(Object.entries(inputPatch).filter(([, v]) => v !== undefined));
+    if (typeof patch["trip_id"] === "string" && patch["trip_id"]) {
+      const { data: sc } = await supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle();
+      const trips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string }> } | null)?.trips ?? []);
+      const selected = trips.find((t) => t.id === patch["trip_id"]);
+      if (selected) {
+        patch["trip"] = [selected.ar, selected.de].filter(Boolean).join(" | ");
+        patch["trip_date"] = selected.date ?? patch["trip_date"] ?? "";
+      }
+    }
+    const q = remove ? supabaseAdmin.from("bookings").delete().eq("id", id) : supabaseAdmin.from("bookings").update(patch as never).eq("id", id);
     const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true as const };
