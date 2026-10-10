@@ -563,13 +563,13 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
       const c = { ADT: 0, CHD: 0, INF: 0 } as Record<string, number>;
       r.travelers.forEach((t) => c[paxOf(t)]!++);
       const pax = c["INF"] ? "INF" : c["CHD"] ? "CHD" : "ADT";
-      body.push({ pax, cells: [++n, r.travelers.map((t) => { const relation = (t["relation"] ?? "").trim(); const applicant = /^(صاحب الطلب|antragsteller(?:\\/in)?|antragstellerin)$/i.test(relation.replace(/\\s*\\|\\s*/g, " ").trim()); return `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${relation && !applicant ? ` (${relation})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`; }).join("\\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", ...hotels.map(() => ""), "", r.notes ?? ""] });
+      body.push({ pax, cells: [++n, r.travelers.map((t) => { const relation = (t["relation"] ?? "").trim(); const applicant = /صاحب الطلب|antragsteller/i.test(relation); return `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${relation && !applicant ? ` (${relation})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`; }).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", ...hotels.map(() => ""), "", r.notes ?? ""] });
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
   return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 27, 7, 12, 23, 11, ...hotels.map(() => 17), 13, 19],
     info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
-    head: ["NO", "الأسماء\\nNamen", "العدد\\nAnz.", "الفئة\\nPax", "رقم الهاتف\\nTelefon", "المطار\\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\\n🏨 ${hotelMap[h]}` : ""}\\n${de} / Zimmer-Nr.`; }), "ملاحظات الحاج\\nNotizen", "ملاحظات الزائر\\nHinweise"],
+    head: ["NO", "الأسماء\nNamen", "العدد\nAnz.", "الفئة\nPax", "رقم الهاتف\nTelefon", "المطار\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\n${de} / Zimmer-Nr.`; }), "ملاحظات الحاج\nNotizen", "ملاحظات الزائر\nHinweise"],
     body };
 }
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
