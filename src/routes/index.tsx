@@ -1247,6 +1247,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     de={`Nächster Gebetsruf: ${nextInfo.nameDe}`}
   />
 </span>
+     <span className="shrink-0 font-semibold text-secondary" dir="ltr">
+  {nextInfo.diffStr.split(" | ")[lang === "de" || lang === "en" ? 1 : 0]}
+</span>   
         </div>
       )}
 
