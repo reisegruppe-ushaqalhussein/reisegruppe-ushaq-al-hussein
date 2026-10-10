@@ -396,9 +396,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       const uniqueTrips = [...new Set([...declaredTrips, ...bookedTrips])].filter(Boolean);
 
       setTrips(uniqueTrips);
-      if (uniqueTrips.length > 0 && !selectedTrip) {
-        setSelectedTrip(uniqueTrips[0]);
-        const lines = extractTripPilgrims(valid, uniqueTrips[0]);
+      const firstTrip = uniqueTrips[0];
+      if (firstTrip && !selectedTrip) {
+        setSelectedTrip(firstTrip);
+        const lines = extractTripPilgrims(valid, firstTrip);
         setBulk(lines.join("\n"));
         setBlankOnly(false);
       }
