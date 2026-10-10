@@ -353,6 +353,10 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     { key: "hideSingleName", ar: "إخفاء حقول اسم الزائر المفرد", de: "Einzelne Namensfelder ausblenden", checkbox: true },
     { key: "hideBulk", ar: "إخفاء الطباعة الجماعية والحجوزات", de: "Sammeldruck und Buchungen ausblenden", checkbox: true },
     { key: "hidePrint", ar: "إخفاء أزرار الطباعة والحفظ", de: "Druck- und Speicherschaltflächen ausblenden", checkbox: true },
+    { key: "navAr", ar: "نص زر التنقل بالعربية", de: "Navigationstext (AR)" },
+    { key: "navDe", ar: "نص زر التنقل بالألمانية", de: "Navigationstext (DE)", ltr: true },
+    { key: "navTarget", ar: "وجهة زر التنقل", de: "Navigationsziel", options: [{ value: "home", label: "الرئيسية | Startseite" }, { value: "trips", label: "الرحلات | Reisen" }, { value: "registration", label: "التسجيل | Anmeldung" }, { value: "contacts", label: "التواصل | Kontakt" }, { value: "luggage", label: "بطاقات الأمتعة | Kofferanhänger" }] },
+    { key: "showNavigation", ar: "إظهار زر التنقل", de: "Navigationsschaltfläche anzeigen", checkbox: true },
   ];
   const settingsInitial = {
     titleAr: label("luggage:title", "بطاقة الأمتعة والحقائب", "Kofferanhänger").ar,
@@ -367,6 +371,10 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     hideSingleName: !!labels["luggage:single-name"]?.hidden,
     hideBulk: !!labels["luggage:bulk"]?.hidden,
     hidePrint: !!labels["luggage:print"]?.hidden,
+    navAr: labels["luggage:navigation"]?.ar || "الانتقال إلى قسم آخر",
+    navDe: labels["luggage:navigation"]?.de || "Zu einem anderen Bereich",
+    navTarget: labels["luggage:navigation"]?.target || "home",
+    showNavigation: !labels["luggage:navigation"]?.hidden,
   };
   const saveSettings = async (row: Record<string, unknown>) => {
     const nextLabels = { ...labels,
@@ -377,6 +385,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       "luggage:copies": { ar: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar, de: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de, hidden: !!row.hideCopies },
       "luggage:single-name": { ar: label("luggage:single-name", "اسم الزائر", "Pilgername").ar, de: label("luggage:single-name", "اسم الزائر", "Pilgername").de, hidden: !!row.hideSingleName },
       "luggage:print": { ar: label("luggage:print", "خيارات الطباعة", "Druckoptionen").ar, de: label("luggage:print", "خيارات الطباعة", "Druckoptionen").de, hidden: !!row.hidePrint },
+      "luggage:navigation": { ar: String(row.navAr || ""), de: String(row.navDe || ""), target: String(row.navTarget || "home"), hidden: !row.showNavigation },
     };
     await saveContent({ ...content, labels: nextLabels });
   };
