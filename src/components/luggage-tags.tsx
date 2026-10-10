@@ -411,8 +411,16 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     const extractTripPilgrims = (bookingsList: BookingRow[], tripName: string, mode: "ar" | "latin" | "both" = pullLang) => {
     const normTrip = (s: string) => s.replace(/[\s|—–-]+/g, " ").trim().toLowerCase();
     const target = normTrip(tripName);
+    const tripParts = tripName.split(" — ");
+    const selectedDate = tripParts.length > 2 ? tripParts.slice(2).join(" — ").trim() : "";
+    const selectedBase = normTrip(tripParts.slice(0, 2).join(" — "));
+    const selectedDeclared = content.trips.find((t) =>
+      normTrip(`${t.ar}${t.de ? ` — ${t.de}` : ""}`) === selectedBase ||
+      (!!selectedDate && t.date === selectedDate)
+    );
 
     const filtered = bookingsList.filter((b) => {
+      if (selectedDeclared && b.trip_id === selectedDeclared.id) return true;
       const bFull = normTrip(`${b.trip} ${b.trip_date ?? ""}`);
       const bTripOnly = normTrip(b.trip);
       return bFull.includes(target) || target.includes(bTripOnly) || bTripOnly.includes(target);
@@ -459,19 +467,10 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       const valid = (res.rows ?? []).filter((r) => r.status !== "deleted");
       setAllBookings(valid);
 
-      // جلب جميع الرحلات المعلنة في التطبيق من الذاكرة المحلية أو الحجوزات
-      const savedContent = typeof window !== "undefined" ? localStorage.getItem("ushaq_offline_site-content") : null;
-      let declaredTrips: string[] = [];
-      if (savedContent) {
-        try {
-          const parsed = JSON.parse(savedContent);
-          if (Array.isArray(parsed?.trips)) {
-            declaredTrips = parsed.trips.map((t: { ar: string; de: string; date?: string }) =>
-              `${t.ar} | ${t.de}${t.date ? ` — ${t.date}` : ""}`.replace(/\s*\|\s*/g, " — ").trim()
-            );
-          }
-        } catch { /* ignore */ }
-      }
+      // Always use the live canonical trip names from shared campaign content, not a stale browser cache.
+      const declaredTrips: string[] = content.trips.filter((t) => !t.hidden).map((t) =>
+        `${t.ar}${t.de ? ` | ${t.de}` : ""}${t.date ? ` — ${t.date}` : ""}`.replace(/\s*\|\s*/g, " — ").trim()
+      );
 
       // دمج رحلات الحجوزات الفعلية مع الرحلات المعلنة ومنع التكرار
       const bookedTrips = valid.map((r) => {
