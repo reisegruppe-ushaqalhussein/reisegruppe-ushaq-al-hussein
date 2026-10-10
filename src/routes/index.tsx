@@ -647,6 +647,7 @@ const prayerRegions = [
 ] as const;
 
 function PrayerTimesCard({ content }: { content?: SiteContent }) {
+  const { lang } = useLang();
   const prayerTitle = content ? labelOf(content, "prayer", "مواقيت الصلاة", "Gebetszeiten") : { ar: "مواقيت الصلاة", de: "Gebetszeiten" };
   const adminSession = useAdminSession();
   const [localEdit, setLocalEdit] = useState(false);
