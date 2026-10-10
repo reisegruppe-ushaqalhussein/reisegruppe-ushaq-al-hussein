@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
-import { flushQueue } from "@/lib/offline";
+import { flushQueue, getQueue } from "@/lib/offline";
 import { ADMIN_KEY } from "@/components/dua-admin";
 
 export function useOnline() {
@@ -20,10 +20,20 @@ export function useOnline() {
 export function OfflineStatus() {
   const online = useOnline();
   const qc = useQueryClient();
+  const wasOnline = useRef(online);
   useEffect(() => {
+    const reconnected = !wasOnline.current && online;
+    wasOnline.current = online;
     if (!online) return;
-    qc.invalidateQueries({ queryKey: ["site-content"] });
-    flushQueue(sessionStorage.getItem(ADMIN_KEY)).then(() => qc.invalidateQueries({ queryKey: ["site-content"] }));
+    const sync = async () => {
+      const queue = await getQueue().catch(() => []);
+      const hasPending = queue.some((item) => item.status === "pending");
+      await flushQueue(sessionStorage.getItem(ADMIN_KEY));
+      // The route loader already fetches fresh content on first launch. Avoid
+      // invalidating it again unless connectivity returned or queued edits synced.
+      if (reconnected || hasPending) await qc.invalidateQueries({ queryKey: ["site-content"] });
+    };
+    void sync();
   }, [online, qc]);
   if (online) return null;
   return (
