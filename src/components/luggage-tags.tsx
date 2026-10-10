@@ -22,6 +22,7 @@ const A4 = { w: 210, h: 297 };
 const CUSTOM_KEY = "luggage-tag-custom-iraq";
 
 type Kind = "iraq" | "umrah";
+type NameColor = "red" | "gold" | "black";
 type Person = { ar: string; de: string };
 type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement; template: HTMLImageElement; custom: HTMLImageElement | null };
 type Style = { variant: "new" | "classic" | "custom"; color: "red" | "gold" | "black"; bold: boolean; scale: number; layout: "side" | "stack" };
