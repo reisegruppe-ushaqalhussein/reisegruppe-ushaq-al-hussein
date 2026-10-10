@@ -374,7 +374,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     navAr: labels["luggage:navigation"]?.ar || "الانتقال إلى قسم آخر",
     navDe: labels["luggage:navigation"]?.de || "Zu einem anderen Bereich",
     navTarget: labels["luggage:navigation"]?.target || "home",
-    showNavigation: !labels["luggage:navigation"]?.hidden,
+    showNavigation: !!labels["luggage:navigation"] && !labels["luggage:navigation"]?.hidden,
   };
   const saveSettings = async (row: Record<string, unknown>) => {
     const nextLabels = { ...labels,
@@ -691,7 +691,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       required
       className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2"
     >
-      <option value="">{display(useLang().lang, "اختر لون الاسم", "Namensfarbe auswählen").main}</option>
+      <option value="">{display(lang, "اختر لون الاسم", "Namensfarbe auswählen").main}</option>
       <option value="black">{display(useLang().lang, "أسود", "Schwarz").main}</option>
       <option value="red">{display(useLang().lang, "أحمر", "Rot").main}</option>
       <option value="gold">{display(useLang().lang, "ذهبي", "Gold").main}</option>
