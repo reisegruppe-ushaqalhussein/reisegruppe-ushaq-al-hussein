@@ -594,9 +594,9 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
           <span className="flex-1 text-center text-sm font-bold" dir="ltr">{Math.round(scale * 100)}%</span>
           <button type="button" onClick={() => setScale(Math.min(1.5, +(scale + 0.1).toFixed(1)))} className="h-10 w-10 rounded-md border border-border text-lg font-bold">+</button>
         </div>
-      </div>
+      </div>}
 
-      <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2.5">
+      {!label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").hidden && <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2.5">
         <p className="text-xs font-bold text-primary"><L ar={label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar} de={label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de} /></p>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => { setCopies(2); setBlankOnly(false); }} className={`min-h-10 rounded-md border-2 p-1 text-xs font-bold ${copies === 2 && !blankOnly ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground"}`}>
