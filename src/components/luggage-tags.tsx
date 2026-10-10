@@ -91,7 +91,7 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
     ctx.fillStyle = "#000000";
     for (let r = 0; r < n; r++) {
         for (let c = 0; c < n; c++) {
-            if (q.modules.get(r, c)) continue;
+           if (!q.modules.get(r, c)) continue;
             const x0 = Math.round(X(x + (c + margin) * m)), x1 = Math.round(X(x + (c + margin + 1) * m));
             const y0 = Math.round(Y(y + (r + margin) * m)), y1 = Math.round(Y(y + (r + margin + 1) * m));
             ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
