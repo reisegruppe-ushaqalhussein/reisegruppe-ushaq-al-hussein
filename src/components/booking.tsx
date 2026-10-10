@@ -979,14 +979,27 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const rtl = lang === "ar" || lang === "both";
 
   const [isOpen, setIsOpen] = useState(false);
-  const [isCardHidden, setIsCardHidden] = useState(false);
+  const saveContent = useSaveContent(adminS?.password ?? "");
+  const savedRc = content?.cms?.roomCalc;
+  const isCardHidden = !!savedRc?.hidden;
   const [editTitleOpen, setEditTitleOpen] = useState(false);
-  const [customTitle, setCustomTitle] = useState({
-    ar: "حاسبة وفرز الغرف",
-    de: "Zimmer-Rechner",
-    subAr: "كشف الفنادق وحساب الغرف الميداني",
-    subDe: "Zimmer & Abrechnung",
-  });
+  const savedTitle = {
+    ar: savedRc?.ar || "حاسبة وفرز الغرف",
+    de: savedRc?.de || "Zimmer-Rechner",
+    subAr: savedRc?.subAr || "كشف الفنادق وحساب الغرف الميداني",
+    subDe: savedRc?.subDe || "Zimmer & Abrechnung",
+  };
+  const [draftTitle, setCustomTitle] = useState(savedTitle);
+  const customTitle = editTitleOpen ? draftTitle : savedTitle;
+  const persistRc = async (patch: NonNullable<NonNullable<SiteContent["cms"]>["roomCalc"]>) => {
+    if (!content || !adminS) return;
+    try {
+      await saveContent({ ...content, cms: { ...(content.cms ?? {}), roomCalc: { ...(content.cms?.roomCalc ?? {}), ...patch } } });
+    } catch (e) {
+      window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const setIsCardHidden = (h: boolean) => { void persistRc({ hidden: h }); };
 
   const [rows, setRows] = useState<BookingRow[] | null>(null);
   const [trip, setTrip] = useState<string>("all");
@@ -1099,7 +1112,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           {/* زر قلم تعديل عنوان ووصف الكرت الخارجي */}
           <button
             type="button"
-            onClick={() => setEditTitleOpen(true)}
+            onClick={() => { setCustomTitle(savedTitle); setEditTitleOpen(true); }}
             title={bi("تعديل العنوان | Titel bearbeiten")}
             className="grid h-7 w-7 place-items-center rounded-full border border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
           >
@@ -1153,7 +1166,16 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   className="mt-1 w-full rounded border border-border p-2"
                 />
               </label>
-              <Button onClick={() => setEditTitleOpen(false)} className="w-full mt-2">
+              <label className="block font-bold">
+                الوصف التوضيحي (ألماني | Beschreibung):
+                <input
+                  dir="ltr"
+                  value={customTitle.subDe}
+                  onChange={(e) => setCustomTitle((prev) => ({ ...prev, subDe: e.target.value }))}
+                  className="mt-1 w-full rounded border border-border p-2"
+                />
+              </label>
+              <Button onClick={async () => { await persistRc({ ...draftTitle }); setEditTitleOpen(false); }} className="w-full mt-2">
                 {bi("حفظ التعديل | Speichern")}
               </Button>
             </div>
