@@ -648,14 +648,15 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
       raw: [t.ar, t.de].filter(Boolean).join(" | "),
       ar: t.ar,
       de: t.de,
+      label: [display(lang, t.ar, toGerman(t.de)).main, display(lang, t.ar, toGerman(t.de)).sub].filter(Boolean).join(" | "),
       date: t.date ?? "",
     }));
-  }, [content.trips]);
+  }, [content.trips, lang]);
 
   // دمج الرحلات المعلنة مع أي رحلات بالحجوزات دون تكرار
   const trips = useMemo(() => {
     const list: string[] = [];
-    announcedTrips.forEach((a) => list.push(a.key));
+    announcedTrips.forEach((a) => list.push(`${a.label}${a.date ? ` — ${a.date}` : ""}`));
     (rows ?? []).filter((r) => r.status !== "deleted").forEach((r) => {
       const k = groupKey(r);
       const isAnnounced = announcedTrips.some(
