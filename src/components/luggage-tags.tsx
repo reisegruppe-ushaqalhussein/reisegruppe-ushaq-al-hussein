@@ -631,7 +631,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
                   <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline"><L ar="🔄 تحديث" de="🔄 Aktualisieren" /></button>
                 </div>
                 <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
-                  <option value="">{lang === "de" ? "Passende Reise auswählen" : "اختر الرحلة المناسبة"}</option>
+                  <option value="">{lang === "de" ? "Passende Reise auswählen" : lang === "en" ? "Select the appropriate trip" : "اختر الرحلة المناسبة"}</option>
                   {trips.filter((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 {!trips.some((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)) && (
