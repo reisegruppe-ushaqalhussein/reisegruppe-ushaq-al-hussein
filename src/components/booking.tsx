@@ -315,7 +315,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
   }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes, extras]);
 
   const chosen = trips.find((t) => t.id === trip);
-  const tripName = trip === OTHER ? otherTrip.trim() : chosen ? `${chosen.ar} | ${chosen.de}` : "";
+  const tripName = trip === OTHER ? otherTrip.trim() : chosen ? [chosen.ar, chosen.de].filter(Boolean).join(" | ") : "";
   const tripDate = trip === OTHER ? otherDate.trim() : chosen?.date ?? "";
   const airport = airportSel === OTHER ? otherAirport.trim() : airportSel;
   const setT = (i: number, patch: Partial<Traveler>) => setTravelers((l) => l.map((t, j) => (j === i ? { ...t, ...patch } : t)));
@@ -644,8 +644,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     return content.trips.filter((t) => !t.hidden).map((t) => ({
       id: t.id,
       aliases: t.aliases ?? [],
-      key: `${t.ar} | ${t.de}${t.date ? ` — ${t.date}` : ""}`,
-      raw: `${t.ar} | ${t.de}`,
+      key: `${[t.ar, t.de].filter(Boolean).join(" | ")}${t.date ? ` — ${t.date}` : ""}`,
+      raw: [t.ar, t.de].filter(Boolean).join(" | "),
       ar: t.ar,
       de: t.de,
       date: t.date ?? "",
@@ -690,7 +690,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [editing, setEditing] = useState<BookingRow | "new" | null>(null);
   const tripOptions = useMemo(() => {
     const m = new Map<string, { trip: string; date: string; trip_id?: string | null }>();
-    content.trips.filter((t) => !t.hidden).forEach((t) => m.set(`${t.ar} | ${t.de}`, { trip: `${t.ar} | ${t.de}`, date: t.date ?? "", trip_id: t.id }));
+    content.trips.filter((t) => !t.hidden).forEach((t) => { const trip = [t.ar, t.de].filter(Boolean).join(" | "); m.set(trip, { trip, date: t.date ?? "", trip_id: t.id }); });
     (rows ?? []).forEach((r) => { if (!m.has(r.trip)) m.set(r.trip, { trip: r.trip, date: r.trip_date ?? "", trip_id: r.trip_id ?? null }); });
     return [...m.values()];
   }, [rows, content.trips]);
