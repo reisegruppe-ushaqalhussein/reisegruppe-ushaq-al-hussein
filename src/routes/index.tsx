@@ -1023,14 +1023,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
               setLocalEdit(next);
               setShowSettings(next);
             }}
-            aria-label="تعديل المواقيت والترتيب | Einstellungen"
+            aria-label={prayerText("تعديل المواقيت والترتيب", "Gebetszeiten und Reihenfolge bearbeiten")}
             className={`flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-semibold transition-colors ${
               localEdit
                 ? "border-secondary bg-secondary text-secondary-foreground shadow-xs"
                 : "border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
             }`}
           >
-            {localEdit ? "✓ إنهاء | Fertig" : "⚙️ تعديل وترتيب | Anpassen"}
+            {localEdit ? `✓ ${prayerText("إنهاء", "Fertig")}` : `⚙️ ${prayerText("تعديل وترتيب", "Anpassen")}`}
           </button>
         )}
       </div>
@@ -1038,9 +1038,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       {/* لوحة تحكم التوقيت للإدارة */}
       {isEditing && showSettings && (
         <div className="mb-4 rounded-lg border border-secondary/40 bg-accent/40 p-3 text-xs">
-          <p className="mb-2 font-bold text-primary">⚙️ ضبط التوقيت الصيفي/الشتوي وفوارق المرجع:</p>
+          <p className="mb-2 font-bold text-primary">⚙️ {prayerText("ضبط التوقيت الصيفي/الشتوي وفوارق المرجع:", "Sommer-/Winterzeit und Gebetszeit-Korrekturen:")}</p>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground">التوقيت:</span>
+            <span className="text-muted-foreground">{prayerText("التوقيت:", "Zeitumstellung:")}</span>
             <button
               type="button"
               onClick={() => updateHourOffset(0)}
@@ -1048,7 +1048,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 hourOffset === 0 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"
               }`}
             >
-              عادي / شتوي (0س)
+              {prayerText("عادي / شتوي (0س)", "Normal / Winterzeit (0 Std.)")}
             </button>
             <button
               type="button"
@@ -1057,18 +1057,18 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 hourOffset === 1 ? "bg-primary text-primary-foreground font-bold" : "bg-card border border-border"
               }`}
             >
-              صيفي (+1ساعة)
+              {prayerText("صيفي (+1ساعة)", "Sommerzeit (+1 Std.)")}
             </button>
           </div>
           <div className="mb-2 space-y-1.5">
-            <p className="text-[11px] text-muted-foreground">فارق الدقائق حسب المرجع / الاحتياط:</p>
+            <p className="text-[11px] text-muted-foreground">{prayerText("فارق الدقائق حسب المرجع / الاحتياط:", "Minutenkorrektur je Gebet (Sicherheitsreserve):")}</p>
             {prayerNames.map((p) => (
               <div
                 key={p.key}
                 className="flex items-center justify-between rounded bg-card px-2 py-1 border border-border/50"
               >
                 <span>
-                  {p.ar} ({p.de}):
+                  {prayerText(p.ar, p.de)}:
                 </span>
                 <div className="flex items-center gap-1.5 font-mono">
                   <button
@@ -1079,7 +1079,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                     -
                   </button>
                   <span className="w-8 text-center font-bold text-secondary">
-                    {(minuteOffsets[p.key] || 0) > 0 ? `+${minuteOffsets[p.key]}` : minuteOffsets[p.key] || 0}د
+                    {(minuteOffsets[p.key] || 0) > 0 ? `+${minuteOffsets[p.key]}` : minuteOffsets[p.key] || 0}{prayerText("د", "Min")}
                   </span>
                   <button
                     type="button"
@@ -1098,7 +1098,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
               onClick={resetOffsets}
               className="text-[11px] text-muted-foreground underline hover:text-foreground"
             >
-              🔄 إعادة الضبط للأصل
+              🔄 {prayerText("إعادة الضبط للأصل", "Auf Standard zurücksetzen")}
             </button>
           </div>
         </div>
