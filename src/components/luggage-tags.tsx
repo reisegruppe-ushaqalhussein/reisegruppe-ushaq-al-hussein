@@ -254,7 +254,7 @@ async function renderCard(kind: Kind, who: Person, st: Style, S = PX_PER_MM) {
 }
 
 async function renderSheets(kind: Kind, people: Person[], st: Style) {
-  const a = await loadAssets();
+  const a = await loadAssets(kind);
   const sp = SPEC[kind];
   const per = sp.cols * sp.rows;
  const blank: Person = { ar: "", de: "" };
@@ -308,6 +308,7 @@ function L({ ar, de }: { ar: string; de: string }) {
 }
 
 export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string }) {
+  const { lang } = useLang();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>("iraq");
   const [ar, setAr] = useState(nameAr);
@@ -492,6 +493,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => {
           if (k !== kind) {
             setKind(k);
+            setVariant("new");
             setSelectedTrip("");
             setBulk("");
             setBulkColors([]);
@@ -512,7 +514,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           {([["new", "الجديد", "Neu"], ["classic", "السابق", "Vorherig"], ["custom", "مرفوع", "Eigenes"]] as const).map(([v, a1, d1]) => <button key={v} type="button" disabled={v === "custom" && !hasCustom} onClick={() => setVariant(v)} className={`min-h-10 rounded-md border-2 px-1 text-xs font-bold disabled:opacity-40 ${st.variant === v ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}><L ar={a1} de={d1} /></button>)}
         </div>
         <label className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border text-xs font-bold text-primary">
-          <Upload className="h-4 w-4" /><L ar="رفع تصميم بطاقة جديد (PNG/JPG بمقاس 105×74 مم)" de="Neues Kartendesign hochladen" />
+          <Upload className="h-4 w-4" /><L ar={`رفع تصميم بطاقة جديد (PNG/JPG بمقاس ${kind === "umrah" ? "56×84" : "105×74"} مم)`} de={`Neues Kartendesign hochladen (${kind === "umrah" ? "56×84" : "105×74"} mm)`} />
           <input type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
         </label>
       </div>
@@ -549,7 +551,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       </div>
 
       {!blankOnly && <div className="grid gap-2">
-        <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder={display(useLang().lang, "اسم الزائر بالعربية", "Name des Pilgers auf Arabisch").main} />
+        <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder={display(lang, "اسم الزائر بالعربية", "Name des Pilgers auf Arabisch").main} />
         <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder={display(useLang().lang, "Name (Latin)", "Name (lateinisch)").main} />
       </div>}
 
