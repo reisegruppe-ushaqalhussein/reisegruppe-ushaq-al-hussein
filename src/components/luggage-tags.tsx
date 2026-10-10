@@ -9,7 +9,7 @@ import type { SiteContent } from "@/lib/site-content";
 import { Pencil } from "lucide-react";
 import { Download, Printer, Tag, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { display, isArabic, useLang } from "@/lib/i18n";
+import { display, isArabic, toGerman, useLang } from "@/lib/i18n";
 import calligraphySrc from "@/assets/tag-calligraphy.png";
 import shrineSrc from "@/assets/tag-shrine.png";
 import kaabaSrc from "@/assets/tag-kaaba.png";
@@ -469,7 +469,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
 
       // Always use the live canonical trip names from shared campaign content, not a stale browser cache.
       const declaredTrips: string[] = content.trips.filter((t) => !t.hidden).map((t) =>
-        `${t.ar}${t.de ? ` | ${t.de}` : ""}${t.date ? ` — ${t.date}` : ""}`.replace(/\s*\|\s*/g, " — ").trim()
+        `${t.ar}${t.de ? ` | ${toGerman(t.de)}` : ""}${t.date ? ` — ${t.date}` : ""}`.replace(/\s*\|\s*/g, " — ").trim()
       );
 
       // دمج رحلات الحجوزات الفعلية مع الرحلات المعلنة ومنع التكرار
