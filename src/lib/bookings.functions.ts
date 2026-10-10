@@ -158,19 +158,29 @@ export const listBookings = createServerFn({ method: "POST" })
       supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle(),
     ]);
     if (error) throw new Error(error.message);
-    const currentTrips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string }> } | null)?.trips ?? []);
-    const dateKey = (s: string | null | undefined) => (s ?? "").replace(/\\D/g, "");
-    const nameKey = (s: string | null | undefined) => (s ?? "").toLocaleLowerCase().replace(/[\\s|—–-]+/g, " ").trim();
+    const currentTrips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string; aliases?: string[] }> } | null)?.trips ?? []);
+    const dateKey = (s: string | null | undefined) => (s ?? "").replace(/[^0-9]/g, "");
+    const nameKey = (s: string | null | undefined) => (s ?? "").toLocaleLowerCase().replace(/[ |—–-]+/g, " ").trim();
     const normalized = ((rows ?? []) as unknown as BookingRow[]).map((row) => {
       const byId = row.trip_id ? currentTrips.find((t) => t.id === row.trip_id) : undefined;
       const byDate = currentTrips.filter((t) => dateKey(t.date) && dateKey(t.date) === dateKey(row.trip_date));
+      const oldName = nameKey(row.trip);
+      const byAlias = currentTrips.find((t) => (t.aliases ?? []).some((a) => {
+        const alias = nameKey(a);
+        return alias && (oldName === alias || (alias.length > 5 && oldName.includes(alias)) || (oldName.length > 5 && alias.includes(oldName)));
+      }));
       const byName = currentTrips.find((t) => {
         const names = [t.ar, t.de, [t.ar, t.de].filter(Boolean).join(" | ")].map(nameKey).filter(Boolean);
-        const old = nameKey(row.trip);
-        return names.some((n) => old === n || (n.length > 4 && old.includes(n)) || (old.length > 4 && n.includes(old)));
+        return names.some((n) => oldName === n || (n.length > 5 && oldName.includes(n)) || (oldName.length > 5 && n.includes(oldName)));
       });
-      const match = byId ?? (byDate.length === 1 ? byDate[0] : undefined) ?? byName;
-      return match ? { ...row, trip_id: match.id, trip: [match.ar, match.de].filter(Boolean).join(" | "), trip_date: match.date ?? row.trip_date } : row;
+      const match = byId ?? byAlias ?? (byDate.length === 1 ? byDate[0] : undefined) ?? byName;
+      if (!match) return row;
+      const trip = [match.ar, match.de].filter(Boolean).join(" | ");
+      const tripDate = match.date ?? row.trip_date;
+      if (row.trip_id !== match.id || row.trip !== trip || row.trip_date !== tripDate) {
+        void supabaseAdmin.from("bookings").update({ trip_id: match.id, trip, trip_date: tripDate }).eq("id", row.id);
+      }
+      return { ...row, trip_id: match.id, trip, trip_date: tripDate };
     });
     return { ok: true as const, rows: normalized };
   });
