@@ -692,9 +692,9 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2"
     >
       <option value="">{display(lang, "اختر لون الاسم", "Namensfarbe auswählen").main}</option>
-      <option value="black">{display(useLang().lang, "أسود", "Schwarz").main}</option>
-      <option value="red">{display(useLang().lang, "أحمر", "Rot").main}</option>
-      <option value="gold">{display(useLang().lang, "ذهبي", "Gold").main}</option>
+      <option value="black">{display(lang, "أسود", "Schwarz").main}</option>
+      <option value="red">{display(lang, "أحمر", "Rot").main}</option>
+      <option value="gold">{display(lang, "ذهبي", "Gold").main}</option>
     </select>
   </label>}
 
