@@ -1258,7 +1258,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           return (
            
 <div key={p.key} className="min-w-0 rounded-md bg-muted px-1 py-2 text-center">
-  <div className="min-w-0 text-[9px] leading-tight">
+  <div className="min-w-0 text-[12px] leading-tight">
     <Pair ar={p.ar} de={p.de} align="center" />
   </div>
   <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">
