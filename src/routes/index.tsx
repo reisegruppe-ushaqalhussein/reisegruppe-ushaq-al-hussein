@@ -1659,7 +1659,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "pilgrimId" && <PilgrimIdView content={content} />}
         {view === "bookings" && <StaffScreen content={content} id="bookings" icon={ClipboardList} ar="الحجوزات" de="Buchungen"><BookingsPanel content={content} /></StaffScreen>}
         {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><RoomCalcPanel /></StaffScreen>}
-        {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><LuggageTags nameAr="" nameDe="" /></StaffScreen>}
+        {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><LuggageTags nameAr="" nameDe="" content={content} /></StaffScreen>}
         {view === "rooms" && <StaffScreen content={content} id="rooms" icon={BedDouble} ar="تسكين الزوار" de="Zimmerverteilung"><RoomsPanel content={content} /></StaffScreen>}
         <ScrollToTop />
         {view === "favorites" && <FavoritesView content={content} go={go} />}
