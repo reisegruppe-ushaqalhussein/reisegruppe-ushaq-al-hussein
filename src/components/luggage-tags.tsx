@@ -465,8 +465,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       const pages = await renderSheets(kind, people(), st);
       const urls = pages.map((c) => c.toDataURL("image/png"));
       if (!w) { for (let i = 0; i < pages.length; i++) await download(pages[i]!, `${fileBase}-A4-${i + 1}.png`); return; }
-      w.document.write(`<!doctype html><html><head><title>بطاقة زائر</title><style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script></body></html>`);
-      w.document.close();
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>بطاقة زائر</title><style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${urls.map((u) => `<img src="${u}">`).join("")}<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\\/script></body></html>`;
+      const previewUrl = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+      w.location.href = previewUrl;
+      w.addEventListener("afterprint", () => URL.revokeObjectURL(previewUrl), { once: true });
     });
   };
 
@@ -631,6 +633,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
 
   <button
     type="button"
+    disabled={kind === "iraq" && !manualColor}
     onClick={() => {
       const a = manualAr.trim();
       const d = manualDe.trim();
@@ -661,6 +664,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
 
       setManualAr("");
       setManualDe("");
+      setManualColor("");
       setBlankOnly(false);
     }}
     className="min-h-10 w-full rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"
