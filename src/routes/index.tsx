@@ -1,7 +1,7 @@
 import { uploadImage } from "@/lib/upload-image";
 import { createPortal } from "react-dom";
 import { createFileRoute } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { fetchContentOfflineFirst, OfflineMissingError } from "@/lib/offline";
 import { OfflineFallback } from "@/components/offline-status";
 import { defaultContacts, defaultContent, defaultIraqItems, type IraqItem, duaCategoryOf, labelOf, type ContactEntry, type TripEntry, type FaqEntry, type NewsEntry, type DuaCategory, type SiteContent, type TripTypeEntry, type ShrineEntry, type NoteEntry, type DonationEntry } from "@/lib/site-content";
@@ -107,7 +107,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(contentQuery),
+  loader: () => undefined,
   component: Index,
   errorComponent: ({ error }) => (error instanceof OfflineMissingError || (typeof navigator !== "undefined" && !navigator.onLine) ? <OfflineFallback /> : <div className="p-6 text-center">تعذّر تحميل المحتوى | Inhalt konnte nicht geladen werden</div>),
 });
@@ -1557,7 +1557,15 @@ const bottomItems: Array<{ view: View; ar: string; de: string; icon: IconType }>
 ];
 
 function Index() {
-  const { data: content } = useSuspenseQuery(contentQuery);
+  const { data: content, isError } = useQuery(contentQuery);
+  const [enteredWhileLoading, setEnteredWhileLoading] = useState(false);
+  if (!content) {
+    if (isError) return <LangProvider><OfflineFallback /></LangProvider>;
+    return <LangProvider><div className="min-h-screen bg-background"><WelcomeScreen onEnter={() => {
+      try { sessionStorage.setItem("welcomed", "1"); } catch {}
+      setEnteredWhileLoading(true);
+    }} />{enteredWhileLoading && <p role="status" className="fixed inset-x-0 bottom-6 z-50 text-center text-sm font-bold text-primary">جارٍ تحميل التطبيق… | App wird geladen…</p>}</div></LangProvider>;
+  }
   return <LangProvider><CampaignApp content={content} /></LangProvider>;
 }
 
