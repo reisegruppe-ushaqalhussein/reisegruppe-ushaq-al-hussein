@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WifiOff } from "lucide-react";
 import { flushQueue, getQueue } from "@/lib/offline";
+import type { SiteContent } from "@/lib/site-content";
 import { ADMIN_KEY } from "@/components/dua-admin";
 
 export function useOnline() {
@@ -20,6 +21,14 @@ export function useOnline() {
 export function OfflineStatus() {
   const online = useOnline();
   const qc = useQueryClient();
+  useEffect(() => {
+    const onFreshContent = (event: Event) => {
+      const content = (event as CustomEvent<SiteContent>).detail;
+      if (content) qc.setQueryData<SiteContent>(["site-content"], content);
+    };
+    window.addEventListener("ushaq-content-refreshed", onFreshContent);
+    return () => window.removeEventListener("ushaq-content-refreshed", onFreshContent);
+  }, [qc]);
   const wasOnline = useRef(online);
   useEffect(() => {
     const reconnected = !wasOnline.current && online;
