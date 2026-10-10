@@ -193,9 +193,13 @@ export function LangProvider({ children }: { children: ReactNode }) {
     listeners.add(l);
     return () => { listeners.delete(l); };
   }, []);
-  useEffect(() => {
-    document.documentElement.lang = lang === "both" ? "ar" : lang;
-  }, [lang]);
+  ```tsx
+useEffect(() => {
+  document.documentElement.lang = lang === "both" ? "ar" : lang;
+  document.documentElement.dir =
+    lang === "ar" || lang === "both" ? "rtl" : "ltr";
+}, [lang]);
+```
   const setLang = (l: AppLang) => { setLangState(l); window.localStorage.setItem("app-lang", l); };
   return <LangContext.Provider value={{ lang, setLang, v }}>{children}</LangContext.Provider>;
 }
