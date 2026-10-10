@@ -702,7 +702,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const [times, setTimes] = useState<Record<string, string> | null>(null);
   const [timezone, setTimezone] = useState<string>("Asia/Baghdad");
   const [failed, setFailed] = useState(false);
-  const [nextInfo, setNextInfo] = useState<{ nameAr: string; nameDe: string; diffStr: string } | null>(null);
+  const [nextInfo, setNextInfo] = useState<{ nameAr: string; nameDe: string; remainingSeconds: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
   // إعدادات التوقيت الصيفي/الشتوي وفوارق المرجع
@@ -796,7 +796,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         localStorage.setItem("ushaq_prayer_manual", JSON.stringify(place));
       } catch {}
     } catch {
-      setPlaceError("لم يتم العثور على المدينة، جرّب اسماً آخر | Ort nicht gefunden");
+      setPlaceError(prayerText("لم يتم العثور على المدينة، جرّب اسماً آخر", "Ort nicht gefunden. Bitte versuchen Sie einen anderen Namen."));
     } finally {
       setPlaceBusy(false);
     }
@@ -941,6 +941,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           timeZone: timezone || "Asia/Baghdad",
           hour: "2-digit",
           minute: "2-digit",
+          second: "2-digit",
           hour12: false,
         }).formatToParts(now);
       } catch {
@@ -954,7 +955,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
       const curH = Number(parts.find((p) => p.type === "hour")?.value ?? now.getHours());
       const curM = Number(parts.find((p) => p.type === "minute")?.value ?? now.getMinutes());
-      const nowMin = curH * 60 + curM;
+      const curS = Number(parts.find((p) => p.type === "second")?.value ?? now.getSeconds());
+      const nowSec = curH * 3600 + curM * 60 + curS;
 
       for (const p of prayerNames) {
         const raw = times[p.key];
@@ -966,13 +968,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         const pm = splitAdj[1] !== undefined ? Number(splitAdj[1]) : NaN;
         if (Number.isNaN(ph) || Number.isNaN(pm)) continue;
 
-        const pMin = ph * 60 + pm;
-        if (pMin > nowMin) {
-          const diff = pMin - nowMin;
-          const h = Math.floor(diff / 60);
-          const m = diff % 60;
-          const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
-          setNextInfo({ nameAr: p.ar, nameDe: p.de, diffStr });
+        const prayerSec = ph * 3600 + pm * 60;
+        if (prayerSec > nowSec) {
+          setNextInfo({ nameAr: p.ar, nameDe: p.de, remainingSeconds: prayerSec - nowSec });
           return;
         }
       }
@@ -986,22 +984,23 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           const fh = splitAdj[0] !== undefined ? Number(splitAdj[0]) : NaN;
           const fm = splitAdj[1] !== undefined ? Number(splitAdj[1]) : NaN;
           if (!Number.isNaN(fh) && !Number.isNaN(fm)) {
-            const diff = 24 * 60 - nowMin + (fh * 60 + fm);
-            const h = Math.floor(diff / 60);
-            const m = diff % 60;
-            const diffStr = h > 0 ? `${h} س و ${m} د | ${h}h ${m}m` : `${m} د | ${m}m`;
-            setNextInfo({ nameAr: "الفجر", nameDe: "Fadschr", diffStr });
+            const diff = 24 * 3600 - nowSec + (fh * 3600 + fm * 60);
+            setNextInfo({ nameAr: "الفجر", nameDe: "Fadschr", remainingSeconds: diff });
           }
         }
       }
     };
 
     calcNext();
-    const interval = setInterval(calcNext, 60000);
+    const interval = setInterval(calcNext, 1000);
     return () => clearInterval(interval);
   }, [times, hourOffset, minuteOffsets, timezone]);
 
   const currentRegionCities = citiesList.filter((c) => c.region === activeRegion);
+  const nextHours = nextInfo ? Math.floor(nextInfo.remainingSeconds / 3600) : 0;
+  const nextMinutes = nextInfo ? Math.floor((nextInfo.remainingSeconds % 3600) / 60) : 0;
+  const nextSeconds = nextInfo ? nextInfo.remainingSeconds % 60 : 0;
+  const prayerText = (ar: string, de: string) => lang === "de" || lang === "en" ? de : lang === "ar" ? ar : `${ar} | ${de}`;
 
   return (
     <section className="mt-5 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -1133,14 +1132,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
                   📍 GPS
                 </button>
-                <button type="button" onClick={clearManualPlace} aria-label="حذف العنوان | Ort löschen" title="حذف العنوان | Ort löschen" className="grid h-6 w-6 place-items-center rounded-full border border-destructive/40 text-destructive">
+                <button type="button" onClick={clearManualPlace} aria-label={prayerText("حذف العنوان", "Ort löschen")} title={prayerText("حذف العنوان", "Ort löschen")} className="grid h-6 w-6 place-items-center rounded-full border border-destructive/40 text-destructive">
                   <X className="h-3.5 w-3.5" />
                 </button>
               </span>
             </div>
           ) : gpsLoading ? (
             <p className="text-xs text-muted-foreground animate-pulse">
-              📍 جاري قراءة موقعك الحالي... | Standort wird ermittelt...
+              <Pair ar="📍 جاري قراءة موقعك الحالي..." de="📍 Standort wird ermittelt..." />
             </p>
           ) : gpsCoords ? (
             <div className="space-y-1 px-2 text-xs">
@@ -1161,11 +1160,11 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           ) : (
             <div className="space-y-1.5">
               <p className="text-xs text-muted-foreground">
-                {gpsError || "اضغط على الزر لتفعيل مواقيت الصلاة حسب موقعك الحالي في العالم"}
+                {gpsError || prayerText("اضغط على الزر لتفعيل مواقيت الصلاة حسب موقعك الحالي في العالم", "Tippen Sie, um Gebetszeiten für Ihren aktuellen Standort zu laden.")}
               </p>
               <Button size="sm" onClick={requestGps} className="h-8 gap-1 text-xs">
                 <MapPin className="h-3.5 w-3.5" />
-                تحديد موقعي الآن | Meinen Standort abrufen
+                <Pair ar="تحديد موقعي الآن" de="Meinen Standort abrufen" align="center" />
               </Button>
             </div>
           )}
@@ -1239,18 +1238,25 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
       {/* شريط الأذان القادم */}
       {nextInfo && (
-        <div className="mb-3 flex items-center justify-between rounded-md border border-secondary/40 bg-accent/50 px-3 py-1.5 text-xs">
-          
-<span className="flex min-w-0 items-center gap-1 font-bold text-primary">
-  <span className="shrink-0">⏳</span>
-<Pair
-    ar={`الأذان القادم: صلاة ${nextInfo.nameAr}`}
-    de={`Nächster Gebetsruf: ${nextInfo.nameDe}`}
-  />
-</span>
-     <span className="shrink-0 font-semibold text-secondary" dir="ltr">
-  {nextInfo.diffStr.split(" | ")[lang === "de" || lang === "en" ? 1 : 0]}
-</span>   
+        <div className="mb-3 rounded-md border border-secondary/40 bg-accent/50 px-3 py-2 text-xs">
+          <div className="flex min-w-0 items-start gap-1 font-bold text-primary">
+            <span className="shrink-0" aria-hidden="true">⏳</span>
+            <div className="min-w-0 flex-1">
+              <Pair ar={`الأذان القادم: صلاة ${nextInfo.nameAr}`} de={`Nächster Gebetsruf: ${nextInfo.nameDe}`} />
+            </div>
+          </div>
+          <div className="mt-1 flex flex-col gap-0.5 font-semibold text-secondary">
+            {(lang === "ar" || lang === "both") && (
+              <span lang="ar" dir="rtl" className="text-right">
+                الوقت المتبقي: {nextHours > 0 && <><bdi dir="ltr">{nextHours}</bdi> س و }<bdi dir="ltr">{nextMinutes}</bdi> د و <bdi dir="ltr">{nextSeconds}</bdi> ث
+              </span>
+            )}
+            {(lang === "de" || lang === "en" || lang === "both") && (
+              <span lang="de" dir="ltr" className="text-left">
+                Noch {nextHours > 0 && <>{nextHours} Std. </>}{nextMinutes} Min. {nextSeconds} Sek.
+              </span>
+            )}
+          </div>
         </div>
       )}
 
