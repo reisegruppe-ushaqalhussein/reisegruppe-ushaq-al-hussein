@@ -252,7 +252,8 @@ export const addManualBooking = createServerFn({ method: "POST" })
     const canonicalDate = selectedTrip?.date ?? data.trip_date;
     const canonicalTripId = selectedTrip?.id ?? null;
     const key = (t: Record<string, string>) => { const k = [t["lastName"], t["firstName"], t["birthDate"], t["passportNo"]].map((v) => (v ?? "").trim().toUpperCase()); return k[0] && k[1] && (k[2] || k[3]) ? k.join("|") : ""; };
-    const { data: same } = await supabaseAdmin.from("bookings").select("ref, travelers, status").or("trip_id.eq." + canonicalTripId + ",trip.eq." + canonicalTrip);
+    const sameQuery = supabaseAdmin.from("bookings").select("ref, travelers, status");
+    const { data: same } = canonicalTripId ? await sameQuery.eq("trip_id", canonicalTripId) : await sameQuery.eq("trip", canonicalTrip);
     const taken = new Set((same ?? []).filter((b) => b.status !== "deleted" && b.status !== "cancelled").flatMap((b) => ((b.travelers ?? []) as Record<string, string>[]).map(key)).filter(Boolean));
     const clash = data.travelers.find((t) => key(t) && taken.has(key(t)));
     if (clash) throw new Error(`مسجّل مسبقاً بنفس البيانات | Bereits gebucht: ${clash["lastName"]} ${clash["firstName"]}`);
