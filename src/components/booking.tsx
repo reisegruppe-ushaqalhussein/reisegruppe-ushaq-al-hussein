@@ -1112,7 +1112,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           {/* زر قلم تعديل عنوان ووصف الكرت الخارجي */}
           <button
             type="button"
-            onClick={() => setEditTitleOpen(true)}
+            onClick={() => { setCustomTitle(savedTitle); setEditTitleOpen(true); }}
             title={bi("تعديل العنوان | Titel bearbeiten")}
             className="grid h-7 w-7 place-items-center rounded-full border border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
           >
@@ -1166,7 +1166,16 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   className="mt-1 w-full rounded border border-border p-2"
                 />
               </label>
-              <Button onClick={() => setEditTitleOpen(false)} className="w-full mt-2">
+              <label className="block font-bold">
+                الوصف التوضيحي (ألماني | Beschreibung):
+                <input
+                  dir="ltr"
+                  value={customTitle.subDe}
+                  onChange={(e) => setCustomTitle((prev) => ({ ...prev, subDe: e.target.value }))}
+                  className="mt-1 w-full rounded border border-border p-2"
+                />
+              </label>
+              <Button onClick={async () => { await persistRc({ ...draftTitle }); setEditTitleOpen(false); }} className="w-full mt-2">
                 {bi("حفظ التعديل | Speichern")}
               </Button>
             </div>

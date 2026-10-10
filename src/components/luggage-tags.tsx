@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 let qrMod: Promise<typeof import("qrcode")> | null = null;
+let qrLib: typeof import("qrcode") | null = null;
 import { useServerFn } from "@tanstack/react-start";
 import { listBookings, type BookingRow } from "@/lib/bookings.functions";
 import { useAdminSession } from "@/lib/admin-session";
@@ -51,6 +52,7 @@ async function loadAssets(): Promise<Assets> {
     assetsP.catch(() => { assetsP = null; });
   }
   const base = await assetsP;
+  if (!qrLib) qrLib = await (qrMod ??= import("qrcode"));
   let custom: HTMLImageElement | null = null;
   const src = typeof localStorage !== "undefined" ? localStorage.getItem(CUSTOM_KEY) : null;
   if (src) {
@@ -81,9 +83,9 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
     ctx.drawImage(im, X(x), Y(y), w * S, hh * S);
     return hh;
   };
- const qr = async (data: string, x: number, y: number, size: number, margin: number) => {
-    const qrcodeLib = await (qrMod ??= import("qrcode"));
-    const q = qrcodeLib.create(data, { errorCorrectionLevel: "M" });
+  const qr = (data: string, x: number, y: number, size: number, margin: number) => {
+    if (!qrLib) return;
+    const q = qrLib.create(data, { errorCorrectionLevel: "M" });
     const n = q.modules.size;
     const m = size / (n + margin * 2);
     ctx.fillStyle = "#ffffff";
