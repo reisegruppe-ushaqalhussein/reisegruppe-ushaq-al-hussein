@@ -723,13 +723,44 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const problems = shown.filter((r) => issuesOf(r).length > 0).length;
   const fname = (kind: Kind) => `${kind === "visa" ? "Visa" : kind === "flight" ? "Airline" : "Leiterliste"}-${fileSafe(filter)}`;
   const hotelMap = regOf(content).hotels ?? {};
+  const leaderFieldsAll = ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"];
+  const leaderFieldLabels = [
+    { id: "names", ar: "أسماء الزوار", de: "Namen der Reisenden" },
+    { id: "count", ar: "عدد المسافرين", de: "Anzahl der Reisenden" },
+    { id: "category", ar: "الفئة العمرية", de: "Alterskategorie" },
+    { id: "phone", ar: "رقم الهاتف", de: "Telefonnummer" },
+    { id: "airport", ar: "المطار", de: "Flughafen" },
+    { id: "hotels", ar: "الفنادق وأرقام الغرف", de: "Hotels und Zimmernummern" },
+    { id: "leaderNotes", ar: "ملاحظات الحاج", de: "Notizen der Reiseleitung" },
+    { id: "visitorNotes", ar: "ملاحظات الزوار", de: "Hinweise der Reisenden" },
+  ];
+  const configureSheet = (kind: Kind, sheet: Sheet): Sheet => {
+    if (kind !== "rooms") return sheet;
+    const hotelCount = hotelsFor(shown[0]?.trip ?? "").length;
+    const hotelStart = 6;
+    const leaderNotesIndex = hotelStart + hotelCount;
+    const visitorNotesIndex = leaderNotesIndex + 1;
+    const indexes: Record<string, number[]> = { names: [1], count: [2], category: [3], phone: [4], airport: [5], hotels: Array.from({ length: hotelCount }, (_, i) => hotelStart + i), leaderNotes: [leaderNotesIndex], visitorNotes: [visitorNotesIndex] };
+    const keep = [0, ...leaderFieldsAll.filter((id) => leaderFields.includes(id)).flatMap((id) => indexes[id] ?? [])];
+    const title = lang === "ar" ? leaderTitleAr : lang === "de" || lang === "en" ? leaderTitleDe : `${leaderTitleAr} | ${leaderTitleDe}`;
+    return { ...sheet, title: title.trim() || (lang === "ar" ? "قائمة الحاج" : "Leiterliste"), head: keep.map((i) => sheet.head[i] ?? ""), widths: keep.map((i) => sheet.widths[i] ?? 12), body: sheet.body.map((row) => row.band ? row : ({ ...row, cells: keep.map((i) => row.cells[i] ?? "") })) };
+  };
+  const saveLeaderSettings = async () => {
+    if (!adminS || adminS.role !== "admin") return;
+    const reg = regOf(content);
+    try {
+      const { queued } = await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, leaderSheetTitleAr: leaderTitleAr.trim() || "قائمة الحاج — التجمّع والتسكين", leaderSheetTitleDe: leaderTitleDe.trim() || "Leiterliste — Treffpunkt und Unterkunft", leaderSheetFields: leaderFields } } } as never, "إعدادات قائمة الحاج | Leiterliste", qc);
+      if (queued) window.alert(bi("تم الحفظ محليًا وسيُزامن عند عودة الإنترنت | Lokal gespeichert; Synchronisierung folgt bei Verbindung"));
+      setLeaderSettingsOpen(false);
+    } catch (e) { window.alert(`${bi("تعذّر حفظ الإعدادات | Einstellungen konnten nicht gespeichert werden")}: ${e instanceof Error ? e.message : String(e)}`); }
+  };
   const xls = (kind: Kind) => {
-    const blob = buildXlsx([sheetXlsx(sheetOf(kind, shown, hotelMap), filter)]);
+    const blob = buildXlsx([sheetXlsx(configureSheet(kind, sheetOf(kind, shown, hotelMap)), filter)]);
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${fname(kind)}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
   };
    const printList = (kind: Kind) => {
     const cleanTripName = filter.replace(/\s*\|\s*/g, " — ");
-    const html = printHtml(sheetOf(kind, shown, hotelMap), cleanTripName);
+    const html = printHtml(configureSheet(kind, sheetOf(kind, shown, hotelMap)), cleanTripName);
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
@@ -782,6 +813,24 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
         <Button size="sm" variant="outline" onClick={() => xls(k)}><Download className="h-3.5 w-3.5" />Excel</Button>
         <Button size="sm" variant="outline" onClick={() => printList(k)}>🖨 PDF</Button>
       </div>)}
+       {adminS?.role === "admin" && <div className="rounded-md border border-secondary/70 bg-card p-2">
+         <button type="button" onClick={() => setLeaderSettingsOpen((v) => !v)} aria-expanded={leaderSettingsOpen} className="flex w-full items-center justify-between gap-2 text-start font-bold text-primary">
+           <span className="flex items-center gap-2"><Settings className="h-4 w-4" />{bi("إعدادات قائمة الحاج | Leiterliste-Einstellungen")}</span>
+           <span aria-hidden="true">{leaderSettingsOpen ? "⌃" : "⌄"}</span>
+         </button>
+         {leaderSettingsOpen && <div className="mt-3 space-y-3 border-t border-border pt-3" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
+           <label className="block font-semibold">{bi("اسم الكشف بالعربية | Titel auf Arabisch")}<input dir="rtl" value={leaderTitleAr} onChange={(e) => setLeaderTitleAr(e.target.value)} className={inputCls} /></label>
+           <label className="block font-semibold">{bi("اسم الكشف بالألمانية | Titel auf Deutsch")}<input dir="ltr" value={leaderTitleDe} onChange={(e) => setLeaderTitleDe(e.target.value)} className={inputCls} /></label>
+           <div className="space-y-1.5"><p className="font-bold">{bi("معلومات الجدول — اختاري ما تريدين طباعته | Tabellenfelder auswählen")}</p>
+             {leaderFieldLabels.map((field) => <label key={field.id} dir="rtl" className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+               <span className="min-w-0 flex-1"><span className="block">{field.ar}</span><span dir="ltr" className="block text-start text-xs text-muted-foreground">{field.de}</span></span>
+               <input dir="ltr" type="checkbox" checked={leaderFields.includes(field.id)} onChange={(e) => setLeaderFields((prev) => e.target.checked ? [...prev.filter((x) => x !== field.id), field.id] : prev.filter((x) => x !== field.id))} className="h-5 w-5 shrink-0 accent-secondary" />
+             </label>)}
+           </div>
+           <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void saveLeaderSettings()}>{bi("حفظ الإعدادات | Einstellungen speichern")}</Button><Button size="sm" variant="outline" onClick={() => { setLeaderTitleAr("قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe("Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(leaderFieldsAll); }}>{bi("إعادة الافتراضي | Zurücksetzen")}</Button></div>
+           <p className="text-xs text-muted-foreground">{bi("تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي. | Diese Einstellungen gelten nur für die Leiterliste; Flug- und Visalisten bleiben unverändert.")}</p>
+         </div>}
+       </div>}
       <p className="text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر · الكشوفات دائماً بالأحرف اللاتينية | Kinder gelb, Kleinkinder rot markiert")}</p>
       </div>}
     </div>}
