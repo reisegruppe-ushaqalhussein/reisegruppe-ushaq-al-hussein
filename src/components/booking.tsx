@@ -979,14 +979,27 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const rtl = lang === "ar" || lang === "both";
 
   const [isOpen, setIsOpen] = useState(false);
-  const [isCardHidden, setIsCardHidden] = useState(false);
+  const saveContent = useSaveContent(adminS?.password ?? "");
+  const savedRc = content?.cms?.roomCalc;
+  const isCardHidden = !!savedRc?.hidden;
   const [editTitleOpen, setEditTitleOpen] = useState(false);
-  const [customTitle, setCustomTitle] = useState({
-    ar: "حاسبة وفرز الغرف",
-    de: "Zimmer-Rechner",
-    subAr: "كشف الفنادق وحساب الغرف الميداني",
-    subDe: "Zimmer & Abrechnung",
-  });
+  const savedTitle = {
+    ar: savedRc?.ar || "حاسبة وفرز الغرف",
+    de: savedRc?.de || "Zimmer-Rechner",
+    subAr: savedRc?.subAr || "كشف الفنادق وحساب الغرف الميداني",
+    subDe: savedRc?.subDe || "Zimmer & Abrechnung",
+  };
+  const [draftTitle, setCustomTitle] = useState(savedTitle);
+  const customTitle = editTitleOpen ? draftTitle : savedTitle;
+  const persistRc = async (patch: NonNullable<NonNullable<SiteContent["cms"]>["roomCalc"]>) => {
+    if (!content || !adminS) return;
+    try {
+      await saveContent({ ...content, cms: { ...(content.cms ?? {}), roomCalc: { ...(content.cms?.roomCalc ?? {}), ...patch } } });
+    } catch (e) {
+      window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const setIsCardHidden = (h: boolean) => { void persistRc({ hidden: h }); };
 
   const [rows, setRows] = useState<BookingRow[] | null>(null);
   const [trip, setTrip] = useState<string>("all");
