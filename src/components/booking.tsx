@@ -642,6 +642,8 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
    // الرحلات المعلنة الحالية من إعدادات الحملة (المصدر الأساسي)
   const announcedTrips = useMemo(() => {
     return content.trips.filter((t) => !t.hidden).map((t) => ({
+      id: t.id,
+      aliases: t.aliases ?? [],
       key: `${t.ar} | ${t.de}${t.date ? ` — ${t.date}` : ""}`,
       raw: `${t.ar} | ${t.de}`,
       ar: t.ar,
@@ -687,9 +689,9 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [trashView, setTrashView] = useState(false);
   const [editing, setEditing] = useState<BookingRow | "new" | null>(null);
   const tripOptions = useMemo(() => {
-    const m = new Map<string, { trip: string; date: string }>();
-    content.trips.filter((t) => !t.hidden).forEach((t) => m.set(`${t.ar} | ${t.de}`, { trip: `${t.ar} | ${t.de}`, date: t.date ?? "" }));
-    (rows ?? []).forEach((r) => { if (!m.has(r.trip)) m.set(r.trip, { trip: r.trip, date: r.trip_date ?? "" }); });
+    const m = new Map<string, { trip: string; date: string; trip_id?: string | null }>();
+    content.trips.filter((t) => !t.hidden).forEach((t) => m.set(`${t.ar} | ${t.de}`, { trip: `${t.ar} | ${t.de}`, date: t.date ?? "", trip_id: t.id }));
+    (rows ?? []).forEach((r) => { if (!m.has(r.trip)) m.set(r.trip, { trip: r.trip, date: r.trip_date ?? "", trip_id: r.trip_id ?? null }); });
     return [...m.values()];
   }, [rows, content.trips]);
   if (!s) return null;
