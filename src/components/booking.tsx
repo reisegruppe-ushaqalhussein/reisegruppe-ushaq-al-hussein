@@ -656,7 +656,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   // دمج الرحلات المعلنة مع أي رحلات بالحجوزات دون تكرار
   const trips = useMemo(() => {
     const list: string[] = [];
-    announcedTrips.forEach((a) => list.push(`${a.label}${a.date ? ` — ${a.date}` : ""}`));
+    announcedTrips.forEach((a) => list.push(a.key));
     (rows ?? []).filter((r) => r.status !== "deleted").forEach((r) => {
       const k = groupKey(r);
       const isAnnounced = announcedTrips.some(
@@ -1236,11 +1236,13 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               className={inputCls + " mt-1"}
             >
               <option value="all">{bi("كل الرحلات | Alle Reisen")}</option>
-              {trips.map((t) => (
-                <option key={t} value={t}>
-                  {tripLabel(t, bi)}
-                </option>
-              ))}
+              {trips.map((t) => {
+                const announced = announcedTrips.find((a) => a.key === t);
+                const label = announced
+                  ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}`
+                  : tripLabel(t, bi);
+                return <option key={announced?.id ?? t} value={t}>{label}</option>;
+              })}
             </select>
           </label>
 
