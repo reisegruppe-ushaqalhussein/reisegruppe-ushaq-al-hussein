@@ -567,7 +567,7 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
-  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 27, 7, 12, 23, 11, ...hotels.map(() => 17), 13, 19],
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [4, 27, 5, 8, 23, 8, ...hotels.map(() => 25), 13, 17],
     info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
     head: ["NO", "الأسماء\nNamen", "العدد\nAnz.", "الفئة\nPax", "رقم الهاتف\nTelefon", "المطار\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\n${de} / Zimmer-Nr.`; }), "ملاحظات الحاج\nNotizen", "ملاحظات الزائر\nHinweise"],
     body };
@@ -649,10 +649,10 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [showLists, setShowLists] = useState(false);
   const [push, setPush] = useState("");
   const [leaderSettingsOpen, setLeaderSettingsOpen] = useState(false);
+  const [leaderFieldsOpen, setLeaderFieldsOpen] = useState(false);
   const [leaderTitleAr, setLeaderTitleAr] = useState(regOf(content).leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين");
   const [leaderTitleDe, setLeaderTitleDe] = useState(regOf(content).leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft");
   const [leaderFields, setLeaderFields] = useState<string[]>(regOf(content).leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]);
-  const isEditing = useSectionEditMode();
   useEffect(() => { const reg = regOf(content); setLeaderTitleAr(reg.leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe(reg.leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(reg.leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]); }, [content]);
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
@@ -821,11 +821,11 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
          {leaderSettingsOpen && <div className="mt-3 space-y-3 border-t border-border pt-3" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
            <label className="block font-semibold">{bi("اسم الكشف بالعربية | Titel auf Arabisch")}<input dir="rtl" value={leaderTitleAr} onChange={(e) => setLeaderTitleAr(e.target.value)} className={inputCls} /></label>
            <label className="block font-semibold">{bi("اسم الكشف بالألمانية | Titel auf Deutsch")}<input dir="ltr" value={leaderTitleDe} onChange={(e) => setLeaderTitleDe(e.target.value)} className={inputCls} /></label>
-           <div className="space-y-1.5"><p className="font-bold">{bi("معلومات الجدول — اختاري ما تريدين طباعته | Tabellenfelder auswählen")}</p>
+            <div className="rounded-md border border-border/70"><button type="button" aria-expanded={leaderFieldsOpen} onClick={() => setLeaderFieldsOpen((v) => !v)} className="flex w-full items-center justify-between gap-2 p-2 text-start font-bold"><span>{bi("معلومات الجدول — اختاري ما تريدين طباعته | Tabellenfelder auswählen")}</span><span aria-hidden="true">{leaderFieldsOpen ? "⌃" : "⌄"}</span></button>{leaderFieldsOpen && <div className="space-y-1.5 border-t border-border p-2">
              {leaderFieldLabels.map((field) => <label key={field.id} dir="rtl" className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-               <span className="min-w-0 flex-1"><span className="block">{field.ar}</span><span dir="ltr" className="block text-start text-xs text-muted-foreground">{field.de}</span></span>
+                <input dir="ltr" type="checkbox" checked={leaderFields.includes(field.id)} onChange={(e) => setLeaderFields((prev) => e.target.checked ? [...prev.filter((x) => x !== field.id), field.id] : prev.filter((x) => x !== field.id))} className="h-5 w-5 shrink-0 accent-secondary" /><span className="min-w-0 flex-1 text-start"><span dir="rtl" className="block">{field.ar}</span><span dir="ltr" className="block text-start text-xs text-muted-foreground">{field.de}</span></span>
                <input dir="ltr" type="checkbox" checked={leaderFields.includes(field.id)} onChange={(e) => setLeaderFields((prev) => e.target.checked ? [...prev.filter((x) => x !== field.id), field.id] : prev.filter((x) => x !== field.id))} className="h-5 w-5 shrink-0 accent-secondary" />
-             </label>)}
+            </label>)}</div>}</div>
            </div>
            <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void saveLeaderSettings()}>{bi("حفظ الإعدادات | Einstellungen speichern")}</Button><Button size="sm" variant="outline" onClick={() => { setLeaderTitleAr("قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe("Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(leaderFieldsAll); }}>{bi("إعادة الافتراضي | Zurücksetzen")}</Button></div>
            <p className="text-xs text-muted-foreground">{bi("تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي. | Diese Einstellungen gelten nur für die Leiterliste; Flug- und Visalisten bleiben unverändert.")}</p>
