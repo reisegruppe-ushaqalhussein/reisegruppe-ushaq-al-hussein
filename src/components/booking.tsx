@@ -563,18 +563,18 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
       const c = { ADT: 0, CHD: 0, INF: 0 } as Record<string, number>;
       r.travelers.forEach((t) => c[paxOf(t)]!++);
       const pax = c["INF"] ? "INF" : c["CHD"] ? "CHD" : "ADT";
-      body.push({ pax, cells: [++n, r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${t["relation"] ? ` (${t["relation"]})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", r.notes ?? "", ...hotels.map(() => ""), ""] });
+      body.push({ pax, cells: [++n, r.travelers.map((t) => { const relation = (t["relation"] ?? "").trim(); const applicant = /^(صاحب الطلب|antragsteller(?:\\/in)?|antragstellerin)$/i.test(relation.replace(/\\s*\\|\\s*/g, " ").trim()); return `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${relation && !applicant ? ` (${relation})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`; }).join("\\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", ...hotels.map(() => ""), "", r.notes ?? ""] });
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
-  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 30, 7, 16, 16, 12, 28, ...hotels.map(() => 18), 26],
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 27, 7, 12, 23, 11, ...hotels.map(() => 17), 13, 19],
     info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
-    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\nرقم الغرفة / Zimmer-Nr.`), "ملاحظات الحاج / Notizen"],
+    head: ["NO", "الأسماء\\nNamen", "العدد\\nAnz.", "الفئة\\nPax", "رقم الهاتف\\nTelefon", "المطار\\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\\n🏨 ${hotelMap[h]}` : ""}\\n${de} / Zimmer-Nr.`; }), "ملاحظات الحاج\\nNotizen", "ملاحظات الزائر\\nHinweise"],
     body };
 }
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 function printHtml(s: Sheet, group: string) {
-  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
+  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c, i) => `<td${i === 4 ? ` class="phone" dir="ltr"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>
 @page{size:A4 landscape;margin:7mm}
 :root{color-scheme:light}
@@ -583,13 +583,13 @@ html,body{margin:0;padding:0;background:#fff;color:#172033;font-family:Arial,"No
 h2{font-size:14pt;color:#172033}
 p{font-size:9pt}
 table{border-collapse:collapse;width:100%;table-layout:auto;font-size:9pt}
-td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}
+td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}th{white-space:pre-line}td.phone{white-space:nowrap;overflow-wrap:normal;word-break:keep-all;font-variant-numeric:tabular-nums}
 th{background:#1a2a5e!important;color:#fff!important;font-weight:700;text-align:start;font-size:9pt}
 tr{break-inside:avoid;page-break-inside:avoid}
 button{font-size:16px;padding:10px 18px;margin:8px 0}
 @media print{
   html,body{width:auto;background:#fff!important;font-size:9pt}
-  table{width:100%;font-size:8.5pt}
+  table{width:100%;font-size:8.5pt;table-layout:fixed}td.phone{font-size:8.5pt;white-space:nowrap}
   th{background:#1a2a5e!important;color:#fff!important}
   td,th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   button{display:none}
