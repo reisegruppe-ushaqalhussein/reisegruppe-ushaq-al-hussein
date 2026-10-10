@@ -670,7 +670,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const gk = groupKey(r);
     if (gk === f) return true;
     const ann = announcedTrips.find((a) => a.key === f);
-    if (ann && (r.trip === ann.raw || r.trip.includes(ann.ar))) return true;
+    if (ann && (r.trip_id === ann.id || r.trip === ann.raw || r.trip.includes(ann.ar) || ann.aliases.some((a) => r.trip === a || r.trip.includes(a)))) return true;
     return false;
   };
 
