@@ -24,12 +24,6 @@ const cats: Array<{ id: Cat; ar: string; de: string }> = [
   { id: "child", ar: "طفل (2 – 11 سنة)", de: "Kind (2–11 Jahre)" },
   { id: "infant", ar: "رضيع (أقل من سنتين)", de: "Kleinkind (unter 2)" },
 ];
-const rooms = [
-  { id: "single", ar: "منفردة (غرفة خاصة)", de: "Einzelzimmer (privat)" },
-  { id: "double", ar: "ثنائية", de: "Doppelzimmer" }, { id: "triple", ar: "ثلاثية", de: "Dreibettzimmer" },
-  { id: "quad", ar: "رباعية", de: "Vierbettzimmer" }, { id: "family", ar: "عائلية", de: "Familienzimmer" },
-  { id: "leader", ar: "حسب ما يراه الحاج ياسر مناسباً", de: "Nach Ermessen der Reiseleitung" },
-];
 function waLink(raw: string) {
   let d = (raw || "").replace(/[^0-9]/g, "");
   if (!d) return "";
@@ -289,7 +283,6 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [travelers, setTravelers] = useState<Traveler[]>([blank("adult", "صاحب الطلب | Antragsteller")]);
-  const [roomPref, setRoomPref] = useState("");
   const [notes, setNotes] = useState("");
   const [extras, setExtras] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
@@ -304,15 +297,15 @@ export function BookingForm({ content }: { content: SiteContent }) {
       setHist(JSON.parse(localStorage.getItem(HIST_KEY) ?? "{}"));
       const at = Number(localStorage.getItem(PICK_KEY) ?? 0);
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
-      if (d && at && Date.now() - at < 10 * 60e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setRoomPref(d.roomPref ?? ""); setNotes(d.notes ?? ""); setExtras(d.extras ?? {}); }
+      if (d && at && Date.now() - at < 10 * 60e3) { setStep(d.step ?? 0); setTrip(d.trip ?? ""); setOtherTrip(d.otherTrip ?? ""); setOtherDate(d.otherDate ?? ""); setAirportSel(d.airportSel ?? ""); setOtherAirport(d.otherAirport ?? ""); setEmail(d.email ?? ""); setPhone(d.phone ?? ""); if (d.travelers?.length) setTravelers(d.travelers); setNotes(d.notes ?? ""); setExtras(d.extras ?? {}); }
       localStorage.removeItem(PICK_KEY); localStorage.removeItem(DRAFT_KEY); localStorage.removeItem("booking-profile");
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
-    const save = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes, extras })); } catch { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t), roomPref, notes, extras })); } catch { /* quota */ } } };
+    const save = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, notes, extras })); } catch { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers: travelers.map(({ passportFile: _a, photoFile: _b, ...t }) => t), notes, extras })); } catch { /* quota */ } } };
     window.addEventListener("booking-picking", save);
     return () => window.removeEventListener("booking-picking", save);
-  }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, roomPref, notes, extras]);
+  }, [step, trip, otherTrip, otherDate, airportSel, otherAirport, email, phone, travelers, notes, extras]);
 
   const chosen = trips.find((t) => t.id === trip);
   const tripName = trip === OTHER ? otherTrip.trim() : chosen ? [chosen.ar, toGerman(chosen.de)].filter(Boolean).join(" | ") : "";
@@ -339,7 +332,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
       // Extra answers (city + admin-added fields) travel inside the notes, so they reach emails, lists and exports.
       const extraLines = fields.filter((f) => (extras[f.id] ?? "").trim()).map((f) => `${f.id === "city" ? "📍" : "•"} ${labelOf(reg, f).ar} / ${labelOf(reg, f).de}: ${extras[f.id]!.trim()}`);
       const fullNotes = [...extraLines, notes.trim()].filter(Boolean).join("\n").slice(0, 2000);
-      const r = await submit({ data: { trip: tripName, tripId: chosen?.id, tripDate, airport, email: email.trim(), phone: phone.trim(), roomPref, notes: fullNotes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
+      const r = await submit({ data: { trip: tripName, tripId: chosen?.id, tripDate, airport, email: email.trim(), phone: phone.trim(), notes: fullNotes, consent: true, travelers: travelers.map((t) => ({ ...t, gender: t.gender as "m" | "f", firstName: t.firstName.trim(), lastName: t.lastName.trim(), passportNo: t.passportNo.trim() })) } });
       try { localStorage.setItem(HIST_KEY, JSON.stringify(remember(hist, { email: [email], phone: [phone], firstName: travelers.map((t) => t.firstName), lastName: travelers.map((t) => t.lastName), nationality: travelers.map((t) => t.nationality), passportNo: travelers.map((t) => t.passportNo), relation: travelers.map((t) => t.relation) }))); } catch { /* ignore */ }
       setDone(r.ref);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -526,9 +519,6 @@ function destOf(trip: string) { const s = trip.toLowerCase(); return /عمر|umr
 function visaType(trip: string) { const d = destOf(trip); return d === "umrah" ? "🕋 العمرة: تأشيرة عبر منصة نسك | Umrah: Visum über Nusuk" : d === "iran" ? "🇮🇷 إيران: تأشيرة إيرانية | Iran: Iranisches Visum" : "🇮🇶 العراق: فيزا إلكترونية | Irak: E-Visum"; }
 const paxOf = (t: Record<string, string>) => t["category"] === "infant" ? "INF" : t["category"] === "child" ? "CHD" : "ADT";
 const paxMark: Record<string, string> = { ADT: "ADT", CHD: "CHD ⚠ CHILD", INF: "INF ⚠ INFANT (lap)" };
-const roomName = (id: string | null) => { const r = rooms.find((x) => x.id === id); return r ? `${r.de} / ${r.ar}` : id ?? ""; };
-/** In-app room label in the chosen language (exports keep roomName). */
-const roomLabel = (id: string | null, bi: (s: string) => string) => { const r = rooms.find((x) => x.id === (id || "leader")); return r ? bi(`${r.ar} | ${r.de}`) : id ?? ""; };
 /** Display-only trip name: drops a dangling "|" and shows the chosen language; the stored value stays unchanged for matching. */
 const tripLabel = (t: string, bi: (s: string) => string) => { const [name = "", ...rest] = t.split(" — "); const n = name.replace(/\s*\|\s*$/, "").trim(); const d = rest.join(" — ").trim(); return `${/ \| \S/.test(n) ? bi(n) : n}${d ? ` — ${d}` : ""}`; };
 /** Search normalizer: case/accents/extra spaces ignored so a query never misses due to formatting. */
@@ -1009,7 +999,6 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
 
   const [rows, setRows] = useState<BookingRow[] | null>(null);
   const [trip, setTrip] = useState<string>("all");
-  const [room, setRoom] = useState<string>("all");
   const [q, setQ] = useState("");
 
   // بيانات الفنادق الميدانية للمحاسبة مع أزرار التحكم
@@ -1050,11 +1039,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
         ...r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}`),
       ].some((v) => norm(v).includes(w))
     );
-  const shown = byTrip.filter((r) => (room === "all" || (r.room_pref || "leader") === room) && hit(r));
-  const hiddenByRoom =
-    words.length > 0 && room !== "all"
-      ? byTrip.filter((r) => (r.room_pref || "leader") !== room && hit(r)).length
-      : 0;
+  const shown = byTrip.filter(hit);
   const pax = byTrip.reduce((n, r) => n + r.travelers.length, 0);
 
   // نسخ كشف المحاسبة للفنادق
@@ -1398,17 +1383,12 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               placeholder={bi("🔍 ابحث عن اسم الزائر أو الهاتف... | Name suchen")}
               className={inputCls}
             />
-            {hiddenByRoom > 0 && (
-              <p className="rounded-md bg-accent p-2 text-xs">
-                {bi(`يوجد ${hiddenByRoom} نتيجة بنوع غرفة آخر | ${hiddenByRoom} Treffer`)}
-              </p>
-            )}
 
             {rows === null ? (
               <Loader2 className="mx-auto mt-3 animate-spin" />
             ) : words.length === 0 ? (
               <p className="mt-2 text-center text-xs text-muted-foreground">
-                {bi("💡 اكتب اسم الزائر للتحقق من بياناته وغرفته | Namen eingeben zum Prüfen")}
+                {bi("💡 اكتب اسم الزائر للتحقق من بياناته | Namen eingeben zum Prüfen")}
               </p>
             ) : (
               <ul className="mt-2 space-y-1.5 max-h-60 overflow-y-auto">
@@ -1422,7 +1402,6 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                       </p>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-muted-foreground">
                         <span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">
-                          🛏 {roomLabel(r.room_pref, bi)}
                         </span>
                         <span>{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span>
                       </p>
