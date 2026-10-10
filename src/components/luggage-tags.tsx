@@ -574,6 +574,81 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
             </button>
           )}
         </div>
+        <div className="mt-3 space-y-2 rounded-md border border-border p-3">
+  <p className="font-bold text-primary">
+    إضافة زائر يدويًا
+  </p>
+
+  <input
+    value={manualAr}
+    onChange={(e) => setManualAr(e.target.value)}
+    dir="rtl"
+    placeholder="اسم الزائر بالعربية"
+    className={inputCls}
+  />
+
+  <input
+    value={manualDe}
+    onChange={(e) => setManualDe(e.target.value)}
+    dir="ltr"
+    placeholder="Name (Latin)"
+    className={inputCls}
+  />
+
+  <label className="block text-xs font-bold">
+    لون الاسم
+    <select
+      value={manualColor}
+      onChange={(e) =>
+        setManualColor(e.target.value as NameColor)
+      }
+      className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2"
+    >
+      <option value="black">أسود | Schwarz</option>
+      <option value="red">أحمر | Rot</option>
+      <option value="gold">ذهبي | Gold</option>
+    </select>
+  </label>
+
+  <button
+    type="button"
+    onClick={() => {
+      const a = manualAr.trim();
+      const d = manualDe.trim();
+
+      if (!a && !d) return;
+
+      const line =
+        a && d ? `${a} / ${d}` : a || d;
+
+      const currentCount = parseNames(bulk).length;
+
+      setBulk((prev) =>
+        [prev.trimEnd(), line]
+          .filter(Boolean)
+          .join("\n")
+      );
+
+      setBulkColors((prev) => {
+        const next = [...prev];
+
+        while (next.length < currentCount) {
+          next.push(color);
+        }
+
+        next.push(manualColor);
+        return next;
+      });
+
+      setManualAr("");
+      setManualDe("");
+      setBlankOnly(false);
+    }}
+    className="min-h-10 w-full rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"
+  >
+    + إضافة إلى قائمة الطباعة
+  </button>
+</div>
         <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
         {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
       </details>}
