@@ -573,13 +573,13 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
       const c = { ADT: 0, CHD: 0, INF: 0 } as Record<string, number>;
       r.travelers.forEach((t) => c[paxOf(t)]!++);
       const pax = c["INF"] ? "INF" : c["CHD"] ? "CHD" : "ADT";
-      body.push({ pax, cells: [++n, r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${t["relation"] ? ` (${t["relation"]})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", roomName(r.room_pref), r.notes ?? "", ...hotels.map(() => ""), ""] });
+      body.push({ pax, cells: [++n, r.travelers.map((t) => `${t["firstName"] ?? ""} ${t["lastName"] ?? ""}${t["relation"] ? ` (${t["relation"]})` : ""}${paxOf(t) !== "ADT" ? ` ⚠${paxOf(t)}` : ""}`).join("\n"), r.travelers.length, `ADT ${c["ADT"]}${c["CHD"] ? ` · CHD ${c["CHD"]}` : ""}${c["INF"] ? ` · INF ${c["INF"]}` : ""}`, r.contact_phone, r.travelers[0]?.["airport"] ?? "", r.notes ?? "", ...hotels.map(() => ""), ""] });
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
-  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 30, 7, 16, 16, 12, 22, 28, ...hotels.map(() => 18), 26],
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [5, 30, 7, 16, 16, 12, 28, ...hotels.map(() => 18), 26],
     info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
-    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "الغرفة المطلوبة / Zimmerwunsch", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\nرقم الغرفة / Zimmer-Nr.`), "ملاحظات الحاج / Notizen"],
+    head: ["NO", "الأسماء / Namen", "العدد / Anz.", "الفئة / Pax", "الهاتف / Telefon", "المطار / Flughafen", "ملاحظات الزائر / Hinweise", ...hotels.map((h) => `${h}${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\nرقم الغرفة / Zimmer-Nr.`), "ملاحظات الحاج / Notizen"],
     body };
 }
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
@@ -754,7 +754,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     )}
     {listed.length > limit && <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => setLimit(limit + 60)}>{bi(`عرض المزيد (${listed.length - limit}) | Mehr anzeigen`)}</Button>}
     {!trashView && <Button size="sm" className="mt-2 w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />{bi("إضافة حجز يدوي (من الدفتر) | Manuelle Buchung")}</Button>}
-    {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
+    {editing && <ManualBooking key={editing === "new" ? "new" : editing.id} content={content} row={editing === "new" ? null : editing} trips={tripOptions} rows={rows ?? []} password={s.password} onDone={async () => { setEditing(null); await load(); }} />}
     {filter !== "all" && !trashView && <div className="mt-2 rounded-md border border-secondary bg-accent/40 p-2 text-xs">
       <button type="button" onClick={() => setShowLists(!showLists)} className="flex w-full items-center justify-between font-bold text-primary"><span>{bi("📑 كشوفات الطباعة وتصدير الإكسل للشركات | Listen & Export")}</span><span>{showLists ? "▲" : "▼"}</span></button>
       {showLists && <div className="mt-2 space-y-1.5">
@@ -799,7 +799,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
             </label></div>; })}
           <p className="text-muted-foreground">{bi(visaType(r.trip))}</p>
           {issuesOf(r).length > 0 && <ul className="rounded-md border-2 border-destructive bg-destructive/10 p-2 font-bold text-destructive">{issuesOf(r).map((x, k) => <li key={k}>⚠️ {bi(x)}</li>)}</ul>}
-          {r.room_pref && <p>🛏 <b>{bi("الغرفة | Zimmer")}:</b> {roomLabel(r.room_pref, bi)}</p>}
           {r.notes && <p className="whitespace-pre-line">📝 {r.notes}</p>}
           <div className="grid grid-cols-2 gap-1">
             <select value={r.status} onChange={(e) => void patch(r, { status: e.target.value })} className={inputCls + " mt-0 py-1.5 text-xs"}>{Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{bi(v)}</option>)}</select>
@@ -888,7 +887,7 @@ type MT = Record<string, string>;
 const blankMT = (airport = ""): MT => ({ firstName: "", lastName: "", arabicName: "", gender: "", birthDate: "", nationality: "", passportNo: "", passportExpiry: "", airport, relation: "", category: "adult", visa: "none" });
 
 /** Staff form to add a notebook booking (or edit any booking). Files optional, no emails sent. */
-function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow | null; trips: Array<{ trip: string; date: string; trip_id?: string | null }>; rows: BookingRow[]; password: string; onDone: () => Promise<void> }) {
+function ManualBooking({ content, row, trips, rows, password, onDone }: { content: SiteContent; row: BookingRow | null; trips: Array<{ trip: string; date: string; trip_id?: string | null }>; rows: BookingRow[]; password: string; onDone: () => Promise<void> }) {
   const { lang } = useLang();
   const bi = biFor(lang);
   const add = useServerFn(addManualBooking);
@@ -897,7 +896,6 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
   const [tripDate, setTripDate] = useState(row?.trip_date ?? trips[0]?.date ?? "");
   const [phone, setPhone] = useState(row?.contact_phone ?? "");
   const [email, setEmail] = useState(row?.contact_email ?? "");
-  const [room, setRoom] = useState(row?.room_pref ?? "leader");
   const [notes, setNotes] = useState(row?.notes ?? "");
   const [status, setStatus] = useState<"new" | "confirmed">(row ? (row.status === "confirmed" ? "confirmed" : "new") : "confirmed");
   const [pay, setPay] = useState<"unpaid" | "partial" | "paid">((row?.payment_status as "unpaid") ?? "unpaid");
@@ -923,9 +921,9 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
     const travelers = tr.map((t) => Object.fromEntries(Object.entries({ ...t, firstName: t["firstName"]!.trim().toUpperCase(), lastName: t["lastName"]!.trim().toUpperCase(), passportNo: (t["passportNo"] ?? "").trim().toUpperCase() }).filter(([, v]) => typeof v === "string")) as MT);
     setBusy(true);
     try {
-      const common = { trip: trip.trim(), trip_id: trips.find((t) => t.trip === trip.trim())?.trip_id ?? row?.trip_id ?? null, trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), room_pref: room, notes, travelers };
+      const common = { trip: trip.trim(), trip_id: trips.find((t) => t.trip === trip.trim())?.trip_id ?? row?.trip_id ?? null, trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), notes, travelers };
       if (row) await update({ data: { password, id: row.id, ...common, ...(row.status === "new" || row.status === "confirmed" ? { status } : {}), payment_status: pay, paid_amount: paid, total_amount: total } });
-      else { const r = await add({ data: { password, ...common, status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
+      else { const r = await add({ data: { password, ...common, room_pref: "", status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
       await onDone();
     } catch (x) { window.alert(`تعذّر الحفظ | Fehler\n${x instanceof Error ? x.message : x}`); } finally { setBusy(false); }
   };
@@ -964,7 +962,6 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
       </div>
     </div>)}
     <Button size="sm" variant="outline" className="w-full" onClick={() => setTr([...tr, blankMT(tr[0]?.["airport"] ?? "")])}><Plus className="h-3.5 w-3.5" />{bi("إضافة مرافق | Begleitperson hinzufügen")}</Button>
-    <label className={lbl}>{bi("الغرفة المطلوبة | Zimmerwunsch")}<select value={room} onChange={(e) => setRoom(e.target.value)} className={inputCls}>{rooms.map((r) => <option key={r.id} value={r.id}>{bi(`${r.ar} | ${r.de}`)}</option>)}</select></label>
     <label className={lbl}>{bi("ملاحظات الزائر | Hinweise")}<textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} /></label>
     <div className="grid grid-cols-2 gap-1.5">
       <select value={status} onChange={(e) => setStatus(e.target.value as "new")} className={inputCls}><option value="new">{bi(statusLabels["new"]!)}</option><option value="confirmed">{bi(statusLabels["confirmed"]!)}</option></select>
