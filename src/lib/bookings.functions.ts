@@ -88,6 +88,18 @@ async function isStaff(password: string) {
   return (await verifyRole(password)) !== null;
 }
 
+function canonicalGermanTripName(value: string) {
+  return value
+    .replace(/\b(?:Pilgerreisen?|Pilgerfahrten?|Pilgrimages?|Ziyarat|Zyarat)\b/gi, "Ziyara")
+    .replace(/\bIrak[- ]Reise\b/gi, "Irak Ziyara")
+    .replace(/\bIraq\s+(?:trip|pilgrimage)\b/gi, "Iraq Ziyara")
+    .replace(/\bIraq\s+Ziyara\b/gi, "Irak Ziyara")
+    .replace(/\b(Irak|Iran)\s*[—–-]\s*Ziyara\b/gi, "$1 Ziyara");
+}
+function canonicalTripLabel(trip: { ar: string; de: string }) {
+  return [trip.ar, canonicalGermanTripName(trip.de ?? "")].filter(Boolean).join(" | ");
+}
+
 export const submitBooking = createServerFn({ method: "POST" })
   .validator((d) => bookingSchema.parse(d))
   .handler(async ({ data }) => {
@@ -97,7 +109,7 @@ export const submitBooking = createServerFn({ method: "POST" })
     const reg = site.cms?.registration;
     if (reg?.closed) throw new Error("Registration closed / التسجيل مغلق حالياً");
     const selectedTrip = data.tripId ? site.trips?.find((t) => t.id === data.tripId) : undefined;
-    const canonicalTrip = selectedTrip ? [selectedTrip.ar, selectedTrip.de].filter(Boolean).join(" | ") : data.trip;
+    const canonicalTrip = selectedTrip ? canonicalTripLabel(selectedTrip) : data.trip;
     const canonicalDate = selectedTrip?.date ?? data.tripDate;
     const canonicalTripId = selectedTrip?.id ?? null;
     const ref = `UH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
@@ -182,7 +194,7 @@ export const listBookings = createServerFn({ method: "POST" })
       });
       const match = byId ?? byAlias ?? (byDate.length === 1 ? byDate[0] : undefined) ?? byName;
       if (!match) return row;
-      const trip = [match.ar, match.de].filter(Boolean).join(" | ");
+      const trip = canonicalTripLabel(match);
       const tripDate = match.date ?? row.trip_date;
       if (row.trip_id !== match.id || row.trip !== trip || row.trip_date !== tripDate) {
         repairs.push(supabaseAdmin.from("bookings").update({ trip_id: match.id, trip, trip_date: tripDate }).eq("id", row.id));
@@ -221,7 +233,7 @@ export const updateBooking = createServerFn({ method: "POST" })
       const trips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string }> } | null)?.trips ?? []);
       const selected = trips.find((t) => t.id === patch["trip_id"]);
       if (selected) {
-        patch["trip"] = [selected.ar, selected.de].filter(Boolean).join(" | ");
+        patch["trip"] = canonicalTripLabel(selected);
         patch["trip_date"] = selected.date ?? patch["trip_date"] ?? "";
       }
     }
