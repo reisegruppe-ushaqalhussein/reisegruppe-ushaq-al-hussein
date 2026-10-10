@@ -27,7 +27,6 @@ const bookingSchema = z.object({
   airport: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(255),
   phone: z.string().trim().min(6).max(30).regex(/^[+0-9 ()-]+$/),
-  roomPref: z.string().max(40),
   notes: z.string().max(2000),
   travelers: z.array(travelerSchema).min(1).max(15),
   consent: z.literal(true),
@@ -130,7 +129,7 @@ export const submitBooking = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("bookings").insert({
       ref, trip: canonicalTrip, trip_id: canonicalTripId, trip_date: canonicalDate, contact_email: data.email, contact_phone: data.phone,
-      room_pref: data.roomPref, notes: data.notes, travelers: travelers as never,
+      room_pref: null, notes: data.notes, travelers: travelers as never,
     });
     if (error) throw new Error(error.message);
 
@@ -139,8 +138,8 @@ export const submitBooking = createServerFn({ method: "POST" })
     travelers.forEach((t) => { counts[t.category]++; });
     const air = data.airport || "-";
     const list = travelers.map((t, i) => `${i + 1}. ${t.lastName}/${t.firstName} — ${t.category.toUpperCase()} — ${t.birthDate} — Pass ${t.passportNo} (${t.passportExpiry}) — ${t.nationality}${t.relation ? ` — ${t.relation}` : ""}`).join("\n");
-    const sumDe = `Reise: ${canonicalTrip}${canonicalDate ? ` — ${canonicalDate}` : ""}\nAbflughafen: ${air}\nReisende: ${travelers.length} (Erwachsene ${counts.adult}, Kinder ${counts.child}, Kleinkinder ${counts.infant})\n\n${list}\n\nZimmerwunsch: ${data.roomPref || "-"}\nHinweise: ${data.notes || "-"}`;
-    const sumAr = `الرحلة: ${canonicalTrip}${canonicalDate ? ` — ${canonicalDate}` : ""}\nمطار الانطلاق: ${air}\nعدد المسافرين: ${travelers.length} (بالغ ${counts.adult}، طفل ${counts.child}، رضيع ${counts.infant})\n\nتفضيل الغرفة: ${data.roomPref || "-"}\nملاحظات: ${data.notes || "-"}`;
+    const sumDe = `Reise: ${canonicalTrip}${canonicalDate ? ` — ${canonicalDate}` : ""}\nAbflughafen: ${air}\nReisende: ${travelers.length} (Erwachsene ${counts.adult}, Kinder ${counts.child}, Kleinkinder ${counts.infant})\n\n${list}\n\nHinweise: ${data.notes || "-"}`;
+    const sumAr = `الرحلة: ${canonicalTrip}${canonicalDate ? ` — ${canonicalDate}` : ""}\nمطار الانطلاق: ${air}\nعدد المسافرين: ${travelers.length} (بالغ ${counts.adult}، طفل ${counts.child}، رضيع ${counts.infant})\n\nملاحظات: ${data.notes || "-"}`;
     const sep = "\n\n────────────────────────\n\n";
     const sigDe = `Reisegruppe Ushaq al-Hussein DE\nGeleitet von Hajj Yasser Aldor\n${CAMPAIGN_EMAIL}`;
     const sigAr = `حملة عشاق الحسين - ألمانيا\nبإدارة الحاج ياسر الدر\n${CAMPAIGN_EMAIL}`;
@@ -249,7 +248,7 @@ export const addManualBooking = createServerFn({ method: "POST" })
     password: z.string().max(200),
     trip: z.string().trim().min(1).max(200), trip_id: z.string().trim().max(100).nullable().optional(), trip_date: z.string().max(100),
     contact_phone: z.string().max(40), contact_email: z.string().max(255),
-    room_pref: z.string().max(40), notes: z.string().max(2000), admin_notes: z.string().max(2000),
+    notes: z.string().max(2000), admin_notes: z.string().max(2000),
     status: z.enum(["new", "confirmed"]), payment_status: z.enum(["unpaid", "partial", "paid"]),
     paid_amount: z.number().min(0).max(1_000_000), total_amount: z.number().min(0).max(1_000_000),
     travelers: z.array(z.record(z.string(), z.string().max(500))).min(1).max(30),
@@ -271,7 +270,7 @@ export const addManualBooking = createServerFn({ method: "POST" })
     if (clash) throw new Error(`مسجّل مسبقاً بنفس البيانات | Bereits gebucht: ${clash["lastName"]} ${clash["firstName"]}`);
     const ref = `UH-${new Date().getFullYear()}-M${Math.floor(100 + Math.random() * 900)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
     const { password: _p, trip: _trip, trip_id: _tripId, trip_date: _tripDate, ...row } = data;
-    const { error } = await supabaseAdmin.from("bookings").insert({ ...row, trip: canonicalTrip, trip_id: canonicalTripId, trip_date: canonicalDate, ref, travelers: row.travelers as never, admin_notes: `[يدوي | manuell] ${row.admin_notes}`.trim() });
+    const { error } = await supabaseAdmin.from("bookings").insert({ ...row, room_pref: null, trip: canonicalTrip, trip_id: canonicalTripId, trip_date: canonicalDate, ref, travelers: row.travelers as never, admin_notes: `[يدوي | manuell] ${row.admin_notes}`.trim() });
     if (error) throw new Error(error.message);
     return { ok: true as const, ref };
   });
