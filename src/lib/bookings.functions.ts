@@ -158,19 +158,25 @@ export const listBookings = createServerFn({ method: "POST" })
       supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle(),
     ]);
     if (error) throw new Error(error.message);
-    const currentTrips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string; aliases?: string[] }> } | null)?.trips ?? []);
+    const site = (sc?.data ?? {}) as {
+      trips?: Array<{ id: string; ar: string; de: string; date?: string; aliases?: string[] }>;
+      trash?: Array<{ section: string; item: Record<string, unknown> }>;
+    };
+    const currentTrips = site.trips ?? [];
+    const archivedTrips = (site.trash ?? []).filter((x) => x.section === "trips").map((x) => x.item as { id: string; ar: string; de: string; date?: string; aliases?: string[] }).filter((t) => !!t.id && !!t.ar);
+    const knownTrips = [...currentTrips, ...archivedTrips.filter((a) => !currentTrips.some((t) => t.id === a.id))];
     const dateKey = (s: string | null | undefined) => (s ?? "").replace(/[^0-9]/g, "");
     const nameKey = (s: string | null | undefined) => (s ?? "").toLocaleLowerCase().replace(/[ |—–-]+/g, " ").trim();
     const repairs: Promise<unknown>[] = [];
     const normalized = ((rows ?? []) as unknown as BookingRow[]).map((row) => {
-      const byId = row.trip_id ? currentTrips.find((t) => t.id === row.trip_id) : undefined;
+      const byId = row.trip_id ? knownTrips.find((t) => t.id === row.trip_id) : undefined;
       const byDate = currentTrips.filter((t) => dateKey(t.date) && dateKey(t.date) === dateKey(row.trip_date));
       const oldName = nameKey(row.trip);
-      const byAlias = currentTrips.find((t) => (t.aliases ?? []).some((a) => {
+      const byAlias = knownTrips.find((t) => (t.aliases ?? []).some((a) => {
         const alias = nameKey(a);
         return alias && (oldName === alias || (alias.length > 5 && oldName.includes(alias)) || (oldName.length > 5 && alias.includes(oldName)));
       }));
-      const byName = currentTrips.find((t) => {
+      const byName = knownTrips.find((t) => {
         const names = [t.ar, t.de, [t.ar, t.de].filter(Boolean).join(" | ")].map(nameKey).filter(Boolean);
         return names.some((n) => oldName === n || (n.length > 5 && oldName.includes(n)) || (oldName.length > 5 && n.includes(oldName)));
       });
