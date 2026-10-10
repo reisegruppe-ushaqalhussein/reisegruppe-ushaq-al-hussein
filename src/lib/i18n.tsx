@@ -206,7 +206,12 @@ export function LangProvider({ children }: { children: ReactNode }) {
     setLangState(l);
     window.localStorage.setItem("app-lang", l);
   };
-
+  return (
+    <LangContext.Provider value={{ lang, setLang, v }}>
+      {children}
+    </LangContext.Provider>
+  );
+}
 export const useLang = () => useContext(LangContext);
 
 /** Shared bilingual text: one language per mode, Arabic above German in "both"; aligns to the start of its own script. */
