@@ -575,7 +575,27 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 function printHtml(s: Sheet, group: string) {
   const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>@page{size:A4 landscape;margin:8mm}body{font-family:Arial;font-size:11px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:4px;vertical-align:top}th{background:#1f2a44;color:#fff}button{font-size:16px;padding:10px 18px;margin:8px 0}@media print{button{display:none}}</style></head><body>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>
+@page{size:A4 landscape;margin:7mm}
+:root{color-scheme:light}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+html,body{margin:0;padding:0;background:#fff;color:#172033;font-family:Arial,"Noto Sans",sans-serif;font-size:10pt;line-height:1.3}
+h2{font-size:14pt;color:#172033}
+p{font-size:9pt}
+table{border-collapse:collapse;width:100%;table-layout:auto;font-size:9pt}
+td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}
+th{background:#1a2a5e!important;color:#fff!important;font-weight:700;text-align:start;font-size:9pt}
+tr{break-inside:avoid;page-break-inside:avoid}
+button{font-size:16px;padding:10px 18px;margin:8px 0}
+@media print{
+  html,body{width:auto;background:#fff!important;font-size:9pt}
+  table{width:100%;font-size:8.5pt}
+  th{background:#1a2a5e!important;color:#fff!important}
+  td,th{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  button{display:none}
+  h2,p{break-after:avoid-page;page-break-after:avoid}
+}
+</style></head><body>
 <button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>
 <h2 style="margin:4px 0">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</h2><p style="margin:2px 0"><b>${esc(group)}</b></p>${s.info.map((i) => `<p style="margin:2px 0">${esc(i)}</p>`).join("")}
 <table><tr>${s.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
