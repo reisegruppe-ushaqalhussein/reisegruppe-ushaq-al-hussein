@@ -31,7 +31,7 @@ export default defineConfig({
             {
               urlPattern: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
               handler: "NetworkFirst",
-              options: { cacheName: "pages", networkTimeoutSeconds: 4 },
+              options: { cacheName: "pages", networkTimeoutSeconds: 1 },
             },
             {
               urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com" || url.origin === "https://fonts.gstatic.com",
