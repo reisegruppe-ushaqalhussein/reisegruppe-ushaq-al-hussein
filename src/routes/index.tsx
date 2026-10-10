@@ -1241,8 +1241,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       {nextInfo && (
         <div className="mb-3 flex items-center justify-between rounded-md border border-secondary/40 bg-accent/50 px-3 py-1.5 text-xs">
           
-<span className="min-w-0 font-bold text-primary">
-  ⏳ <Pair
+<span className="flex min-w-0 items-center gap-1 font-bold text-primary">
+  <span className="shrink-0">⏳</span>
+<Pair
     ar={`الأذان القادم: صلاة ${nextInfo.nameAr}`}
     de={`Nächster Gebetsruf: ${nextInfo.nameDe}`}
   />
