@@ -226,7 +226,7 @@ function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: num
   if (kw > mw) { kw = mw; kh = kw / ratio; }
   p.img(a.kaaba, cx - kw / 2, top + (bottom - top - kh) / 2, kw, kh);
   p.qr(APP_URL, cx - qs / 2, qy, qs, 2);
-  p.text("إسم الزائر:", cx, by - 1.3, 3, { color: BLUE, weight: 700, maxW: mw });
+  p.text("اسم الزائر:", bx + bw - 1.2, by - 1.3, 2.8, { color: BLUE, weight: 700, align: "right", maxW: bw - 2 });
   p.rect(bx, by, bw, bh, { fill: BLUE });
   drawName(p, who, st, bx + 1.8, bx + bw - 1.8, who.ar && who.de && st.layout === "stack" ? by + 8.4 : by + 6.6, 3.7, "#ffffff");
   p.rect(0, 0, W, H, { stroke: BLUE, lw: 0.3 });
@@ -380,10 +380,14 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     return lines.filter(Boolean);
   };
 
+  const isUmrahTrip = (tripName: string) => /عمرة|عمره|umrah/i.test(tripName);
+
   const applyTripPilgrims = (tripName: string, mode = pullLang) => {
     setSelectedTrip(tripName);
+    if (!tripName) return;
     const lines = extractTripPilgrims(allBookings, tripName, mode);
     setBulk(lines.join("\n"));
+    setBulkColors([]);
     setBlankOnly(false);
   };
 
@@ -418,13 +422,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       const uniqueTrips = [...new Set([...declaredTrips, ...bookedTrips])].filter(Boolean);
 
       setTrips(uniqueTrips);
-      const firstTrip = uniqueTrips[0];
-      if (firstTrip && !selectedTrip) {
-        setSelectedTrip(firstTrip);
-        const lines = extractTripPilgrims(valid, firstTrip);
-        setBulk(lines.join("\n"));
-        setBlankOnly(false);
-      }
+      // لا نختار رحلة تلقائياً؛ يختار المستخدم الرحلة المناسبة لنوع البطاقة.
     } catch {
       setErr("تعذر جلب الحجوزات | Buchungen konnten nicht geladen werden");
     }
@@ -484,7 +482,15 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     </button>
     {open && <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => setKind(k)} className={`min-h-11 rounded-md border-2 px-2 py-1.5 text-sm font-bold ${kind === k ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}>
+        {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => {
+          if (k !== kind) {
+            setKind(k);
+            setSelectedTrip("");
+            setBulk("");
+            setBulkColors([]);
+            setBlankOnly(false);
+          }
+        }} className={`min-h-11 rounded-md border-2 px-2 py-1.5 text-sm font-bold ${kind === k ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}>
           {k === "iraq" ? <L ar="العراق وإيران" de="Irak & Iran" /> : <L ar="العمرة" de="Umrah" />}
         </button>)}
       </div>
@@ -546,7 +552,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
             {trips.length === 0 ? (
               <Button type="button" variant="outline" size="sm" onClick={fetchTripNames} disabled={busy} className="w-full text-xs">
-                📥 <L ar="سحب أسماء الزوار من الحجوزات" de="Pilgernamen aus Buchungen laden" />
+                📥 <L ar="تحميل الرحلات من الحجوزات" de="Reisen aus Buchungen laden" />
               </Button>
             ) : (
               <div className="space-y-1.5">
@@ -555,16 +561,22 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
                   <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline">🔄 تحديث</button>
                 </div>
                 <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
-                  {trips.map((t) => <option key={t} value={t}>{t}</option>)}
+                  <option value="">{kind === "umrah" ? "اختر رحلة العمرة | Umrah-Reise auswählen" : "اختر رحلة العراق وإيران | Irak-/Iran-Reise auswählen"}</option>
+                  {trips.filter((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
+                {!trips.some((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {kind === "umrah" ? "لا توجد رحلة عمرة ضمن القائمة الحالية. اضغط تحديث بعد إضافة رحلة العمرة أو حجزها. | Keine Umrah-Reise in der aktuellen Liste." : "لا توجد رحلة للعراق أو إيران ضمن القائمة الحالية. اضغط تحديث. | Keine Irak-/Iran-Reise in der aktuellen Liste."}
+                  </p>
+                )}
 
                 {/* خيارات لغة السحب: عربي فقط أو لاتيني فقط أو دمج الاثنين */}
                 <div className="flex items-center justify-between gap-1 pt-1">
                   <span className="text-[10px] font-bold text-muted-foreground">صيغة الأسماء:</span>
                   <div className="flex gap-1 text-[10px]">
-                    <button type="button" onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>عربي فقط</button>
-                    <button type="button" onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Latin فقط</button>
-                    <button type="button" onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>دمج الاثنين</button>
+                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>عربي فقط</button>
+                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Latin فقط</button>
+                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>دمج الاثنين</button>
                   </div>
                 </div>
               </div>
