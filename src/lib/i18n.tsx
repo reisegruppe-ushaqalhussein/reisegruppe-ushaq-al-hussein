@@ -163,7 +163,8 @@ function normalizeZiyaraTerms(value: string, target: "de" | "en"): string {
     .replace(/\bIrak[- ]Reise\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
     .replace(/\bIraq\s+(?:trip|pilgrimage)\b/gi, "Iraq Ziyara")
     .replace(/\bIrak\s+Ziyara\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
-    .replace(/\bIraq\s+Ziyara\b/gi, target === "de" ? "Irak Ziyara" : "Iraq Ziyara");
+    .replace(/\bIraq\s+Ziyara\b/gi, target === "de" ? "Irak Ziyara" : "Iraq Ziyara")
+    .replace(/\b(Irak|Iraq|Iran)\s*[—–-]\s*Ziyara\b/gi, (_m, country: string) => `${target === "en" && country.toLowerCase() === "irak" ? "Iraq" : target === "de" && country.toLowerCase() === "iraq" ? "Irak" : country} Ziyara`);
 }
 
 /** Returns English for a German (or Arabic) source text; unknown texts are translated automatically and appear moments later. */
