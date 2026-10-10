@@ -935,7 +935,13 @@ function ManualBooking({ row, trips, rows, password, onDone }: { row: BookingRow
   return <div dir={rtl ? "rtl" : "ltr"} className={`mt-2 space-y-2 rounded-md border-2 border-secondary bg-card p-2 text-xs ${rtl ? "text-right" : "text-left"}`}>
     <p className="text-sm font-bold text-primary">{bi(row ? `✏️ تعديل الحجز ${row.ref} | Buchung bearbeiten` : "➕ حجز يدوي من الدفتر | Manuelle Buchung")}</p>
     <p className="text-muted-foreground">{bi("الصور غير إلزامية ولا يُرسل أي إيميل. الحجز يدخل كل القوائم تلقائياً. | Fotos optional, keine E-Mail. Erscheint automatisch in allen Listen.")}</p>
-    <label className={lbl}>{bi("الرحلة | Reise")}<select value={trip} onChange={(e) => { setTrip(e.target.value); const m = trips.find((t) => t.trip === e.target.value); if (m) setTripDate(m.date); }} className={inputCls}><option value="">—</option>{tripList.map((t) => <option key={t.trip} value={t.trip}>{t.trip.includes(" | ") ? bi(t.trip) : t.trip}</option>)}</select></label>
+    <label className={lbl}>{bi("الرحلة | Reise")}<select value={trip} onChange={(e) => { setTrip(e.target.value); const m = trips.find((t) => t.trip === e.target.value); if (m) setTripDate(m.date); }} className={inputCls}><option value="">—</option>{tripList.map((t) => {
+        const announced = content.trips.find((x) => x.id && x.id === t.trip_id);
+        const label = announced
+          ? [display(lang, announced.ar, toGerman(announced.de)).main, display(lang, announced.ar, toGerman(announced.de)).sub].filter(Boolean).join(" | ")
+          : t.trip.includes(" | ") ? bi(t.trip) : t.trip;
+        return <option key={announced?.id ?? t.trip} value={t.trip}>{label}</option>;
+      })}</select></label>
     <div className="grid grid-cols-2 gap-1.5">
       <label className={lbl}>{bi("التاريخ | Datum")}<input value={tripDate} onChange={(e) => setTripDate(e.target.value)} className={inputCls} /></label>
       <label className={lbl}>{bi("الهاتف / واتساب | Telefon")}<input dir="ltr" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} /></label>
