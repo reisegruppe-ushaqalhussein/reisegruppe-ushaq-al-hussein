@@ -1249,7 +1249,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           <div className="mt-1 flex flex-col gap-0.5 font-semibold text-secondary">
             {(lang === "ar" || lang === "both") && (
               <span lang="ar" dir="rtl" className="text-right">
-                الوقت المتبقي: {nextHours > 0 && <><bdi dir="ltr">{nextHours}</bdi> س و }<bdi dir="ltr">{nextMinutes}</bdi> د و <bdi dir="ltr">{nextSeconds}</bdi> ث
+                الوقت المتبقي: {nextHours > 0 && <><bdi dir="ltr">{nextHours}</bdi> س و </>}<bdi dir="ltr">{nextMinutes}</bdi> د و <bdi dir="ltr">{nextSeconds}</bdi> ث
               </span>
             )}
             {(lang === "de" || lang === "en" || lang === "both") && (
