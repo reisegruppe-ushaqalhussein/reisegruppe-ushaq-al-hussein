@@ -1117,7 +1117,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {reg.ar}
+            
+<Pair ar={reg.ar} de={reg.de} align="center" inverse={activeRegion === reg.id} />
           </button>
         ))}
       </div>
@@ -1248,10 +1249,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           const displayTime = raw ? getAdjustedTime(p.key, raw) : failed ? "—" : "…";
           return (
             <div key={p.key} className="rounded-md bg-muted px-1 py-2">
-              <p className="text-[11px] font-bold text-primary">{p.ar}</p>
-              <p lang="de" dir="ltr" className="text-[9px] italic text-muted-foreground">
-                {p.de}
-              </p>
+              
+<Pair ar={p.ar} de={p.de} align="center" />
               <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">
                 {displayTime}
               </p>
