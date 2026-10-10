@@ -159,7 +159,7 @@ function translate(text: string, t: Target): string {
 /** Use one campaign-wide transliteration for the Arabic word زيارة in German and English UI text. */
 function normalizeZiyaraTerms(value: string, target: "de" | "en"): string {
   return value
-    .replace(/\b(?:Pilgerreisen?|Pilgerfahrten?|Pilgrimages?|Ziyarat|Zyarat)\b/gi, "Ziyara")
+    .replace(/\b(?:Pilgerreisen?|Pilgetreisen?|Pilgerfahrt(?:en)?|Pilgrimages?|Ziyarat|Zyarat)\b/gi, "Ziyara")
     .replace(/\bIrak[- ]Reise\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
     .replace(/\bIraq\s+(?:trip|pilgrimage)\b/gi, "Iraq Ziyara")
     .replace(/\bIrak\s+Ziyara\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
