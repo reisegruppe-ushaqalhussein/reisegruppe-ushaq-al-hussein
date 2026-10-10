@@ -749,8 +749,8 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
           <Button type="button" variant="outline" disabled={busy} onClick={saveSheet} className="h-auto min-h-11 whitespace-normal text-xs font-semibold"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ صفحات A4 صور" de="A4 als Bild" /></Button>
           <Button type="button" variant="outline" disabled={busy} onClick={saveCard} className="h-auto min-h-11 whitespace-normal text-xs font-semibold"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ بطاقة واحدة" de="Einzelkarte" /></Button>
         </div>
-      </div>
-      <p className="text-[11px] text-muted-foreground"><L ar="عند الطباعة اختر: الحجم الفعلي 100% بدون تكبير أو تصغير." de="Beim Drucken: Tatsächliche Größe 100 %, ohne Skalierung." /></p>}
+        <p className="text-[11px] text-muted-foreground"><L ar="عند الطباعة اختر: الحجم الفعلي 100% بدون تكبير أو تصغير." de="Beim Drucken: Tatsächliche Größe 100 %, ohne Skalierung." /></p>
+      </div>}
 
       {err && <p className="text-xs font-bold text-destructive"><L ar={err.split(" | ")[0] || err} de={err.split(" | ")[1] || err} /></p>}
     </div>}
