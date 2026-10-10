@@ -45,14 +45,26 @@ export const isOnline = () => typeof navigator === "undefined" || navigator.onLi
 /** Network-first content fetch with IndexedDB fallback. */
 export async function fetchContentOfflineFirst(): Promise<SiteContent> {
   if (typeof window === "undefined") return getSiteContent();
+
+  // On repeat visits, use the local copy immediately and refresh it in the
+  // background so slow mobile connections do not delay opening the app.
+  const cached = await idbGet<SiteContent>("content").catch(() => undefined);
+  if (cached) {
+    if (isOnline()) {
+      void getSiteContent().then((fresh) => {
+        void idbSet("content", fresh).catch(() => {});
+        window.dispatchEvent(new CustomEvent("ushaq-content-refreshed", { detail: fresh }));
+      }).catch(() => {});
+    }
+    return cached;
+  }
+
   try {
     if (!isOnline()) throw new Error("offline");
     const data = await getSiteContent();
     idbSet("content", data).catch(() => {});
     return data;
   } catch {
-    const cached = await idbGet<SiteContent>("content").catch(() => undefined);
-    if (cached) return cached;
     throw new OfflineMissingError();
   }
 }
