@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 let qrMod: Promise<typeof import("qrcode")> | null = null;
-let qrLib: typeof import("qrcode") | null = null;
+let qrcodeLib: typeof import("qrcode") | null = null;
 import { useServerFn } from "@tanstack/react-start";
 import { listBookings, type BookingRow } from "@/lib/bookings.functions";
 import { useAdminSession } from "@/lib/admin-session";
@@ -43,6 +43,9 @@ function loadImg(src: string) {
 let assetsP: Promise<Omit<Assets, "custom">> | null = null;
 let customCache: { src: string; img: HTMLImageElement } | null = null;
 async function loadAssets(): Promise<Assets> {
+  if (!qrcodeLib) {
+    qrcodeLib = await (qrMod ??= import("qrcode"));
+  }
   if (!assetsP) {
     assetsP = (async () => {
       await Promise.all(["800 40px Cairo", "700 40px Cairo", "600 40px Cairo", "500 40px Cairo", "400 40px Cairo"].map((f) => document.fonts.load(f).catch(() => null)));
@@ -83,23 +86,23 @@ function pen(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: number) {
     ctx.drawImage(im, X(x), Y(y), w * S, hh * S);
     return hh;
   };
-  const qr = (data: string, x: number, y: number, size: number, margin: number) => {
-    if (!qrLib) return;
-    const q = qrLib.create(data, { errorCorrectionLevel: "M" });
+   const qr = (data: string, x: number, y: number, size: number, margin: number) => {
+    if (!qrcodeLib) return;
+    const q = qrcodeLib.create(data, { errorCorrectionLevel: "M" });
     const n = q.modules.size;
     const m = size / (n + margin * 2);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(X(x), Y(y), size * S, size * S);
     ctx.fillStyle = "#000000";
     for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-           if (!q.modules.get(r, c)) continue;
-            const x0 = Math.round(X(x + (c + margin) * m)), x1 = Math.round(X(x + (c + margin + 1) * m));
-            const y0 = Math.round(Y(y + (r + margin) * m)), y1 = Math.round(Y(y + (r + margin + 1) * m));
-            ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-        }
+      for (let c = 0; c < n; c++) {
+        if (!q.modules.get(r, c)) continue;
+        const x0 = Math.round(X(x + (c + margin) * m)), x1 = Math.round(X(x + (c + margin + 1) * m));
+        const y0 = Math.round(Y(y + (r + margin) * m)), y1 = Math.round(Y(y + (r + margin + 1) * m));
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      }
     }
-};
+  };
   const rect = (x: number, y: number, w: number, h: number, o: { fill?: string; stroke?: string; lw?: number }) => {
     if (o.fill) { ctx.fillStyle = o.fill; ctx.fillRect(X(x), Y(y), w * S, h * S); }
     if (o.stroke) { ctx.strokeStyle = o.stroke; ctx.lineWidth = (o.lw ?? 0.3) * S; ctx.strokeRect(X(x), Y(y), w * S, h * S); }
