@@ -45,7 +45,11 @@ const en: Record<string, string> = {
   "Heiliges al-Kazimiyya": "Holy al-Kazimiyya",
   "Helfen Sie Pilgern, die ihre Reisekosten nicht selbst tragen können, und unterstützen Sie den Fortbestand der Reisegruppe.": "Help pilgrims who cannot cover their travel costs and support the group's continuity.",
   "Häufige Fragen (FAQ)": "Frequently asked questions",
-  "Irak-Reise": "Iraq trip",
+  "Irak-Reise": "Iraq Ziyara",
+  "Irak Ziyara": "Iraq Ziyara",
+  "Iran Ziyara": "Iran Ziyara",
+  "Arten der Zyarat bei dieser Reise": "Types of Ziyara on this trip",
+  "Iran — Zyarat Imam Rida (as)": "Iran Ziyara Imam Rida (as)",
   "Iran — Zyarat Imam Rida (as)": "Iran — Ziyarat Imam Rida (as)",
   "Jetzt anmelden": "Register now",
   "Kerbela": "Karbala",
@@ -152,14 +156,23 @@ function translate(text: string, t: Target): string {
   return text;
 }
 
+/** Use one campaign-wide transliteration for the Arabic word زيارة in German and English UI text. */
+function normalizeZiyaraTerms(value: string, target: "de" | "en"): string {
+  return value
+    .replace(/\b(?:Pilgerreisen?|Pilgerfahrten?|Pilgrimages?|Ziyarat|Zyarat)\b/gi, "Ziyara")
+    .replace(/\bIrak[- ]Reise\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
+    .replace(/\bIraq\s+(?:trip|pilgrimage)\b/gi, "Iraq Ziyara")
+    .replace(/\bIrak\s+Ziyara\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
+    .replace(/\bIraq\s+Ziyara\b/gi, target === "de" ? "Irak Ziyara" : "Iraq Ziyara");
+}
+
 /** Returns English for a German (or Arabic) source text; unknown texts are translated automatically and appear moments later. */
 export const toEnglish = (de: string) => {
   if (!de || !de.trim()) return de;
-  if (en[de]) return en[de];
-  return translate(de, "en");
+  return normalizeZiyaraTerms(en[de] ?? translate(de, "en"), "en");
 };
-/** German for a text; Arabic-only texts are translated automatically. */
-export const toGerman = (text: string) => (text && ARABIC.test(text) ? translate(text, "de") : text);
+/** German for Arabic-only texts; Arabic-only texts are translated automatically. */
+export const toGerman = (text: string) => normalizeZiyaraTerms(text && ARABIC.test(text) ? translate(text, "de") : text, "de");
 
 /** The single source of truth for what a bilingual pair shows in each language mode. */
 const honor = (t: string) => t.replace(/\(\s*عج\s*\)/g, "(aj)").replace(/\(\s*ع\s*\)/g, "(as)").replace(/\(\s*ص\s*\)/g, "(s)").replace(/\(\s*رض\s*\)/g, "(ra)");
@@ -169,7 +182,7 @@ export function display(lang: AppLang, ar: string, de: string): { main: string; 
 }
 function displayRaw(lang: AppLang, ar: string, de: string): { main: string; sub: string } {
   const a = (ar ?? "").trim();
-  const d = (de ?? "").trim();
+  const d = normalizeZiyaraTerms((de ?? "").trim(), lang === "en" ? "en" : "de");
   if (lang === "en") return { main: toEnglish(d || a), sub: "" };
   if (lang === "de") return { main: d && !ARABIC.test(d) ? d : toGerman(d || a), sub: "" };
   if (lang === "ar") return { main: a || d, sub: "" };
