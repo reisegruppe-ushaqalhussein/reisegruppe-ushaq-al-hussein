@@ -913,7 +913,7 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
     try {
       const common = { trip: trip.trim(), trip_id: trips.find((t) => t.trip === trip.trim())?.trip_id ?? row?.trip_id ?? null, trip_date: tripDate.trim(), contact_phone: phone.trim(), contact_email: email.trim(), notes, travelers };
       if (row) await update({ data: { password, id: row.id, ...common, ...(row.status === "new" || row.status === "confirmed" ? { status } : {}), payment_status: pay, paid_amount: paid, total_amount: total } });
-      else { const r = await add({ data: { password, ...common, room_pref: "", status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
+      else { const r = await add({ data: { password, ...common, status, payment_status: pay, paid_amount: paid, total_amount: total, admin_notes: "" } }); if (!r.ok) throw new Error("no access"); window.alert(bi(`✓ تم حفظ الحجز ${r.ref} | Gespeichert ${r.ref}`)); }
       await onDone();
     } catch (x) { window.alert(`تعذّر الحفظ | Fehler\n${x instanceof Error ? x.message : x}`); } finally { setBusy(false); }
   };
