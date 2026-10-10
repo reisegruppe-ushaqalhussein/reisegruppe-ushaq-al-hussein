@@ -730,7 +730,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
       <select value={filter} onChange={(e) => { setFilter(e.target.value); setLimit(60); setShowLists(false); }} className={inputCls}>
       <option value="all">{bi("اختر الرحلة لعرض حجوزاتها | Reise wählen...")}</option>
       {trips.map((t) => (
-        <option key={t} value={t}>{tripLabel(t, bi)}</option>
+        <option key={announcedTrips.find((a) => a.key === t)?.id ?? t} value={t}>{(() => { const announced = announcedTrips.find((a) => a.key === t); return announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : tripLabel(t, bi); })()}</option>
       ))}
     </select>
     {problems > 0 && !trashView && <p className="mt-2 rounded-md bg-destructive/10 p-2 text-xs font-bold text-destructive">⚠️ {bi(`يوجد ${problems} حجز بحاجة لمراجعة — افتحه لرؤية التفاصيل | ${problems} Buchung(en) prüfen`)}</p>}
