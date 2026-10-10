@@ -30,7 +30,7 @@ export type DonationEntry = { id: string; ar: string; de: string; value: string;
 export type RoomEntry = { id: string; name: string; city: string; hotel: string; floor: string; room: string; hidden?: boolean };
 export type GuidelineEntry = { id: string; ar: string; de: string; destAr?: string; destDe?: string; pdf?: string; images?: string; hidden?: boolean };
 export type IraqItem = { id: string; kind: string; ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
-export type LabelMap = Record<string, { ar: string; de: string; hidden?: boolean }>;
+export type LabelMap = Record<string, { ar: string; de: string; hidden?: boolean; target?: string }>;
 /** Returns an admin-renamed title or the given default. */
 export function labelOf(c: { labels?: LabelMap | undefined }, key: string, ar: string, de: string) { const l = c.labels?.[key]; return { ar: l?.ar || ar, de: l?.de || de }; }
 export type MemoryEntry = { id: string; imageUrl: string; ar: string; de: string; place: string; date: string; hidden?: boolean };
