@@ -250,8 +250,19 @@ async function renderSheets(kind: Kind, people: Person[], st: Style) {
   const a = await loadAssets();
   const sp = SPEC[kind];
   const per = sp.cols * sp.rows;
-  const list = people.length ? people : [{ ar: "", de: "" }];
-  const filled = list.length === 1 ? Array.from({ length: per }, () => list[0]) : list;
+ const blank: Person = { ar: "", de: "" };
+const list = people.length ? people : [blank];
+const targetLength = Math.ceil(list.length / per) * per;
+const filled =
+  list.length === 1
+    ? Array.from({ length: per }, () => list[0] ?? blank)
+    : [
+        ...list,
+        ...Array.from(
+          { length: targetLength - list.length },
+          () => blank
+        ),
+      ];
   const pages: HTMLCanvasElement[] = [];
   for (let i = 0; i < filled.length; i += per) {
     const c = document.createElement("canvas");
