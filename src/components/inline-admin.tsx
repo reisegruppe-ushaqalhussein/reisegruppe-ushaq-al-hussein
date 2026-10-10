@@ -186,7 +186,7 @@ export function SectionAdminBar({
 }) {
   const isEditing = useSectionEditMode();
   return (
-    <div dir="ltr" dir="rtl" className="mb-3 flex items-center justify-end gap-1.5">
+    <div dir="rtl" className="mb-3 flex items-center justify-end gap-1.5">
       {children}
       <button
         type="button"
