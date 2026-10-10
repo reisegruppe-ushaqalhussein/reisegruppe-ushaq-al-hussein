@@ -250,7 +250,7 @@ function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Tra
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
 type Lbl = { ar: string; de: string };
 type ExtraField = { id: string; ar: string; de: string; step: 1 | 2 | 3; required?: boolean };
-type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string> };
+type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string>; leaderSheetTitleAr?: string; leaderSheetTitleDe?: string; leaderSheetFields?: string[] };
 const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 2 };
 const extraFields = (reg: RegCfg) => [...(reg.cityOff ? [] : [CITY]), ...(reg.extra ?? [])];
 const labelOf = (reg: RegCfg, f: ExtraField): Lbl => { const o = reg.labels?.[f.ar]; return { ar: o?.ar || f.ar, de: o?.de || f.de }; };
@@ -575,6 +575,8 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 function printHtml(s: Sheet, group: string) {
   const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c, i) => `<td${i === 4 ? ` class="phone" dir="ltr"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("");
+  const widthTotal = s.widths.reduce((sum, width) => sum + width, 0) || 1;
+  const cols = s.widths.map((width) => `<col style="width:${(width / widthTotal * 100).toFixed(3)}%">`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>
 @page{size:A4 landscape;margin:7mm}
 :root{color-scheme:light}
@@ -598,7 +600,7 @@ button{font-size:16px;padding:10px 18px;margin:8px 0}
 </style></head><body>
 <button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>
 <h2 style="margin:4px 0">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</h2><p style="margin:2px 0"><b>${esc(group)}</b></p>${s.info.map((i) => `<p style="margin:2px 0">${esc(i)}</p>`).join("")}
-<table><tr>${s.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
+<table><colgroup>${cols}</colgroup><tr>${s.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
 }
 function sheetXlsx(s: Sheet, group: string): XSheet {
   const rows: XSheet["rows"] = [
@@ -646,6 +648,12 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [limit, setLimit] = useState(60);
   const [showLists, setShowLists] = useState(false);
   const [push, setPush] = useState("");
+  const [leaderSettingsOpen, setLeaderSettingsOpen] = useState(false);
+  const [leaderTitleAr, setLeaderTitleAr] = useState(regOf(content).leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين");
+  const [leaderTitleDe, setLeaderTitleDe] = useState(regOf(content).leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft");
+  const [leaderFields, setLeaderFields] = useState<string[]>(regOf(content).leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]);
+  const isEditing = useSectionEditMode();
+  useEffect(() => { const reg = regOf(content); setLeaderTitleAr(reg.leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe(reg.leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(reg.leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]); }, [content]);
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
