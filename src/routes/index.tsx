@@ -322,7 +322,7 @@ function HomeView({ open, content, payment }: { open: (id: string) => void; cont
 
       <InstallButton />
       <PrayerTimesCard content={content} />
-
+      const { lang } = useLang();
       {payment?.visible && <PaymentCard payment={payment} />}
     </div>
   );
@@ -1153,7 +1153,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 </button>
               </div>
               <a href={`https://maps.google.com/?q=${gpsCoords.lat.toFixed(5)},${gpsCoords.lng.toFixed(5)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-secondary underline">
-                <MapPin className="h-3 w-3" /> عرض موقعي على الخريطة | Auf Karte zeigen
+                
+<MapPin className="h-3 w-3" />
+<Pair ar="عرض موقعي على الخريطة" de="Auf Karte zeigen" />
               </a>
             </div>
           ) : (
@@ -1177,11 +1179,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
             <input
               value={placeQuery}
               onChange={(e) => setPlaceQuery(e.target.value)}
-              placeholder="أو اكتب اسم مدينتك | Oder Stadt eingeben"
+              placeholder={lang === "de" ? "Stadt eingeben" : "اكتب اسم مدينتك"}
               className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <Button type="submit" size="sm" disabled={placeBusy || !placeQuery.trim()} className="h-8 text-xs">
-              {placeBusy ? "..." : "🔍 بحث | Suchen"}
+              
+{placeBusy ? "..." : (
+  <Pair ar="🔍 بحث" de="🔍 Suchen" align="center" />
+)}
             </Button>
           </form>
           {placeError && <p className="text-[11px] text-destructive">{placeError}</p>}
@@ -1235,10 +1240,13 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       {/* شريط الأذان القادم */}
       {nextInfo && (
         <div className="mb-3 flex items-center justify-between rounded-md border border-secondary/40 bg-accent/50 px-3 py-1.5 text-xs">
-          <span className="font-bold text-primary">⏳ الأذان القادم: صلاة {nextInfo.nameAr}</span>
-          <span dir="ltr" className="font-mono font-bold text-secondary">
-            {nextInfo.diffStr}
-          </span>
+          
+<span className="min-w-0 font-bold text-primary">
+  ⏳ <Pair
+    ar={`الأذان القادم: صلاة ${nextInfo.nameAr}`}
+    de={`Nächster Gebetsruf: ${nextInfo.nameDe}`}
+  />
+</span>
         </div>
       )}
 
