@@ -1,4 +1,4 @@
-export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; hidden?: boolean; programAr?: string; programDe?: string; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string; imageUrl?: string };
+export type TripEntry = { id: string; ar: string; de: string; date: string; visible: boolean; aliases?: string[]; hidden?: boolean; programAr?: string; programDe?: string; statusAr?: string; statusDe?: string; descAr?: string; descDe?: string; imageUrl?: string };
 export type ContactEntry = { id: string; ar: string; de: string; roleAr: string; roleDe: string; phone: string; whatsapp: string; visible?: boolean; hidden?: boolean };
 export type NewsEntry = { ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
 export type DuaCategory = string;
