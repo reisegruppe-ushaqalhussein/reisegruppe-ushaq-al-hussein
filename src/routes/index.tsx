@@ -19,11 +19,7 @@ import { LanguageSwitcher } from "@/components/lang-switcher";
 import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
-const LuggageTags = lazy(() => import("@/components/luggage-tags").then((m) => ({ default: m.LuggageTags })));
 import { enablePush } from "@/lib/push";
-const BookingForm = lazy(() => import("@/components/booking").then((m) => ({ default: m.BookingForm })));
-const BookingsPanel = lazy(() => import("@/components/booking").then((m) => ({ default: m.BookingsPanel })));
-const RoomCalcPanel = lazy(() => import("@/components/booking").then((m) => ({ default: m.RoomCalcPanel })));
 import { RoomsPanel } from "@/components/final-group";
 import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, Calculator, CalendarClock, ClipboardList, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Tag, Vibrate, X } from "lucide-react";
@@ -94,6 +90,11 @@ import mashhadShrine from "@/assets/shrine-mashhad.jpg";
 import qomShrine from "@/assets/shrine-qom.jpg";
 import meccaMedinaShrine from "@/assets/shrine-mecca-medina.jpg";
 import { IraqIcon, KaabaIcon, IranIcon, HajjIcon } from "@/components/trip-icons";
+
+const LuggageTags = lazy(() => import("@/components/luggage-tags").then((m) => ({ default: m.LuggageTags })));
+const BookingForm = lazy(() => import("@/components/booking").then((m) => ({ default: m.BookingForm })));
+const BookingsPanel = lazy(() => import("@/components/booking").then((m) => ({ default: m.BookingsPanel })));
+const RoomCalcPanel = lazy(() => import("@/components/booking").then((m) => ({ default: m.RoomCalcPanel })));
 
 export const Route = createFileRoute("/")({
   head: () => ({
