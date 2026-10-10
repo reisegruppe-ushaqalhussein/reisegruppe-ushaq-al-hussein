@@ -23,7 +23,7 @@ const CUSTOM_KEY = "luggage-tag-custom-iraq";
 
 type Kind = "iraq" | "umrah";
 type NameColor = "red" | "gold" | "black";
-type Person = { ar: string; de: string };
+type Person = { ar: string; de: string; color?: NameColor };
 type Assets = { call: HTMLImageElement; shrine: HTMLImageElement; kaaba: HTMLImageElement; template: HTMLImageElement; custom: HTMLImageElement | null };
 type Style = { variant: "new" | "classic" | "custom"; color: "red" | "gold" | "black"; bold: boolean; scale: number; layout: "side" | "stack" };
 
@@ -254,16 +254,10 @@ async function renderSheets(kind: Kind, people: Person[], st: Style) {
  const blank: Person = { ar: "", de: "" };
 const list = people.length ? people : [blank];
 const targetLength = Math.ceil(list.length / per) * per;
-const filled =
-  list.length === 1
-    ? Array.from({ length: per }, () => list[0] ?? blank)
-    : [
-        ...list,
-        ...Array.from(
-          { length: targetLength - list.length },
-          () => blank
-        ),
-      ];
+const filled = [
+    ...list,
+    ...Array.from({ length: targetLength - list.length }, () => blank),
+  ];
   const pages: HTMLCanvasElement[] = [];
   for (let i = 0; i < filled.length; i += per) {
     const c = document.createElement("canvas");
@@ -272,7 +266,9 @@ const filled =
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
     filled.slice(i, i + per).forEach((who: Person | undefined, k) => {
       const col = k % sp.cols, row = Math.floor(k / sp.cols);
-      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, who ?? { ar: "", de: "" }, st);
+      const person = who ?? { ar: "", de: "" };
+      const personStyle = kind === "iraq" && person.color ? { ...st, color: person.color } : st;
+      drawCard(kind, ctx, PX_PER_MM, sp.ox + col * sp.w, sp.oy + row * sp.h, a, person, personStyle);
     });
     if (kind === "iraq") {
       ctx.strokeStyle = "#bdbdbd"; ctx.lineWidth = 0.15 * PX_PER_MM;
@@ -314,7 +310,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [manualAr, setManualAr] = useState("");
   const [manualDe, setManualDe] = useState("");
   const [manualColor, setManualColor] =
-  useState<NameColor>("black");
+  useState<NameColor | "">("");
   const [bulkColors, setBulkColors] =
   useState<NameColor[]>([]);
   const [copies, setCopies] = useState<1 | 2>(2);
@@ -445,7 +441,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     if (blankOnly) {
       return Array.from({ length: sp.cols * sp.rows }, () => ({ ar: "", de: "" }));
     }
-    const b = parseNames(bulk);
+    const b = parseNames(bulk).map((person, index) => ({
+      ...person,
+      color: kind === "iraq" ? bulkColors[index] : undefined,
+    }));
     const baseList = b.length ? b : [{ ar, de }];
     if (copies === 2) {
       const doubled: Person[] = [];
@@ -488,6 +487,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
             setSelectedTrip("");
             setBulk("");
             setBulkColors([]);
+            setManualColor("");
             setBlankOnly(false);
           }
         }} className={`min-h-11 rounded-md border-2 px-2 py-1.5 text-sm font-bold ${kind === k ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}>
@@ -588,7 +588,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         <div className="mt-2 flex items-center justify-between">
           <p className="text-xs text-muted-foreground"><L ar="اسم في كل سطر: الاسم العربي / Latin" de="Ein Name pro Zeile: Arabisch / Latein" /></p>
           {bulk.trim() && (
-            <button type="button" onClick={() => setBulk("")} className="text-xs font-bold text-destructive hover:underline">
+            <button type="button" onClick={() => { setBulk(""); setBulkColors([]); }} className="text-xs font-bold text-destructive hover:underline">
               ✕ <L ar="مسح الأسماء" de="Leeren" />
             </button>
           )}
@@ -614,20 +614,20 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     className={inputCls}
   />
 
-  <label className="block text-xs font-bold">
+  {kind === "iraq" && <label className="block text-xs font-bold">
     لون الاسم
     <select
       value={manualColor}
-      onChange={(e) =>
-        setManualColor(e.target.value as NameColor)
-      }
+      onChange={(e) => setManualColor(e.target.value as NameColor | "")}
+      required
       className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2"
     >
+      <option value="">اختر لون الاسم | Namenfarbe auswählen</option>
       <option value="black">أسود | Schwarz</option>
       <option value="red">أحمر | Rot</option>
       <option value="gold">ذهبي | Gold</option>
     </select>
-  </label>
+  </label>}
 
   <button
     type="button"
@@ -635,7 +635,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       const a = manualAr.trim();
       const d = manualDe.trim();
 
-      if (!a && !d) return;
+      if ((!a && !d) || (kind === "iraq" && !manualColor)) return;
 
       const line =
         a && d ? `${a} / ${d}` : a || d;
@@ -655,7 +655,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           next.push(color);
         }
 
-        next.push(manualColor);
+        if (kind === "iraq") next.push(manualColor as NameColor);
         return next;
       });
 
@@ -668,7 +668,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     + إضافة إلى قائمة الطباعة
   </button>
 </div>
-        <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
+        <textarea value={bulk} onChange={(e) => { setBulk(e.target.value); setBulkColors([]); }} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
         {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
       </details>}
 
