@@ -461,13 +461,13 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     }
     const parts = value.split(" — ");
     const maybeDate = parts.length > 1 ? parts[parts.length - 1] : "";
-    const base = maybeDate && /\\d/.test(maybeDate) ? parts.slice(0, -1).join(" — ") : value;
+    const base = maybeDate && /\d/.test(maybeDate) ? parts.slice(0, -1).join(" — ") : value;
     const pair = base.split(" | ");
     if (pair.length > 1) {
       const label = display(lang, pair[0]!, toGerman(pair.slice(1).join(" | ")));
-      return [label.main, label.sub].filter(Boolean).join(" | ") + (maybeDate && /\\d/.test(maybeDate) ? ` — ${maybeDate}` : "");
+      return [label.main, label.sub].filter(Boolean).join(" | ") + (maybeDate && /\d/.test(maybeDate) ? ` — ${maybeDate}` : "");
     }
-    return toGerman(base) + (maybeDate && /\\d/.test(maybeDate) ? ` — ${maybeDate}` : "");
+    return toGerman(base) + (maybeDate && /\d/.test(maybeDate) ? ` — ${maybeDate}` : "");
   };
 
   const applyTripPilgrims = (tripName: string, mode = pullLang) => {
