@@ -4,6 +4,9 @@ let qrcodeLib: typeof import("qrcode") | null = null;
 import { useServerFn } from "@tanstack/react-start";
 import { listBookings, type BookingRow } from "@/lib/bookings.functions";
 import { useAdminSession } from "@/lib/admin-session";
+import { EditDialog, GearMenu, IconBtn, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import type { SiteContent } from "@/lib/site-content";
+import { Pencil } from "lucide-react";
 import { Download, Printer, Tag, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { display, isArabic, useLang } from "@/lib/i18n";
@@ -307,7 +310,7 @@ function L({ ar, de }: { ar: string; de: string }) {
   return <span className="block">{main}{sub && <span lang="de" dir="ltr" className="block text-[0.8em] italic opacity-75">{sub}</span>}</span>;
 }
 
-export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string }) {
+export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameDe: string; content: SiteContent }) {
   const { lang } = useLang();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>("iraq");
@@ -332,6 +335,51 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [hasCustom, setHasCustom] = useState(false);
    
   const s = useAdminSession();
+  const saveContent = useSaveContent(s?.password ?? "");
+  const isEditing = useSectionEditMode();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const labels = content.labels ?? {};
+  const label = (key: string, ar: string, de: string) => ({ ar: labels[key]?.ar || ar, de: labels[key]?.de || de, hidden: !!labels[key]?.hidden });
+  const settingsFields: FieldDef[] = [
+    { key: "titleAr", ar: "عنوان القسم بالعربية", de: "Abschnittstitel (AR)" },
+    { key: "titleDe", ar: "عنوان القسم بالألمانية", de: "Abschnittstitel (DE)", ltr: true },
+    { key: "designAr", ar: "عنوان خيارات التصميم (عربي)", de: "Designüberschrift (AR)" },
+    { key: "designDe", ar: "عنوان خيارات التصميم (ألماني)", de: "Designüberschrift (DE)", ltr: true },
+    { key: "bulkAr", ar: "عنوان سحب الحجوزات (عربي)", de: "Buchungsüberschrift (AR)" },
+    { key: "bulkDe", ar: "عنوان سحب الحجوزات (ألماني)", de: "Buchungsüberschrift (DE)", ltr: true },
+    { key: "hideDesign", ar: "إخفاء خيارات التصميم", de: "Designoptionen ausblenden", checkbox: true },
+    { key: "hideNameStyle", ar: "إخفاء إعدادات اسم الزائر", de: "Namenseinstellungen ausblenden", checkbox: true },
+    { key: "hideCopies", ar: "إخفاء خيارات عدد البطاقات", de: "Kartenanzahl ausblenden", checkbox: true },
+    { key: "hideSingleName", ar: "إخفاء حقول اسم الزائر المفرد", de: "Einzelne Namensfelder ausblenden", checkbox: true },
+    { key: "hideBulk", ar: "إخفاء الطباعة الجماعية والحجوزات", de: "Sammeldruck und Buchungen ausblenden", checkbox: true },
+    { key: "hidePrint", ar: "إخفاء أزرار الطباعة والحفظ", de: "Druck- und Speicherschaltflächen ausblenden", checkbox: true },
+  ];
+  const settingsInitial = {
+    titleAr: label("luggage:title", "بطاقة الأمتعة والحقائب", "Kofferanhänger").ar,
+    titleDe: label("luggage:title", "بطاقة الأمتعة والحقائب", "Kofferanhänger").de,
+    designAr: label("luggage:design", "تصميم البطاقة", "Kartendesign").ar,
+    designDe: label("luggage:design", "تصميم البطاقة", "Kartendesign").de,
+    bulkAr: label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").ar,
+    bulkDe: label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").de,
+    hideDesign: !!labels["luggage:design"]?.hidden,
+    hideNameStyle: !!labels["luggage:name-style"]?.hidden,
+    hideCopies: !!labels["luggage:copies"]?.hidden,
+    hideSingleName: !!labels["luggage:single-name"]?.hidden,
+    hideBulk: !!labels["luggage:bulk"]?.hidden,
+    hidePrint: !!labels["luggage:print"]?.hidden,
+  };
+  const saveSettings = async (row: Record<string, unknown>) => {
+    const nextLabels = { ...labels,
+      "luggage:title": { ar: String(row.titleAr || ""), de: String(row.titleDe || "") },
+      "luggage:design": { ar: String(row.designAr || ""), de: String(row.designDe || ""), hidden: !!row.hideDesign },
+      "luggage:bulk": { ar: String(row.bulkAr || ""), de: String(row.bulkDe || ""), hidden: !!row.hideBulk },
+      "luggage:name-style": { ar: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").ar, de: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").de, hidden: !!row.hideNameStyle },
+      "luggage:copies": { ar: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar, de: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de, hidden: !!row.hideCopies },
+      "luggage:single-name": { ar: label("luggage:single-name", "اسم الزائر", "Pilgername").ar, de: label("luggage:single-name", "اسم الزائر", "Pilgername").de, hidden: !!row.hideSingleName },
+      "luggage:print": { ar: label("luggage:print", "خيارات الطباعة", "Druckoptionen").ar, de: label("luggage:print", "خيارات الطباعة", "Druckoptionen").de, hidden: !!row.hidePrint },
+    };
+    await saveContent({ ...content, labels: nextLabels });
+  };
   const listFn = useServerFn(listBookings);
   const [trips, setTrips] = useState<string[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<string>("");
@@ -485,10 +533,14 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   return <section className="space-y-3 rounded-xl border border-border bg-card p-4">
     <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 text-start">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary"><Tag className="h-5 w-5" /></span>
-      <span className="min-w-0 flex-1 font-bold text-primary"><L ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger" /></span>
+      <span className="min-w-0 flex-1 font-bold text-primary"><L ar={label("luggage:title", "بطاقة الأمتعة والحقائب", "Kofferanhänger").ar} de={label("luggage:title", "بطاقة الأمتعة والحقائب", "Kofferanhänger").de} /></span>
       <span className="text-lg text-muted-foreground">{open ? "−" : "+"}</span>
     </button>
     {open && <div className="space-y-3">
+      {s?.role === "admin" && <div className="flex items-center justify-between"><SectionAdminBar /><span className="text-[10px] text-muted-foreground"><L ar="أدوات الإدارة" de="Verwaltungswerkzeuge" /></span></div>}
+      {s?.role === "admin" && isEditing && <div className="flex justify-start"><GearMenu><IconBtn label="إعدادات القسم | Abschnittseinstellungen" onClick={() => setSettingsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
+      {settingsOpen && <EditDialog open={settingsOpen} onOpenChange={setSettingsOpen} title={{ ar: "إعدادات بطاقات الأمتعة", de: "Einstellungen der Kofferanhänger" }} fields={settingsFields} initial={settingsInitial} onSubmit={saveSettings} />}
+
       <div className="grid grid-cols-2 gap-2">
         {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => {
           if (k !== kind) {
@@ -508,8 +560,8 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       <canvas ref={preview} className="w-full rounded-md border border-border bg-background shadow-sm" style={{ aspectRatio: `${sp.w} / ${sp.h}`, maxWidth: kind === "umrah" ? "60%" : "100%", marginInline: "auto", display: "block" }} />
       <p className="text-center text-[11px] text-muted-foreground" dir="ltr">{sp.w} × {sp.h} mm · {sp.cols * sp.rows} / A4</p>
 
-      <div className="space-y-1">
-        <p className="text-xs font-bold text-primary"><L ar="تصميم البطاقة" de="Kartendesign" /></p>
+      {!label("luggage:design", "تصميم البطاقة", "Kartendesign").hidden && <div className="space-y-1">
+        <p className="text-xs font-bold text-primary"><L ar={label("luggage:design", "تصميم البطاقة", "Kartendesign").ar} de={label("luggage:design", "تصميم البطاقة", "Kartendesign").de} /></p>
         <div className="grid grid-cols-3 gap-1.5">
           {([["new", "الجديد", "Neu"], ["classic", "السابق", "Vorherig"], ["custom", "مرفوع", "Eigenes"]] as const).map(([v, a1, d1]) => <button key={v} type="button" disabled={v === "custom" && !hasCustom} onClick={() => setVariant(v)} className={`min-h-10 rounded-md border-2 px-1 text-xs font-bold disabled:opacity-40 ${st.variant === v ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}><L ar={a1} de={d1} /></button>)}
         </div>
@@ -517,10 +569,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           <Upload className="h-4 w-4" /><L ar={`رفع تصميم بطاقة جديد (PNG/JPG بمقاس ${kind === "umrah" ? "56×84" : "105×74"} مم)`} de={`Neues Kartendesign hochladen (${kind === "umrah" ? "56×84" : "105×74"} mm)`} />
           <input type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
         </label>
-      </div>
+      </div>}
 
-      <div className="space-y-2 rounded-md border border-border p-2">
-        <p className="text-xs font-bold text-primary"><L ar="خط اسم الزائر" de="Schrift des Namens" /></p>
+      {!label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").hidden && <div className="space-y-2 rounded-md border border-border p-2">
+        <p className="text-xs font-bold text-primary"><L ar={label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").ar} de={label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").de} /></p>
         {kind === "iraq" && <div className="grid grid-cols-3 gap-1.5">
           {([["black", "أسود", "Schwarz"], ["red", "أحمر", "Rot"], ["gold", "ذهبي", "Gold"]] as const).map(([v, a1, d1]) => <button key={v} type="button" onClick={() => setColor(v)} className={`min-h-10 rounded-md border-2 text-xs font-bold ${color === v ? "border-secondary bg-accent" : "border-border bg-background"}`} style={{ color: IRAQ_COLORS[v] }}><L ar={a1} de={d1} /></button>)}
         </div>}
@@ -548,15 +600,15 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         <button type="button" onClick={() => setBlankOnly(!blankOnly)} className={`w-full min-h-9 rounded-md border text-xs font-bold transition-all ${blankOnly ? "border-destructive bg-destructive text-destructive-foreground" : "border-border bg-background text-primary"}`}>
           {blankOnly ? <L ar="✓ تفعيل: طباعة بطاقات فارغة بدون اسم (للطوارئ)" de="✓ Leere Karten für Notfälle aktiv" /> : <L ar="📄 طباعة بطاقات فارغة بدون أسماء (للطوارئ)" de="Leere Karten drucken" />}
         </button>
-      </div>
+      </div>}
 
-      {!blankOnly && <div className="grid gap-2">
+      {!blankOnly && !label("luggage:single-name", "اسم الزائر", "Pilgername").hidden && <div className="grid gap-2">
         <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder={display(lang, "اسم الزائر بالعربية", "Name des Pilgers auf Arabisch").main} />
         <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder={display(useLang().lang, "Name (Latin)", "Name (lateinisch)").main} />
       </div>}
 
-      {!blankOnly && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
-        <summary className="cursor-pointer font-bold text-primary"><L ar="طباعة لعدة زوار أو سحب من الحجوزات" de="Mehrere Pilger / Aus Buchungen" /></summary>
+      {!blankOnly && !label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").hidden && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
+        <summary className="cursor-pointer font-bold text-primary"><L ar={label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات").ar} de={label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").de} /></summary>
         
           {s && (
           <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
@@ -682,14 +734,15 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
         {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
       </details>}
 
-      <div className="grid gap-2 pt-1">
+      {!label("luggage:print", "خيارات الطباعة", "Druckoptionen").hidden && <div className="grid gap-2 pt-1">
         <Button type="button" disabled={busy} onClick={printSheet} className="h-auto min-h-11 whitespace-normal font-bold"><Printer className="h-4 w-4 shrink-0" /><L ar={`طباعة صفحة A4 جاهزة للقص (${people().length} بطاقة)`} de={`A4-Bogen drucken (${people().length} Karten)`} /></Button>
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" disabled={busy} onClick={saveSheet} className="h-auto min-h-11 whitespace-normal text-xs font-semibold"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ صفحات A4 صور" de="A4 als Bild" /></Button>
           <Button type="button" variant="outline" disabled={busy} onClick={saveCard} className="h-auto min-h-11 whitespace-normal text-xs font-semibold"><Download className="h-4 w-4 shrink-0" /><L ar="حفظ بطاقة واحدة" de="Einzelkarte" /></Button>
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground"><L ar="عند الطباعة اختر: الحجم الفعلي 100% بدون تكبير أو تصغير." de="Beim Drucken: Tatsächliche Größe 100 %, ohne Skalierung." /></p>
+      <p className="text-[11px] text-muted-foreground"><L ar="عند الطباعة اختر: الحجم الفعلي 100% بدون تكبير أو تصغير." de="Beim Drucken: Tatsächliche Größe 100 %, ohne Skalierung." /></p>}
+
       {err && <p className="text-xs font-bold text-destructive">{err}</p>}
     </div>}
   </section>;
