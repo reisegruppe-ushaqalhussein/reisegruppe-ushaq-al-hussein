@@ -19,7 +19,7 @@ const PHONE_DE = "004915773055365";
 const DPI = 300;
 const PX_PER_MM = DPI / 25.4;
 const A4 = { w: 210, h: 297 };
-const CUSTOM_KEY = "luggage-tag-custom-iraq";
+const CUSTOM_KEYS: Record<Kind, string> = { iraq: "luggage-tag-custom-iraq", umrah: "luggage-tag-custom-umrah" };
 
 type Kind = "iraq" | "umrah";
 type NameColor = "red" | "gold" | "black";
@@ -43,7 +43,7 @@ function loadImg(src: string) {
 }
 let assetsP: Promise<Omit<Assets, "custom">> | null = null;
 let customCache: { src: string; img: HTMLImageElement } | null = null;
-async function loadAssets(): Promise<Assets> {
+async function loadAssets(kind: Kind = "iraq"): Promise<Assets> {
   if (!qrcodeLib) {
     qrcodeLib = await (qrMod ??= import("qrcode"));
   }
@@ -57,7 +57,7 @@ async function loadAssets(): Promise<Assets> {
   }
   const base = await assetsP;
   let custom: HTMLImageElement | null = null;
-  const src = typeof localStorage !== "undefined" ? localStorage.getItem(CUSTOM_KEY) : null;
+  const src = typeof localStorage !== "undefined" ? localStorage.getItem(CUSTOM_KEYS[kind]) : null;
   if (src) {
     if (customCache?.src !== src) customCache = { src, img: await loadImg(src).catch(() => null as unknown as HTMLImageElement) };
     custom = customCache?.img ?? null;
@@ -211,6 +211,12 @@ function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: num
   const p = pen(ctx, S, ox, oy);
   const W = 55.67, H = 83.87, cx = W / 2, mw = W - 8;
   p.rect(0, 0, W, H, { fill: "#ffffff" });
+  if (st.variant === "custom" && a.custom) {
+    p.img(a.custom, 0, 0, W, H);
+    const bx = 3, bw = W - 6, bh = 10, by = H - 3.2 - bh;
+    drawName(p, who, st, bx + 1.8, bx + bw - 1.8, who.ar && who.de && st.layout === "stack" ? by + 8.4 : by + 6.6, 3.7, "#ffffff");
+    return;
+  }
   p.text("بطاقة زائر", cx, 8, 4.6, { color: BLUE, maxW: mw });
   p.text("شركة الحاج الدر", cx, 13.6, 4.2, { maxW: mw });
   p.text("للسياحة و السفر", cx, 17.6, 2.7, { weight: 600, maxW: mw });
@@ -220,12 +226,12 @@ function drawUmrah(ctx: CanvasRenderingContext2D, S: number, ox: number, oy: num
 
   const bh = 10, by = H - 3.2 - bh, bx = 3, bw = W - 6;
   const qs = 15.5, qy = by - 5.6 - qs;
-  const top = 30.6, bottom = qy - 1.2;
+  const top = 30.6, bottom = st.variant === "classic" ? by - 1.2 : qy - 1.2;
   const ratio = a.kaaba.naturalWidth / a.kaaba.naturalHeight;
   let kh = bottom - top, kw = kh * ratio;
   if (kw > mw) { kw = mw; kh = kw / ratio; }
   p.img(a.kaaba, cx - kw / 2, top + (bottom - top - kh) / 2, kw, kh);
-  p.qr(APP_URL, cx - qs / 2, qy, qs, 2);
+  if (st.variant !== "classic") p.qr(APP_URL, cx - qs / 2, qy, qs, 2);
   p.text("اسم الزائر:", bx + bw - 1.2, by - 1.3, 2.8, { color: BLUE, weight: 700, align: "right", maxW: bw - 2 });
   p.rect(bx, by, bw, bh, { fill: BLUE });
   drawName(p, who, st, bx + 1.8, bx + bw - 1.8, who.ar && who.de && st.layout === "stack" ? by + 8.4 : by + 6.6, 3.7, "#ffffff");
@@ -239,7 +245,7 @@ function drawCard(kind: Kind, ctx: CanvasRenderingContext2D, S: number, ox: numb
 }
 
 async function renderCard(kind: Kind, who: Person, st: Style, S = PX_PER_MM) {
-  const a = await loadAssets();
+  const a = await loadAssets(kind);
   const sp = SPEC[kind];
   const c = document.createElement("canvas");
   c.width = Math.round(sp.w * S); c.height = Math.round(sp.h * S);
@@ -331,13 +337,13 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
   const [pullLang, setPullLang] = useState<"ar" | "latin" | "both">("ar");
   const [allBookings, setAllBookings] = useState<BookingRow[]>([]);
 
-  useEffect(() => { setHasCustom(!!localStorage.getItem(CUSTOM_KEY)); }, []);
+  useEffect(() => { setHasCustom(!!localStorage.getItem(CUSTOM_KEYS[kind])); }, [kind]);
   const st: Style = { variant: variant === "custom" && !hasCustom ? "new" : variant, color, bold, scale, layout };
 
   const onUpload = (file?: File) => {
     if (!file) return;
     const r = new FileReader();
-    r.onload = () => { try { localStorage.setItem(CUSTOM_KEY, String(r.result)); setHasCustom(true); setVariant("custom"); } catch { setErr("الصورة كبيرة جداً | Bild zu groß"); } };
+    r.onload = () => { try { localStorage.setItem(CUSTOM_KEYS[kind], String(r.result)); setHasCustom(true); setVariant("custom"); } catch { setErr("الصورة كبيرة جداً | Bild zu groß"); } };
     r.readAsDataURL(file);
   };
 
@@ -500,7 +506,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       <canvas ref={preview} className="w-full rounded-md border border-border bg-background shadow-sm" style={{ aspectRatio: `${sp.w} / ${sp.h}`, maxWidth: kind === "umrah" ? "60%" : "100%", marginInline: "auto", display: "block" }} />
       <p className="text-center text-[11px] text-muted-foreground" dir="ltr">{sp.w} × {sp.h} mm · {sp.cols * sp.rows} / A4</p>
 
-      {kind === "iraq" && <div className="space-y-1">
+      <div className="space-y-1">
         <p className="text-xs font-bold text-primary"><L ar="تصميم البطاقة" de="Kartendesign" /></p>
         <div className="grid grid-cols-3 gap-1.5">
           {([["new", "الجديد", "Neu"], ["classic", "السابق", "Vorherig"], ["custom", "مرفوع", "Eigenes"]] as const).map(([v, a1, d1]) => <button key={v} type="button" disabled={v === "custom" && !hasCustom} onClick={() => setVariant(v)} className={`min-h-10 rounded-md border-2 px-1 text-xs font-bold disabled:opacity-40 ${st.variant === v ? "border-secondary bg-accent text-primary" : "border-border bg-background text-muted-foreground"}`}><L ar={a1} de={d1} /></button>)}
@@ -509,7 +515,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           <Upload className="h-4 w-4" /><L ar="رفع تصميم بطاقة جديد (PNG/JPG بمقاس 105×74 مم)" de="Neues Kartendesign hochladen" />
           <input type="file" accept="image/*" className="hidden" onChange={(e) => onUpload(e.target.files?.[0])} />
         </label>
-      </div>}
+      </div>
 
       <div className="space-y-2 rounded-md border border-border p-2">
         <p className="text-xs font-bold text-primary"><L ar="خط اسم الزائر" de="Schrift des Namens" /></p>
@@ -543,8 +549,8 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       </div>
 
       {!blankOnly && <div className="grid gap-2">
-        <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder="اسم الزائر بالعربية" />
-        <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="Name (Latin)" />
+        <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder={display(useLang().lang, "اسم الزائر بالعربية", "Name des Pilgers auf Arabisch").main} />
+        <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder={display(useLang().lang, "Name (Latin)", "Name (lateinisch)").main} />
       </div>}
 
       {!blankOnly && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
@@ -560,10 +566,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold text-primary"><L ar="اختر الرحلة لسحب أسمائها فوراً:" de="Reise wählen:" /></p>
-                  <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline">🔄 تحديث</button>
+                  <button type="button" onClick={fetchTripNames} className="text-[10px] text-primary underline"><L ar="🔄 تحديث" de="🔄 Aktualisieren" /></button>
                 </div>
                 <select value={selectedTrip} onChange={(e) => applyTripPilgrims(e.target.value)} className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs">
-                  <option value="">{kind === "umrah" ? "اختر رحلة العمرة | Umrah-Reise auswählen" : "اختر رحلة العراق وإيران | Irak-/Iran-Reise auswählen"}</option>
+                  <option value="">اختر الرحلة المناسبة</option>
                   {trips.filter((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 {!trips.some((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)) && (
@@ -574,11 +580,11 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
 
                 {/* خيارات لغة السحب: عربي فقط أو لاتيني فقط أو دمج الاثنين */}
                 <div className="flex items-center justify-between gap-1 pt-1">
-                  <span className="text-[10px] font-bold text-muted-foreground">صيغة الأسماء:</span>
+                  <span className="text-[10px] font-bold text-muted-foreground"><L ar="صيغة الأسماء:" de="Namensformat:" /></span>
                   <div className="flex gap-1 text-[10px]">
-                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>عربي فقط</button>
-                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Latin فقط</button>
-                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>دمج الاثنين</button>
+                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("ar"); applyTripPilgrims(selectedTrip, "ar"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "ar" ? "bg-primary text-primary-foreground" : "bg-muted"}`}><L ar="عربي فقط" de="Nur Arabisch" /></button>
+                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("latin"); applyTripPilgrims(selectedTrip, "latin"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "latin" ? "bg-primary text-primary-foreground" : "bg-muted"}`}><L ar="Latin فقط" de="Nur Latein" /></button>
+                    <button type="button" disabled={!selectedTrip} onClick={() => { setPullLang("both"); applyTripPilgrims(selectedTrip, "both"); }} className={`rounded px-1.5 py-0.5 font-bold disabled:opacity-40 ${pullLang === "both" ? "bg-primary text-primary-foreground" : "bg-muted"}`}><L ar="دمج الاثنين" de="Beide kombinieren" /></button>
                   </div>
                 </div>
               </div>
@@ -596,9 +602,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
           )}
         </div>
         <div className="mt-3 space-y-2 rounded-md border border-border p-3">
-  <p className="font-bold text-primary">
-    إضافة زائر يدويًا
-  </p>
+  <p className="font-bold text-primary"><L ar="إضافة زائر يدويًا" de="Pilger manuell hinzufügen" /></p>
 
   <input
     value={manualAr}
@@ -624,10 +628,10 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
       required
       className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2"
     >
-      <option value="">اختر لون الاسم | Namenfarbe auswählen</option>
-      <option value="black">أسود | Schwarz</option>
-      <option value="red">أحمر | Rot</option>
-      <option value="gold">ذهبي | Gold</option>
+      <option value="">{display(useLang().lang, "اختر لون الاسم", "Namensfarbe auswählen").main}</option>
+      <option value="black">{display(useLang().lang, "أسود", "Schwarz").main}</option>
+      <option value="red">{display(useLang().lang, "أحمر", "Rot").main}</option>
+      <option value="gold">{display(useLang().lang, "ذهبي", "Gold").main}</option>
     </select>
   </label>}
 
@@ -669,7 +673,7 @@ export function LuggageTags({ nameAr, nameDe }: { nameAr: string; nameDe: string
     }}
     className="min-h-10 w-full rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"
   >
-    + إضافة إلى قائمة الطباعة
+    <L ar="+ إضافة إلى قائمة الطباعة" de="+ Zur Druckliste hinzufügen" />
   </button>
 </div>
         <textarea value={bulk} onChange={(e) => { setBulk(e.target.value); setBulkColors([]); }} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
