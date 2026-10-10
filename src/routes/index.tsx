@@ -19,16 +19,18 @@ import { LanguageSwitcher } from "@/components/lang-switcher";
 import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
 import { useAdminSession, useShowHidden, useStaffSession } from "@/lib/admin-session";
-import { LuggageTags } from "@/components/luggage-tags";
+const LuggageTags = lazy(() => import("@/components/luggage-tags").then((m) => ({ default: m.LuggageTags })));
 import { enablePush } from "@/lib/push";
-import { BookingForm, BookingsPanel, RoomCalcPanel } from "@/components/booking";
+const BookingForm = lazy(() => import("@/components/booking").then((m) => ({ default: m.BookingForm })));
+const BookingsPanel = lazy(() => import("@/components/booking").then((m) => ({ default: m.BookingsPanel })));
+const RoomCalcPanel = lazy(() => import("@/components/booking").then((m) => ({ default: m.RoomCalcPanel })));
 import { RoomsPanel } from "@/components/final-group";
 import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, Calculator, CalendarClock, ClipboardList, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Tag, Vibrate, X } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import { Trash2 as TrashIcon } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
   AlignCenter,
@@ -495,7 +497,7 @@ function RegistrationView({ content, admin }: { content: SiteContent; admin?: Ad
         <ScreenTitle icon={ScrollText} ar="التسجيل في الرحلات" de="Anmeldung zu den Reisen" />
         {admin && <SectionAdminBar />}
       </div>
-      <BookingForm content={content} />
+      <Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><BookingForm content={content} /></Suspense>
     </div>
   );
 }
@@ -1657,9 +1659,9 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "visa" && <VisaView content={content} admin={admin} />}
         {view === "memories" && <MemoriesView content={content} admin={admin} />}
         {view === "pilgrimId" && <PilgrimIdView content={content} />}
-        {view === "bookings" && <StaffScreen content={content} id="bookings" icon={ClipboardList} ar="الحجوزات" de="Buchungen"><BookingsPanel content={content} /></StaffScreen>}
-        {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><RoomCalcPanel /></StaffScreen>}
-        {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><LuggageTags nameAr="" nameDe="" content={content} /></StaffScreen>}
+        {view === "bookings" && <StaffScreen content={content} id="bookings" icon={ClipboardList} ar="الحجوزات" de="Buchungen"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><BookingsPanel content={content} /></Suspense></StaffScreen>}
+        {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><RoomCalcPanel /></Suspense></StaffScreen>}
+        {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><LuggageTags nameAr="" nameDe="" content={content} /></Suspense></StaffScreen>}
         {view === "rooms" && <StaffScreen content={content} id="rooms" icon={BedDouble} ar="تسكين الزوار" de="Zimmerverteilung"><RoomsPanel content={content} /></StaffScreen>}
         <ScrollToTop />
         {view === "favorites" && <FavoritesView content={content} go={go} />}
