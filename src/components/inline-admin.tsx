@@ -103,7 +103,7 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
   if (!isEditing) return null;
 
   return (
-    <div dir="ltr" dir="rtl" className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end p-1 animate-in fade-in duration-200">
+    <div dir="rtl" className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-end p-1 animate-in fade-in duration-200">
       <GearMenu>
         <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         {onVisibilityChange && showHidden && <IconBtn label={hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
