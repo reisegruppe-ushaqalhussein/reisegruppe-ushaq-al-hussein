@@ -22,6 +22,7 @@ const travelerSchema = z.object({
 
 const bookingSchema = z.object({
   trip: z.string().trim().min(1).max(200),
+  tripId: z.string().trim().max(100).optional(),
   tripDate: z.string().trim().max(100),
   airport: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(255),
@@ -92,8 +93,13 @@ export const submitBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sc } = await supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle();
-    const reg = ((sc?.data as { cms?: { registration?: { closed?: boolean } } } | null)?.cms?.registration);
+    const site = (sc?.data ?? {}) as { cms?: { registration?: { closed?: boolean } }; trips?: Array<{ id: string; ar: string; de: string; date?: string }> };
+    const reg = site.cms?.registration;
     if (reg?.closed) throw new Error("Registration closed / التسجيل مغلق حالياً");
+    const selectedTrip = data.tripId ? site.trips?.find((t) => t.id === data.tripId) : undefined;
+    const canonicalTrip = selectedTrip ? [selectedTrip.ar, selectedTrip.de].filter(Boolean).join(" | ") : data.trip;
+    const canonicalDate = selectedTrip?.date ?? data.tripDate;
+    const canonicalTripId = selectedTrip?.id ?? null;
     const ref = `UH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
     const travelers = [];
     for (const [i, t] of data.travelers.entries()) {
@@ -111,7 +117,7 @@ export const submitBooking = createServerFn({ method: "POST" })
       travelers.push({ ...rest, airport: data.airport, firstName: rest.firstName.toUpperCase(), lastName: rest.lastName.toUpperCase(), passportNo: rest.passportNo.toUpperCase(), ...files });
     }
     const { error } = await supabaseAdmin.from("bookings").insert({
-      ref, trip: data.trip, trip_date: data.tripDate, contact_email: data.email, contact_phone: data.phone,
+      ref, trip: canonicalTrip, trip_id: canonicalTripId, trip_date: canonicalDate, contact_email: data.email, contact_phone: data.phone,
       room_pref: data.roomPref, notes: data.notes, travelers: travelers as never,
     });
     if (error) throw new Error(error.message);
@@ -121,8 +127,8 @@ export const submitBooking = createServerFn({ method: "POST" })
     travelers.forEach((t) => { counts[t.category]++; });
     const air = data.airport || "-";
     const list = travelers.map((t, i) => `${i + 1}. ${t.lastName}/${t.firstName} — ${t.category.toUpperCase()} — ${t.birthDate} — Pass ${t.passportNo} (${t.passportExpiry}) — ${t.nationality}${t.relation ? ` — ${t.relation}` : ""}`).join("\n");
-    const sumDe = `Reise: ${data.trip}${data.tripDate ? ` — ${data.tripDate}` : ""}\nAbflughafen: ${air}\nReisende: ${travelers.length} (Erwachsene ${counts.adult}, Kinder ${counts.child}, Kleinkinder ${counts.infant})\n\n${list}\n\nZimmerwunsch: ${data.roomPref || "-"}\nHinweise: ${data.notes || "-"}`;
-    const sumAr = `الرحلة: ${data.trip}${data.tripDate ? ` — ${data.tripDate}` : ""}\nمطار الانطلاق: ${air}\nعدد المسافرين: ${travelers.length} (بالغ ${counts.adult}، طفل ${counts.child}، رضيع ${counts.infant})\n\nتفضيل الغرفة: ${data.roomPref || "-"}\nملاحظات: ${data.notes || "-"}`;
+    const sumDe = `Reise: ${canonicalTrip}${canonicalDate ? ` — ${canonicalDate}` : ""}\nAbflughafen: ${air}\nReisende: ${travelers.length} (Erwachsene ${counts.adult}, Kinder ${counts.child}, Kleinkinder ${counts.infant})\n\n${list}\n\nZimmerwunsch: ${data.roomPref || "-"}\nHinweise: ${data.notes || "-"}`;
+    const sumAr = `الرحلة: ${canonicalTrip}${canonicalDate ? ` — ${canonicalDate}` : ""}\nمطار الانطلاق: ${air}\nعدد المسافرين: ${travelers.length} (بالغ ${counts.adult}، طفل ${counts.child}، رضيع ${counts.infant})\n\nتفضيل الغرفة: ${data.roomPref || "-"}\nملاحظات: ${data.notes || "-"}`;
     const sep = "\n\n────────────────────────\n\n";
     const sigDe = `Reisegruppe Ushaq al-Hussein DE\nGeleitet von Hajj Yasser Aldor\n${CAMPAIGN_EMAIL}`;
     const sigAr = `حملة عشاق الحسين - ألمانيا\nبإدارة الحاج ياسر الدر\n${CAMPAIGN_EMAIL}`;
@@ -131,7 +137,7 @@ export const submitBooking = createServerFn({ method: "POST" })
     const ar = `السلام عليكم ${name}،\n\nتم استلام طلب تسجيلكم بنجاح.\nرقم الطلب: ${ref}\n\nهذا تأكيد استلام فقط وليس تأكيداً نهائياً للحجز. ستتواصل معكم إدارة الحملة عبر الواتساب لإتمام التأشيرات وتأكيد المقاعد.\n\n${sumAr}\n\nمع خالص الدعاء\n${sigAr}`;
 
     await Promise.allSettled([
-      pushStaff(`🔔 حجز جديد ${ref}`, `${name} — ${data.trip} — ${travelers.length} مسافر — ${air}`),
+      pushStaff(`🔔 حجز جديد ${ref}`, `${name} — ${canonicalTrip} — ${travelers.length} مسافر — ${air}`),
       sendMail(CAMPAIGN_EMAIL, `Neue Buchung | حجز جديد ${ref} — ${lead.lastName}`,
         `حجز جديد — رقم الطلب: ${ref}\n\n${sumAr}\n\nالمسافرون:\n${travelers.map((t, i) => `${i + 1}. ${t.lastName}/${t.firstName} — ${t.category === "infant" ? "رضيع" : t.category === "child" ? "طفل" : "بالغ"} — الميلاد ${t.birthDate} — الجواز ${t.passportNo} (ينتهي ${t.passportExpiry}) — ${t.nationality}${t.relation ? ` — ${t.relation}` : ""}`).join("\n")}\n\nالإيميل: ${data.email}\nالهاتف: ${data.phone}`
         + `${sep}Neue Buchung — Buchungsnummer: ${ref}\n\n${sumDe}\n\nE-Mail: ${data.email}\nTelefon: ${data.phone}`, data.email),
@@ -140,16 +146,33 @@ export const submitBooking = createServerFn({ method: "POST" })
     return { ok: true as const, ref };
   });
 
-export type BookingRow = { id: string; ref: string; created_at: string; trip: string; trip_date: string | null; contact_email: string; contact_phone: string; room_pref: string | null; notes: string | null; travelers: Array<Record<string, string>>; status: string; payment_status: string; paid_amount: number; total_amount: number; admin_notes: string | null };
+export type BookingRow = { id: string; ref: string; created_at: string; trip: string; trip_id?: string | null; trip_date: string | null; contact_email: string; contact_phone: string; room_pref: string | null; notes: string | null; travelers: Array<Record<string, string>>; status: string; payment_status: string; paid_amount: number; total_amount: number; admin_notes: string | null };
 
 export const listBookings = createServerFn({ method: "POST" })
   .validator((d) => z.object({ password: z.string().max(200) }).parse(d))
   .handler(async ({ data }) => {
     if (!(await isStaff(data.password))) return { ok: false as const, rows: [] as BookingRow[] };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin.from("bookings").select("*").order("created_at", { ascending: false }).limit(1000);
+    const [{ data: rows, error }, { data: sc }] = await Promise.all([
+      supabaseAdmin.from("bookings").select("*").order("created_at", { ascending: false }).limit(1000),
+      supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle(),
+    ]);
     if (error) throw new Error(error.message);
-    return { ok: true as const, rows: (rows ?? []) as unknown as BookingRow[] };
+    const currentTrips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string }> } | null)?.trips ?? []);
+    const dateKey = (s: string | null | undefined) => (s ?? "").replace(/\\D/g, "");
+    const nameKey = (s: string | null | undefined) => (s ?? "").toLocaleLowerCase().replace(/[\\s|—–-]+/g, " ").trim();
+    const normalized = ((rows ?? []) as unknown as BookingRow[]).map((row) => {
+      const byId = row.trip_id ? currentTrips.find((t) => t.id === row.trip_id) : undefined;
+      const byDate = currentTrips.filter((t) => dateKey(t.date) && dateKey(t.date) === dateKey(row.trip_date));
+      const byName = currentTrips.find((t) => {
+        const names = [t.ar, t.de, [t.ar, t.de].filter(Boolean).join(" | ")].map(nameKey).filter(Boolean);
+        const old = nameKey(row.trip);
+        return names.some((n) => old === n || (n.length > 4 && old.includes(n)) || (old.length > 4 && n.includes(old)));
+      });
+      const match = byId ?? (byDate.length === 1 ? byDate[0] : undefined) ?? byName;
+      return match ? { ...row, trip_id: match.id, trip: [match.ar, match.de].filter(Boolean).join(" | "), trip_date: match.date ?? row.trip_date } : row;
+    });
+    return { ok: true as const, rows: normalized };
   });
 
 export const updateBooking = createServerFn({ method: "POST" })
@@ -162,6 +185,7 @@ export const updateBooking = createServerFn({ method: "POST" })
     admin_notes: z.string().max(2000).optional(),
     travelers: z.array(z.record(z.string(), z.string().max(500))).max(30).optional(),
     trip: z.string().trim().min(1).max(200).optional(),
+    trip_id: z.string().trim().max(100).nullable().optional(),
     trip_date: z.string().max(100).optional(),
     contact_phone: z.string().max(40).optional(),
     contact_email: z.string().max(255).optional(),
@@ -183,7 +207,7 @@ export const updateBooking = createServerFn({ method: "POST" })
 export const addManualBooking = createServerFn({ method: "POST" })
   .validator((d) => z.object({
     password: z.string().max(200),
-    trip: z.string().trim().min(1).max(200), trip_date: z.string().max(100),
+    trip: z.string().trim().min(1).max(200), trip_id: z.string().trim().max(100).nullable().optional(), trip_date: z.string().max(100),
     contact_phone: z.string().max(40), contact_email: z.string().max(255),
     room_pref: z.string().max(40), notes: z.string().max(2000), admin_notes: z.string().max(2000),
     status: z.enum(["new", "confirmed"]), payment_status: z.enum(["unpaid", "partial", "paid"]),
@@ -193,14 +217,20 @@ export const addManualBooking = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!(await isStaff(data.password))) return { ok: false as const, ref: "" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sc } = await supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle();
+    const currentTrips = ((sc?.data as { trips?: Array<{ id: string; ar: string; de: string; date?: string }> } | null)?.trips ?? []);
+    const selectedTrip = data.trip_id ? currentTrips.find((t) => t.id === data.trip_id) : undefined;
+    const canonicalTrip = selectedTrip ? [selectedTrip.ar, selectedTrip.de].filter(Boolean).join(" | ") : data.trip;
+    const canonicalDate = selectedTrip?.date ?? data.trip_date;
+    const canonicalTripId = selectedTrip?.id ?? null;
     const key = (t: Record<string, string>) => { const k = [t["lastName"], t["firstName"], t["birthDate"], t["passportNo"]].map((v) => (v ?? "").trim().toUpperCase()); return k[0] && k[1] && (k[2] || k[3]) ? k.join("|") : ""; };
-    const { data: same } = await supabaseAdmin.from("bookings").select("ref, travelers, status").eq("trip", data.trip);
+    const { data: same } = await supabaseAdmin.from("bookings").select("ref, travelers, status").or("trip_id.eq." + canonicalTripId + ",trip.eq." + canonicalTrip);
     const taken = new Set((same ?? []).filter((b) => b.status !== "deleted" && b.status !== "cancelled").flatMap((b) => ((b.travelers ?? []) as Record<string, string>[]).map(key)).filter(Boolean));
     const clash = data.travelers.find((t) => key(t) && taken.has(key(t)));
     if (clash) throw new Error(`مسجّل مسبقاً بنفس البيانات | Bereits gebucht: ${clash["lastName"]} ${clash["firstName"]}`);
     const ref = `UH-${new Date().getFullYear()}-M${Math.floor(100 + Math.random() * 900)}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
-    const { password: _p, ...row } = data;
-    const { error } = await supabaseAdmin.from("bookings").insert({ ...row, ref, travelers: row.travelers as never, admin_notes: `[يدوي | manuell] ${row.admin_notes}`.trim() });
+    const { password: _p, trip: _trip, trip_id: _tripId, trip_date: _tripDate, ...row } = data;
+    const { error } = await supabaseAdmin.from("bookings").insert({ ...row, trip: canonicalTrip, trip_id: canonicalTripId, trip_date: canonicalDate, ref, travelers: row.travelers as never, admin_notes: `[يدوي | manuell] ${row.admin_notes}`.trim() });
     if (error) throw new Error(error.message);
     return { ok: true as const, ref };
   });
