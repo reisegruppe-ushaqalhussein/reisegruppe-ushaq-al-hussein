@@ -597,7 +597,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       </div>
 
       <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-2.5">
-        <p className="text-xs font-bold text-primary"><L ar="توزيع البطاقات والنسخ" de="Kartenanzahl" /></p>
+        <p className="text-xs font-bold text-primary"><L ar={label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar} de={label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de} /></p>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => { setCopies(2); setBlankOnly(false); }} className={`min-h-10 rounded-md border-2 p-1 text-xs font-bold ${copies === 2 && !blankOnly ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground"}`}>
             <L ar="🏷️ بطاقتان لكل زائر (شحن + يد)" de="2 pro Pilger (Hand + Fracht)" />
@@ -613,11 +613,11 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
 
       {!blankOnly && !label("luggage:single-name", "اسم الزائر", "Pilgername").hidden && <div className="grid gap-2">
         <input className={inputCls} dir="rtl" value={ar} onChange={(e) => setAr(e.target.value)} placeholder={display(lang, "اسم الزائر بالعربية", "Name des Pilgers auf Arabisch").main} />
-        <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder={display(useLang().lang, "Name (Latin)", "Name (lateinisch)").main} />
+        <input className={inputCls} dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder={display(lang, "Name (Latin)", "Name (lateinisch)").main} />
       </div>}
 
       {!blankOnly && !label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").hidden && <details className="rounded-md border border-border p-2 text-sm" open={!!bulk.trim()}>
-        <summary className="cursor-pointer font-bold text-primary"><L ar={label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات").ar} de={label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").de} /></summary>
+        <summary className="cursor-pointer font-bold text-primary"><L ar={label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").ar} de={label("luggage:bulk", "طباعة لعدة زوار أو سحب من الحجوزات", "Mehrere Pilger / Aus Buchungen").de} /></summary>
         
           {s && (
           <div className="mt-2 space-y-2 rounded-md bg-accent/40 p-2">
@@ -637,7 +637,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
                 </select>
                 {!trips.some((t) => kind === "umrah" ? isUmrahTrip(t) : !isUmrahTrip(t)) && (
                   <p className="text-[11px] text-muted-foreground">
-                    {kind === "umrah" ? "لا توجد رحلة عمرة ضمن القائمة الحالية. اضغط تحديث بعد إضافة رحلة العمرة أو حجزها. | Keine Umrah-Reise in der aktuellen Liste." : "لا توجد رحلة للعراق أو إيران ضمن القائمة الحالية. اضغط تحديث. | Keine Irak-/Iran-Reise in der aktuellen Liste."}
+                    <L ar={kind === "umrah" ? "لا توجد رحلة عمرة ضمن القائمة الحالية. اضغط تحديث بعد إضافة رحلة العمرة أو حجزها." : "لا توجد رحلة للعراق أو إيران ضمن القائمة الحالية. اضغط تحديث."} de={kind === "umrah" ? "Keine Umrah-Reise in der aktuellen Liste. Aktualisieren Sie nach dem Hinzufügen einer Umrah-Reise oder Buchung." : "Keine Irak- oder Iran-Reise in der aktuellen Liste. Bitte aktualisieren."} />
                   </p>
                 )}
 
@@ -671,7 +671,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     value={manualAr}
     onChange={(e) => setManualAr(e.target.value)}
     dir="rtl"
-    placeholder="اسم الزائر بالعربية"
+    placeholder={display(lang, "اسم الزائر بالعربية", "Name des Pilgers auf Arabisch").main}
     className={inputCls}
   />
 
@@ -679,12 +679,12 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     value={manualDe}
     onChange={(e) => setManualDe(e.target.value)}
     dir="ltr"
-    placeholder="Name (Latin)"
+    placeholder={display(lang, "Name (Latin)", "Name (lateinisch)").main}
     className={inputCls}
   />
 
   {kind === "iraq" && <label className="block text-xs font-bold">
-    لون الاسم
+    <L ar="لون الاسم" de="Namensfarbe" />
     <select
       value={manualColor}
       onChange={(e) => setManualColor(e.target.value as NameColor | "")}
@@ -739,8 +739,8 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     <L ar="+ إضافة إلى قائمة الطباعة" de="+ Zur Druckliste hinzufügen" />
   </button>
 </div>
-        <textarea value={bulk} onChange={(e) => { setBulk(e.target.value); setBulkColors([]); }} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={"علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH"} />
-        {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{parseNames(bulk).length} زائر × {copies} = {people().length} بطاقة → {Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4</p>}
+        <textarea value={bulk} onChange={(e) => { setBulk(e.target.value); setBulkColors([]); }} rows={5} className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm" placeholder={display(lang, "مثال: علي حسن محمد / ALI HASSAN\nزينب عبد الله / ZEINAB ABDALLAH", "Beispiel: ALI HASSAN / علي حسن محمد\nZEINAB ABDALLAH / زينب عبد الله").main} />
+        {bulk.trim() && <p className="text-xs text-muted-foreground" dir="ltr">{display(lang, `${parseNames(bulk).length} زائر × ${copies} = ${people().length} بطاقة → ${Math.ceil(people().length / (sp.cols * sp.rows))} صفحة A4`, `${parseNames(bulk).length} Pilger × ${copies} = ${people().length} Karten → ${Math.ceil(people().length / (sp.cols * sp.rows))} A4-Seiten`).main}</p>}
       </details>}
 
       {!label("luggage:print", "خيارات الطباعة", "Druckoptionen").hidden && <div className="grid gap-2 pt-1">
@@ -752,7 +752,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       </div>
       <p className="text-[11px] text-muted-foreground"><L ar="عند الطباعة اختر: الحجم الفعلي 100% بدون تكبير أو تصغير." de="Beim Drucken: Tatsächliche Größe 100 %, ohne Skalierung." /></p>}
 
-      {err && <p className="text-xs font-bold text-destructive">{err}</p>}
+      {err && <p className="text-xs font-bold text-destructive"><L ar={err.split(" | ")[0] || err} de={err.split(" | ")[1] || err} /></p>}
     </div>}
   </section>;
 }
