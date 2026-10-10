@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { saveOrQueue } from "@/lib/offline";
 import { useShowHidden } from "@/lib/admin-session";
+import { useLang } from "@/lib/i18n";
 import type { SiteContent } from "@/lib/site-content";
 
 export type FieldDef = { key: string; ar: string; de: string; ltr?: boolean; multiline?: boolean; checkbox?: boolean; type?: "date" | "time"; options?: Array<{ value: string; label: string }> };
@@ -75,6 +76,8 @@ export function IconBtn({ label, onClick, danger = false, children }: { label: s
 /** قائمة الترس المصغرة للبطاقة */
 export function GearMenu({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const [open, setOpen] = useState(false);
+  const { lang } = useLang();
+  const settingsLabel = lang === "ar" ? "الإعدادات" : lang === "de" || lang === "en" ? "Einstellungen" : "الإعدادات | Einstellungen";
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -84,8 +87,8 @@ export function GearMenu({ children, className = "" }: { children: React.ReactNo
   }, [open]);
   return (
     <div ref={ref} className={`pointer-events-auto relative ${className}`} onClick={(e) => e.stopPropagation()}>
-      <button type="button" aria-label="إعدادات | Einstellungen" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/50 bg-card/95 text-secondary shadow-sm hover:bg-card"><Settings className="h-3.5 w-3.5" /></button>
-      <div onClick={() => setOpen(false)} className={`absolute left-0 top-8 z-30 flex max-w-[calc(100vw-24px)] gap-1 rounded-full border border-border bg-card p-1 shadow-md ${open ? "" : "hidden"}`}>{children}</div>
+      <button type="button" aria-label={settingsLabel} title={settingsLabel} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/50 bg-card/95 text-secondary shadow-sm hover:bg-card"><Settings className="h-3.5 w-3.5" /></button>
+      <div onClick={() => setOpen(false)} className={`absolute right-0 top-8 z-30 flex max-w-[calc(100vw-24px)] gap-1 rounded-full border border-border bg-card p-1 shadow-md ${open ? "" : "hidden"}`}>{children}</div>
     </div>
   );
 }
@@ -100,7 +103,7 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
   if (!isEditing) return null;
 
   return (
-    <div dir="ltr" className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-start p-1 animate-in fade-in duration-200">
+    <div dir="ltr" className="pointer-events-none relative z-10 -mb-8 flex h-8 w-full justify-start p-1 animate-in fade-in duration-200">
       <GearMenu>
         <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         {onVisibilityChange && showHidden && <IconBtn label={hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
@@ -183,7 +186,7 @@ export function SectionAdminBar({
 }) {
   const isEditing = useSectionEditMode();
   return (
-    <div dir="ltr" className="mb-3 flex items-center justify-start gap-1.5">
+    <div dir="ltr" className="mb-3 flex w-full items-center justify-start gap-1.5">
       {children}
       <button
         type="button"
