@@ -262,3 +262,61 @@ export function TawafView() {
     </div>
   );
 }
+
+const packingGroups: { ar: string; de: string; items: { id: string; ar: string; de: string }[] }[] = [
+  { ar: "الوثائق والأوراق", de: "Dokumente", items: [
+    { id: "passport", ar: "جواز السفر", de: "Reisepass" }, { id: "visa", ar: "التأشيرة", de: "Visum" }, { id: "idcard", ar: "بطاقة الهوية", de: "Personalausweis" }, { id: "tickets", ar: "تذاكر الطيران", de: "Flugtickets" }, { id: "cash", ar: "النقود والبطاقة البنكية", de: "Bargeld & Bankkarte" }, { id: "insurance", ar: "التأمين الصحي", de: "Krankenversicherung" } ] },
+  { ar: "العبادات والمناسك", de: "Gottesdienst", items: [
+    { id: "ihram", ar: "ثوب الإحرام", de: "Ihram-Kleidung" }, { id: "sandals", ar: "نعل مريح", de: "Bequeme Sandalen" }, { id: "turba", ar: "التربة الحسينية", de: "Turba" }, { id: "misbaha", ar: "المسبحة", de: "Gebetskette" }, { id: "duabook", ar: "كتاب الأدعية", de: "Bittgebetsbuch" } ] },
+  { ar: "الصحة والأدوية", de: "Gesundheit", items: [
+    { id: "meds", ar: "الأدوية الشخصية", de: "Persönliche Medikamente" }, { id: "pain", ar: "مسكنات", de: "Schmerzmittel" }, { id: "plasters", ar: "لصقات جروح", de: "Pflaster" }, { id: "sanitizer", ar: "معقم ومستلزمات النظافة", de: "Desinfektion & Hygiene" }, { id: "mask", ar: "كمامات", de: "Masken" } ] },
+  { ar: "مستلزمات عامة", de: "Allgemeines", items: [
+    { id: "charger", ar: "الشاحن", de: "Ladegerät" }, { id: "powerbank", ar: "بنك الطاقة", de: "Powerbank" }, { id: "adapter", ar: "محول الكهرباء", de: "Reiseadapter" }, { id: "clothes", ar: "ملابس مريحة", de: "Bequeme Kleidung" }, { id: "bag", ar: "حقيبة ظهر صغيرة", de: "Kleiner Rucksack" } ] },
+];
+
+export function PackingView() {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [custom, setCustom] = useState<{ id: string; text: string }[]>([]);
+  const [text, setText] = useState("");
+  const [ready, setReady] = useState(false);
+  useEffect(() => { try { const s = JSON.parse(localStorage.getItem("packing-list") ?? "{}"); if (s.checked) setChecked(s.checked); if (s.custom) setCustom(s.custom); } catch { /* ignore */ } setReady(true); }, []);
+  useEffect(() => { if (ready) localStorage.setItem("packing-list", JSON.stringify({ checked, custom })); }, [checked, custom, ready]);
+  const allIds = [...packingGroups.flatMap((g) => g.items.map((i) => i.id)), ...custom.map((c) => c.id)];
+  const done = allIds.filter((id) => checked[id]).length;
+  const pct = allIds.length ? Math.round((done / allIds.length) * 100) : 0;
+  const toggle = (id: string) => { setChecked((c) => ({ ...c, [id]: !c[id] })); navigator.vibrate?.(15); };
+  const row = (id: string, label: React.ReactNode, onDelete?: () => void) => (
+    <li key={id} className="flex items-center gap-3 border-b border-border py-2.5 last:border-0">
+      <label className="flex flex-1 cursor-pointer items-center gap-3">
+        <input type="checkbox" checked={!!checked[id]} onChange={() => toggle(id)} className="h-5 w-5 accent-[var(--secondary)]" />
+        <span className={checked[id] ? "text-muted-foreground line-through" : "text-foreground"}>{label}</span>
+      </label>
+      {onDelete && <button onClick={onDelete} aria-label="حذف | Löschen" className="text-xs text-destructive">✕</button>}
+    </li>
+  );
+  return (
+    <div className="screen-enter px-4 py-7">
+      <Title icon={Landmark} ar="حقيبة السفر" de="Reise-Checkliste" />
+      <div className="mb-5 rounded-lg border border-border bg-card p-4">
+        <div className="mb-2 flex justify-between text-sm font-bold text-primary"><P ar="جاهزية الحقيبة" de="Koffer bereit" /><span dir="ltr">{pct}%</span></div>
+        <div className="h-3 overflow-hidden rounded-full bg-muted"><div className="h-full bg-secondary transition-all" style={{ width: `${pct}%` }} /></div>
+        <p dir="ltr" className="mt-1 text-center text-xs text-muted-foreground">{done} / {allIds.length}</p>
+      </div>
+      {packingGroups.map((g) => (
+        <section key={g.de} className="mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+          <h3 className="mb-1 text-sm font-bold text-secondary"><P ar={g.ar} de={g.de} /></h3>
+          <ul>{g.items.map((i) => row(i.id, <P ar={i.ar} de={i.de} />))}</ul>
+        </section>
+      ))}
+      <section className="mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+        <h3 className="mb-1 text-sm font-bold text-secondary"><P ar="أغراضي الخاصة" de="Eigene Gegenstände" /></h3>
+        <ul>{custom.map((c) => row(c.id, c.text, () => setCustom((l) => l.filter((x) => x.id !== c.id))))}</ul>
+        <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); const t = text.trim(); if (!t) return; setCustom((l) => [...l, { id: `c-${Date.now()}`, text: t }]); setText(""); }}>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="أضف غرضاً | Hinzufügen" className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          <Button type="submit">+</Button>
+        </form>
+      </section>
+      <Button variant="outline" className="w-full text-destructive" onClick={() => { if (window.confirm("تفريغ الإشارات لرحلة جديدة؟ | Liste zurücksetzen?")) setChecked({}); }}><RotateCcw />إعادة ضبط <span className="text-xs italic">| Zurücksetzen</span></Button>
+    </div>
+  );
+}
