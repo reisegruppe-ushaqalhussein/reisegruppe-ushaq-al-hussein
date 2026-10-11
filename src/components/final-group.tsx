@@ -603,7 +603,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
                     </button>
 
                     {/* ترس إدارة المجلد الخارجي */}
-                    {staff && (
+                    {canManage && (
                       <div
                         className="absolute left-2 top-1 z-10"
                         onClick={(e) => e.stopPropagation()}
@@ -672,7 +672,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       )}
 
       {/* إدارة جميع الفقرات والمجلدات */}
-      {staff && (
+      {canManage && (
         <ManageDialog
           open={manage}
           onOpenChange={setManage}
