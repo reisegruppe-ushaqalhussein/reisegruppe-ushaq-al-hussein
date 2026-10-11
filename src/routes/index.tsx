@@ -1673,7 +1673,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "faqs" && <FaqView content={content} admin={admin} />}
         {view === "visa" && <VisaView content={content} admin={admin} />}
         {view === "memories" && <MemoriesView content={content} admin={admin} />}
-        {view === "pilgrimId" && <PilgrimIdView content={content} />}
+        {view === "pilgrimId" && <PilgrimIdView content={content} openRequestsOnLoad={typeof window !== "undefined" && new URLSearchParams(window.location.search).get("openIdRequests") === "1"} />}
         {view === "bookings" && <StaffScreen content={content} id="bookings" icon={ClipboardList} ar="الحجوزات" de="Buchungen"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><BookingsPanel content={content} /></Suspense></StaffScreen>}
         {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><RoomCalcPanel content={content} /></Suspense></StaffScreen>}
         {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><LuggageTags nameAr="" nameDe="" content={content} /></Suspense></StaffScreen>}
