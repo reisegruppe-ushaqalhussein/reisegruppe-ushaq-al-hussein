@@ -49,6 +49,7 @@ export type Database = {
           travelers: Json
           trip: string
           trip_date: string | null
+          trip_id: string | null
         }
         Insert: {
           admin_notes?: string | null
@@ -66,6 +67,7 @@ export type Database = {
           travelers?: Json
           trip: string
           trip_date?: string | null
+          trip_id?: string | null
         }
         Update: {
           admin_notes?: string | null
@@ -83,6 +85,7 @@ export type Database = {
           travelers?: Json
           trip?: string
           trip_date?: string | null
+          trip_id?: string | null
         }
         Relationships: []
       }
