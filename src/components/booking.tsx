@@ -541,7 +541,6 @@ type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; 
 const live = (rows: BookingRow[]) => rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
 const hotelsFor = (trip: string) => { const d = destOf(trip); return d === "umrah" ? ["مكة / Mekka", "المدينة / Medina"] : d === "iran" ? ["مشهد / Mashhad", "قم / Qom"] : ["الكاظمية / Kadhimiya", "كربلاء / Karbala", "النجف / Najaf"]; };
 const groupOf = (r: BookingRow) => r.travelers.length > 1 ? 0 : r.travelers[0]?.["gender"] === "f" ? 2 : 1;
-const groupNames = ["👪 عائلات ومجموعات / Familien & Gruppen", "👨 شباب منفردون / Einzelreisende Männer", "🧕 نساء منفردات / Einzelreisende Frauen"];
 /** Same person = same names + birth date + passport no. (name alone is not enough). */
 export const personKey = (t: Record<string, string | undefined>) => {
   const k = [t["lastName"], t["firstName"], t["birthDate"], t["passportNo"]].map((v) => (v ?? "").trim().toUpperCase().replace(/\s+/g, " "));
@@ -568,7 +567,6 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
   [0, 1, 2].forEach((g) => {
     const list = lv.filter((r) => groupOf(r) === g);
     if (!list.length) return;
-    body.push({ band: true, pax: "", cells: [`${groupNames[g]} (${list.length})`] });
     list.forEach((r) => {
       const c = { ADT: 0, CHD: 0, INF: 0 } as Record<string, number>;
       r.travelers.forEach((t) => c[paxOf(t)]!++);
@@ -577,8 +575,8 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
-  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, phoneIndex: 4, widths: [8, 27, 10, 9, 16, 16, ...hotels.map(() => 16), 16, 17],
-    info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, phoneIndex: 4, widths: [4, 23, 7, 8, 16, 17, ...hotels.map(() => 17), 16, 17],
+    info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]} · 👶 ${cnt("CHD")}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
     head: ["NO", "الأسماء\nNamen", "العدد\nAnz.", "الفئة\nPax", "رقم الهاتف\nTelefon", "المطار\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\n${de} / Zi.-Nr.`; }), "ملاحظات الحاج\nNotizen", "ملاحظات الزائر\nHinweise"],
     body };
 }
@@ -763,7 +761,9 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const indexes: Record<string, number[]> = { names: [1], count: [2], category: [3], phone: [4], airport: [5], hotels: Array.from({ length: hotelCount }, (_, i) => hotelStart + i), leaderNotes: [leaderNotesIndex], visitorNotes: [visitorNotesIndex] };
     const keep = [0, ...leaderFieldsAll.filter((id) => leaderFields.includes(id)).flatMap((id) => indexes[id] ?? [])];
     const title = lang === "ar" ? leaderTitleAr : lang === "de" || lang === "en" ? leaderTitleDe : `${leaderTitleAr} | ${leaderTitleDe}`;
-    return { ...sheet, title: title.trim() || (lang === "ar" ? "قائمة الحاج" : "Leiterliste"), head: keep.map((i) => sheet.head[i] ?? ""), widths: keep.map((i) => sheet.widths[i] ?? 12), phoneIndex: keep.indexOf(4), countIndex: keep.indexOf(2), body: sheet.body.map((row) => row.band ? row : ({ ...row, cells: keep.map((i) => row.cells[i] ?? "") })) };
+    const fieldIdForIndex = (i: number) => i === 1 ? "names" : i === 2 ? "count" : i === 3 ? "category" : i === 4 ? "phone" : i === 5 ? "airport" : i >= hotelStart && i < leaderNotesIndex ? "hotels" : i === leaderNotesIndex ? "leaderNotes" : i === visitorNotesIndex ? "visitorNotes" : "";
+    const head = keep.map((i) => { const original = sheet.head[i] ?? ""; const id = fieldIdForIndex(i); const custom = id ? leaderFieldNames[id] : undefined; if (!custom || id === "hotels") return original; return `${custom.ar}\\n${custom.de}`; });
+    return { ...sheet, title: title.trim() || (lang === "ar" ? "قائمة الحاج" : "Leiterliste"), head, widths: keep.map((i) => sheet.widths[i] ?? 12), phoneIndex: keep.indexOf(4), countIndex: keep.indexOf(2), body: sheet.body.map((row) => row.band ? row : ({ ...row, cells: keep.map((i) => row.cells[i] ?? "") })) };
   };
   const saveLeaderSettings = async () => {
     if (!adminS || adminS.role !== "admin") return;
@@ -829,7 +829,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
         <button type="button" onClick={() => setShowLists((v) => !v)} aria-expanded={showLists} className="flex min-w-0 flex-1 items-center justify-between gap-2 text-start font-bold text-primary"><span>{oneLang("📑 كشوفات الطباعة وتصدير الإكسل للشركات", "Listen & Excel-Export für Unternehmen")}</span><span>{showLists ? "▲" : "▼"}</span></button>
         {adminS?.role === "admin" && adminS.mode === "admin" && <GearMenu><IconBtn label={oneLang(leaderSettingsLabelAr, leaderSettingsLabelDe)} onClick={() => setLeaderTextEditOpen((v) => !v)}><Pencil className="h-3.5 w-3.5" /></IconBtn></GearMenu>}
       </div>
-      {adminS?.role === "admin" && leaderTextEditOpen && <div className="mt-3 space-y-3 rounded-md border-2 border-secondary bg-card p-3">
+      {adminS?.role === "admin" && adminS.mode === "admin" && leaderTextEditOpen && <div className="mt-3 space-y-3 rounded-md border-2 border-secondary bg-card p-3">
         <div className="flex items-center justify-between gap-2"><h3 className="font-bold text-primary">{oneLang(leaderEditorTitleAr, leaderEditorTitleDe)}</h3><button type="button" onClick={() => setLeaderTextEditOpen(false)} aria-label={oneLang("إغلاق", "Schließen")} className="grid h-8 w-8 place-items-center rounded-full border border-border">×</button></div>
         <label className="block text-sm font-semibold">{oneLang("عنوان لوحة التعديل بالعربية", "Titel der Bearbeitungsleiste auf Arabisch")}<input dir="rtl" value={leaderEditorTitleAr} onChange={(e) => setLeaderEditorTitleAr(e.target.value)} className={inputCls} /></label>
         <label className="block text-sm font-semibold">{oneLang("عنوان لوحة التعديل بالألمانية", "Titel der Bearbeitungsleiste auf Deutsch")}<input dir="ltr" value={leaderEditorTitleDe} onChange={(e) => setLeaderEditorTitleDe(e.target.value)} className={inputCls} /></label>
