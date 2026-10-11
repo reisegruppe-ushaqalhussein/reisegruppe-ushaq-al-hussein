@@ -213,3 +213,52 @@ export function TasbeehView() {
     </div>
   );
 }
+
+const tawafDuas = [
+  { ar: "اللّهُمَّ إِنِّي أَسْأَلُكَ بِاسْمِكَ الَّذِي يُمْشَى بِهِ عَلَى طَلَلِ الْمَاءِ، كَمَا يُمْشَى بِهِ عَلَى جَدَدِ الْأَرْضِ.", de: "O Allah, ich bitte Dich bei Deinem Namen, mit dem man über das Wasser geht, wie man über festen Boden geht." },
+  { ar: "سُبْحَانَ اللهِ وَالْحَمْدُ للهِ وَلَا إِلٰهَ إِلَّا اللهُ وَاللهُ أَكْبَرُ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ الْعَلِيِّ الْعَظِيمِ.", de: "Gepriesen sei Allah, Lob sei Allah, es gibt keinen Gott außer Allah, Allah ist größer; keine Kraft und Macht außer bei Allah." },
+  { ar: "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.", de: "Unser Herr, gib uns im Diesseits Gutes und im Jenseits Gutes und bewahre uns vor der Strafe des Feuers." },
+  { ar: "اللّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ، وَاغْفِرْ لِي وَارْحَمْنِي وَتَقَبَّلْ مِنِّي، إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ.", de: "O Allah, segne Muhammad und seine Familie, vergib mir, erbarme Dich meiner und nimm von mir an." },
+  { ar: "اللّهُمَّ إِنِّي إِلَيْكَ فَقِيرٌ، وَإِنِّي خَائِفٌ مُسْتَجِيرٌ، فَلَا تُغَيِّرْ جِسْمِي وَلَا تُبَدِّلِ اسْمِي.", de: "O Allah, ich bin auf Dich angewiesen, ich fürchte mich und suche Schutz bei Dir." },
+  { ar: "يَا ذَا الْمَنِّ وَالطَّوْلِ وَالْجُودِ وَالْكَرَمِ، إِنَّ عَمَلِي ضَعِيفٌ فَضَاعِفْهُ لِي وَتَقَبَّلْهُ مِنِّي.", de: "O Herr der Gnade und Großzügigkeit, meine Taten sind schwach – vervielfache sie und nimm sie an." },
+  { ar: "اللّهُمَّ الْبَيْتُ بَيْتُكَ وَالْعَبْدُ عَبْدُكَ، وَهٰذَا مَقَامُ الْعَائِذِ بِكَ مِنَ النَّارِ، فَأَعْتِقْنِي وَوَالِدَيَّ مِنَ النَّارِ.", de: "O Allah, das Haus ist Dein Haus, der Diener Dein Diener; befreie mich und meine Eltern vom Feuer." },
+];
+
+export function TawafView() {
+  const [mode, setMode] = useState<"tawaf" | "sai">("tawaf");
+  const [counts, setCounts] = useState({ tawaf: 0, sai: 0 });
+  useEffect(() => { try { const s = JSON.parse(localStorage.getItem("tawaf-counter") ?? "{}"); if (s.counts) setCounts(s.counts); if (s.mode) setMode(s.mode); } catch { /* ignore */ } }, []);
+  useEffect(() => { localStorage.setItem("tawaf-counter", JSON.stringify({ counts, mode })); }, [counts, mode]);
+  const n = counts[mode];
+  const done = n >= 7;
+  const cur = Math.min(n + 1, 7);
+  const dua = tawafDuas[(done ? 6 : n)]!;
+  const set = (v: number) => setCounts((c) => ({ ...c, [mode]: Math.max(0, Math.min(7, v)) }));
+  const tap = () => { if (done) return; set(n + 1); navigator.vibrate?.(n + 1 === 7 ? [80, 50, 80, 50, 80] : 40); };
+  const route = mode === "sai" ? (cur % 2 === 1 ? { ar: "من الصفا إلى المروة", de: "Von Safa nach Marwa" } : { ar: "من المروة إلى الصفا", de: "Von Marwa nach Safa" }) : { ar: "من الحجر الأسود إلى الحجر الأسود", de: "Vom Schwarzen Stein zum Schwarzen Stein" };
+  return (
+    <div className="screen-enter px-4 py-7">
+      <Title icon={RotateCcw} ar="عداد الطواف والسعي" de="Tawaf- & Sa‘i-Zähler" />
+      <div className="mb-5 grid grid-cols-2 gap-2">
+        {(["tawaf", "sai"] as const).map((m) => <Button key={m} variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>{m === "tawaf" ? "الطواف | Tawaf" : "السعي | Sa‘i"}</Button>)}
+      </div>
+      <p className="mb-4 text-center text-sm font-bold text-primary"><P ar={done ? "تم بحمد الله" : `الشوط ${cur} — ${route.ar}`} de={done ? "Vollendet, Gott sei Dank" : `Runde ${cur} — ${route.de}`} /></p>
+      <button onClick={tap} aria-label="تسجيل شوط | Runde zählen" className="mx-auto grid h-56 w-56 select-none place-items-center rounded-full text-primary-foreground shadow-xl ring-8 ring-secondary/30 transition-transform active:scale-95" style={{ background: `conic-gradient(var(--secondary) ${(n / 7) * 100}%, var(--primary) ${(n / 7) * 100}%)` }}>
+        <span className="grid h-48 w-48 place-items-center rounded-full bg-primary"><span><span className="block text-6xl font-extrabold">{n}</span><span dir="ltr" className="block text-xs text-primary-foreground/70">/ 7</span></span></span>
+      </button>
+      {done ? (
+        <div className="mt-6 rounded-lg border border-secondary bg-card p-4 text-center text-sm"><P ar={mode === "tawaf" ? "أتممت 7 أشواط. صلِّ ركعتي الطواف خلف مقام إبراهيم (ع)." : "أتممت السعي 7 أشواط وانتهيت عند المروة. تقبّل الله."} de={mode === "tawaf" ? "7 Runden vollendet. Bete zwei Rak‘at hinter dem Maqam Ibrahim." : "Sa‘i mit 7 Runden bei Marwa vollendet. Möge Allah annehmen."} /></div>
+      ) : (
+        <article className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <p className="mb-2 text-xs font-bold text-secondary"><P ar={`دعاء الشوط ${cur}`} de={`Bittgebet Runde ${cur}`} /></p>
+          <p lang="ar" dir="rtl" className="text-lg font-bold leading-loose text-primary">{dua.ar}</p>
+          <p lang="de" dir="ltr" className="mt-2 text-left text-sm italic text-muted-foreground">{dua.de}</p>
+        </article>
+      )}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button variant="outline" onClick={() => set(n - 1)} disabled={n === 0}>تراجع شوط <span className="text-xs italic">| Zurück</span></Button>
+        <Button variant="outline" className="text-destructive" onClick={() => { if (window.confirm("تصفير العداد؟ | Zähler zurücksetzen?")) set(0); }}><RotateCcw />تصفير <span className="text-xs italic">| Reset</span></Button>
+      </div>
+    </div>
+  );
+}
