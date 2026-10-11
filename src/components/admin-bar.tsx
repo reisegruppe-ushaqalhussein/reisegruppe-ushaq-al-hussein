@@ -75,7 +75,7 @@ export function AdminBar({ content }: { content: SiteContent }) {
     try {
       await saveOrQueue(s.password, { ...content, cms: { ...(content.cms ?? {}), hajCanManage: !hajToolsEnabled } }, "صلاحيات أدوات الحاج | Hajj-Werkzeuge", qc);
     } catch (e) {
-      window.alert(`تعذّر تحديث صلاحيات أدوات الحاج | Fehler\\n${e instanceof Error ? e.message : String(e)}`);
+      window.alert(`تعذّر تحديث صلاحيات أدوات الحاج | Fehler\n${e instanceof Error ? e.message : String(e)}`);
     } finally { setHajToolsBusy(false); }
   };
   const saveLabels = async () => {
