@@ -250,7 +250,7 @@ function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Tra
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
 type Lbl = { ar: string; de: string };
 type ExtraField = { id: string; ar: string; de: string; step: 1 | 2 | 3; required?: boolean };
-type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string>; leaderSheetTitleAr?: string; leaderSheetTitleDe?: string; leaderEditorTitleAr?: string; leaderEditorTitleDe?: string; leaderSheetFields?: string[]; leaderSettingsLabelAr?: string; leaderSettingsLabelDe?: string; leaderFieldsLabelAr?: string; leaderFieldsLabelDe?: string; leaderSettingsNoteAr?: string; leaderSettingsNoteDe?: string; leaderSheetFieldLabels?: Record<string, { ar: string; de: string }> };
+type RegCfg = { closed?: boolean; hajCanToggle?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string>; leaderSheetTitleAr?: string; leaderSheetTitleDe?: string; leaderEditorTitleAr?: string; leaderEditorTitleDe?: string; leaderSheetFields?: string[]; leaderSettingsLabelAr?: string; leaderSettingsLabelDe?: string; leaderFieldsLabelAr?: string; leaderFieldsLabelDe?: string; leaderSettingsNoteAr?: string; leaderSettingsNoteDe?: string; leaderSheetFieldLabels?: Record<string, { ar: string; de: string }> };
 const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 2 };
 const extraFields = (reg: RegCfg) => [...(reg.cityOff ? [] : [CITY]), ...(reg.extra ?? [])];
 const labelOf = (reg: RegCfg, f: ExtraField): Lbl => { const o = reg.labels?.[f.ar]; return { ar: o?.ar || f.ar, de: o?.de || f.de }; };
@@ -958,19 +958,28 @@ function RegSettings({ content }: { content: SiteContent }) {
   const { lang } = useLang();
   const bi = biFor(lang);
   const reg = regOf(content);
-  if (adminS?.role !== "admin") return null;
+  const canToggle = adminS?.role === "admin" || (adminS?.role === "haj" && !!reg.hajCanToggle);
+  if (!canToggle) return null;
   const saveReg = async (patch: RegCfg) => {
     try { await saveOrQueue(adminS.password, { ...content, cms: { ...(content.cms ?? {}), registration: { ...reg, ...patch } } as never }, "التسجيل | Anmeldung", qc); }
     catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); }
   };
   return <div className="mb-3 rounded-md border-2 border-secondary bg-card p-2 text-xs">
-    {/* زر قفل / فتح التسجيل: ظاهر دائماً للإدارة للسرعة والراحة */}
+    {/* زر قفل / فتح التسجيل: متاح للإدارة وللحاج عند منحه الصلاحية */}
     <Button size="sm" variant={reg.closed ? "default" : "outline"} className="w-full" onClick={() => void saveReg({ closed: !reg.closed })}>
       {bi(reg.closed ? "🔓 فتح التسجيل للزوار | Anmeldung öffnen" : "🔒 قفل التسجيل مؤقتاً | Anmeldung schließen")}
     </Button>
 
+    {/* إعداد الصلاحية للإدارة فقط؛ أدوات المسح تبقى للإدارة */}
+    {adminS.role === "admin" && isEditing && (
+      <label className="mt-2 flex items-start gap-2 rounded-md border border-border p-2">
+        <input type="checkbox" checked={!!reg.hajCanToggle} onChange={(e) => void saveReg({ hajCanToggle: e.target.checked })} className="mt-0.5 h-4 w-4 accent-secondary" />
+        <span>{bi("السماح للحاج بفتح وإغلاق التسجيل من هذا القسم | Hajj darf die Anmeldung in diesem Bereich öffnen und schließen")}</span>
+      </label>
+    )}
+
     {/* خيارات المسح الضوئي وتعديل النصوص: تظهر فقط عند تفعيل القلم ✏️ */}
-    {isEditing && (
+    {adminS.role === "admin" && isEditing && (
       <div className="mt-2 space-y-2 border-t border-border pt-2">
         <div className="grid grid-cols-2 gap-1.5">
           <Button size="sm" variant={reg.ocrOff ? "outline" : "default"} onClick={() => void saveReg({ ocrOff: !reg.ocrOff })}>
