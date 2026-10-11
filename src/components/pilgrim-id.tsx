@@ -195,7 +195,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
       }
     }).catch(() => {});
     check();
-    const t = p.status && p.status !== "unsent" ? window.setInterval(check, 30000) : 0;
+    const t = p.status ? window.setInterval(check, 30000) : 0;
     return () => { alive = false; if (t) window.clearInterval(t); };
   }, [p.reqId, p.status]);
   const submit = async (d: PilgrimId) => {
