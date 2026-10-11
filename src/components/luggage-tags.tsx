@@ -379,14 +379,14 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
   };
   const saveSettings = async (row: Record<string, unknown>) => {
     const nextLabels = { ...labels,
-      "luggage:title": { ar: String(row.titleAr || ""), de: String(row.titleDe || "") },
-      "luggage:design": { ar: String(row.designAr || ""), de: String(row.designDe || ""), hidden: !!row.hideDesign },
-      "luggage:bulk": { ar: String(row.bulkAr || ""), de: String(row.bulkDe || ""), hidden: !!row.hideBulk },
-      "luggage:name-style": { ar: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").ar, de: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").de, hidden: !!row.hideNameStyle },
-      "luggage:copies": { ar: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar, de: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de, hidden: !!row.hideCopies },
-      "luggage:single-name": { ar: label("luggage:single-name", "اسم الزائر", "Pilgername").ar, de: label("luggage:single-name", "اسم الزائر", "Pilgername").de, hidden: !!row.hideSingleName },
-      "luggage:print": { ar: label("luggage:print", "خيارات الطباعة", "Druckoptionen").ar, de: label("luggage:print", "خيارات الطباعة", "Druckoptionen").de, hidden: !!row.hidePrint },
-      "luggage:navigation": { ar: String(row.navAr || ""), de: String(row.navDe || ""), target: String(row.navTarget || "home"), hidden: !row.showNavigation },
+      "luggage:title": { ar: String(row["titleAr"] || ""), de: String(row["titleDe"] || "") },
+      "luggage:design": { ar: String(row.designAr || ""), de: String(row.designDe || ""), hidden: !!row["hideDesign"] },
+      "luggage:bulk": { ar: String(row.bulkAr || ""), de: String(row.bulkDe || ""), hidden: !!row["hideBulk"] },
+      "luggage:name-style": { ar: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").ar, de: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").de, hidden: !!row["hideNameStyle"] },
+      "luggage:copies": { ar: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar, de: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de, hidden: !!row["hideCopies"] },
+      "luggage:single-name": { ar: label("luggage:single-name", "اسم الزائر", "Pilgername").ar, de: label("luggage:single-name", "اسم الزائر", "Pilgername").de, hidden: !!row["hideSingleName"] },
+      "luggage:print": { ar: label("luggage:print", "خيارات الطباعة", "Druckoptionen").ar, de: label("luggage:print", "خيارات الطباعة", "Druckoptionen").de, hidden: !!row["hidePrint"] },
+      "luggage:navigation": { ar: String(row["navAr"] || ""), de: String(row["navDe"] || ""), target: String(row["navTarget"] || "home"), hidden: !row["showNavigation"] },
     };
     await saveContent({ ...content, labels: nextLabels });
   };
@@ -525,9 +525,9 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
     if (blankOnly) {
       return Array.from({ length: sp.cols * sp.rows }, () => ({ ar: "", de: "" }));
     }
-    const b = parseNames(bulk).map((person, index) => ({
+    const b: Person[] = parseNames(bulk).map((person, index): Person => ({
       ...person,
-      color: kind === "iraq" ? bulkColors[index] : undefined,
+      ...(kind === "iraq" && bulkColors[index] ? { color: bulkColors[index]! } : {}),
     }));
     const baseList = b.length ? b : [{ ar, de }];
     if (copies === 2) {
