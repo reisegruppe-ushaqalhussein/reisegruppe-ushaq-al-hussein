@@ -242,17 +242,24 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
     try { const c = localStorage.getItem(SKEY); if (c) setSt({ ...defaultSettings, ...JSON.parse(c) }); } catch { /* ignore */ }
     getIdSettings().then((s) => { setSt(s); localStorage.setItem(SKEY, JSON.stringify(s)); }).catch(() => {});
   }, []);
-  const saveSt = async (next: IdSettings) => {
-    if (!staff || (staff.role !== "admin" && !(staff.role === "haj" && st.hajCanToggle && next.open !== st.open))) return;
-    const r = await saveIdSettings({ data: { password: staff.password, settings: next } });
-    if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); }
-    else window.alert("تعذّر الحفظ أو لا تملك الصلاحية | Speichern fehlgeschlagen oder keine Berechtigung");
+  const saveSt = async (next: IdSettings): Promise<boolean> => {
+    const hajMayUpdate = staff?.role === "haj" && st.hajCanToggle && (next.open !== st.open || next.activeCity !== st.activeCity || JSON.stringify(next.centralHotels ?? {}) !== JSON.stringify(st.centralHotels ?? {}));
+    if (!staff || (staff.role !== "admin" && !hajMayUpdate)) return false;
+    try {
+      const r = await saveIdSettings({ data: { password: staff.password, settings: next } });
+      if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); return true; }
+    } catch { /* report save failure below */ }
+    window.alert("تعذّر الحفظ أو لا تملك الصلاحية | Speichern fehlgeschlagen oder keine Berechtigung");
+    return false;
   };
   const [textOpen, setTextOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [addNew, setAddNew] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const lb = st.labels ?? {};
+  const centralCityId = centralDraft.activeCity || "karbala";
+  const centralCityData = centralDraft.centralHotels?.[centralCityId] ?? { hotel: "", address: "", mapsUrl: "" };
+  const updateCentralHotel = (patch: Partial<{ hotel: string; address: string; mapsUrl: string }>) => setCentralDraft({ ...centralDraft, activeCity: centralCityId, centralHotels: { ...(centralDraft.centralHotels ?? {}), [centralCityId]: { ...centralCityData, ...patch } } });
   const L = (k: string, ar: string, de: string) => { const a = lb[`${k}Ar`] || ""; const d = lb[`${k}De`] || ""; return <T ar={a || ar} de={d || (a ? a : de)} />; };
   const locked = !st.open && !p.reqId && !staff;
   const canSeeEmergency = !!staff || approved || st.emergencyPublic;
@@ -292,6 +299,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
       </div>}
       {(staff?.role === "admin" || (staff?.role === "haj" && st.hajCanToggle)) && <GearMenu>
         <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => void saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
+        <IconBtn label="المحطة والفندق المركزي | Aktuelle Station und zentrales Hotel" onClick={() => { setCentralDraft({ ...st, centralHotels: { ...(st.centralHotels ?? {}) } }); setCentralOpen(true); }}><MapPin className="h-3.5 w-3.5" /></IconBtn>
         {staff?.role === "admin" && <IconBtn label={st.hajCanToggle ? "إلغاء صلاحية الحاج لفتح وإغلاق التسجيل | Berechtigung entziehen" : "السماح للحاج بفتح وإغلاق التسجيل | Hajj darf Registrierung steuern"} onClick={() => void saveSt({ ...st, hajCanToggle: !st.hajCanToggle })}><ShieldCheck className="h-3.5 w-3.5" /></IconBtn>}
         {staff?.role === "admin" && <>
           <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
@@ -462,6 +470,19 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
               </div>
             </div>)}
           </div>}
+        </div>
+      </DialogContent>
+    </Dialog>}
+    {(staff?.role === "admin" || (staff?.role === "haj" && st.hajCanToggle)) && <Dialog open={centralOpen} onOpenChange={setCentralOpen}>
+      <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+        <DialogHeader className="text-right"><DialogTitle>المحطة والفندق المركزي <span className="text-sm italic text-muted-foreground">| Aktuelle Station & zentrales Hotel</span></DialogTitle><DialogDescription className="sr-only">Zentrale Unterkunftsdaten</DialogDescription></DialogHeader>
+        <div className="space-y-3">
+          <label className="block space-y-1 text-xs font-bold"><T ar="المحطة الحالية" de="Aktuelle Station" /><select className={inputCls} value={centralCityId} onChange={(e) => setCentralDraft({ ...centralDraft, activeCity: e.target.value })}>{cities.map((city) => <option key={city.id} value={city.id}>{city.ar} | {city.de}</option>)}</select></label>
+          <label className="block space-y-1 text-xs font-bold"><T ar="اسم الفندق المركزي" de="Zentraler Hotelname" /><input className={inputCls} value={centralCityData.hotel} onChange={(e) => updateCentralHotel({ hotel: e.target.value })} placeholder="اسم الفندق | Hotelname" /></label>
+          <label className="block space-y-1 text-xs font-bold"><T ar="العنوان أو أقرب نقطة دالة" de="Adresse oder Orientierungspunkt" /><input className={inputCls} value={centralCityData.address} onChange={(e) => updateCentralHotel({ address: e.target.value })} placeholder="العنوان | Adresse" /></label>
+          <label className="block space-y-1 text-xs font-bold"><T ar="رابط Google Maps (اختياري)" de="Google-Maps-Link (optional)" /><input dir="ltr" type="url" className={inputCls} value={centralCityData.mapsUrl ?? ""} onChange={(e) => updateCentralHotel({ mapsUrl: e.target.value })} placeholder="https://maps.google.com/…" /></label>
+          <p className="text-xs text-muted-foreground"><T ar="تُستخدم هذه البيانات في رمز الطوارئ للزوار الذين لم يدخلوا بيانات فندقهم يدوياً. لا تُضاف أسماء الزوار أو أرقامهم أو أرقام الغرف إلى الرمز." de="Diese Daten erscheinen im Notfall-QR, wenn Besucher keine eigenen Hoteldaten eingetragen haben. Namen, persönliche Telefonnummern und Zimmernummern werden nicht codiert." /></p>
+          <Button type="button" className="h-11 w-full" onClick={async () => { const ok = await saveSt({ ...st, activeCity: centralCityId, centralHotels: centralDraft.centralHotels ?? {} }); if (ok) setCentralOpen(false); }}><Check className="h-4 w-4" /><T ar="حفظ بيانات المحطة" de="Stationsdaten speichern" /></Button>
         </div>
       </DialogContent>
     </Dialog>}
