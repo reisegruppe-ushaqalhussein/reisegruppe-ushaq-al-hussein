@@ -60,6 +60,8 @@ function T({ ar, de }: { ar: string; de: string }) {
   return <span className="block">{main}<span lang="de" dir="ltr" className="block text-[0.8em] italic opacity-75">{sub}</span></span>;
 }
 
+function vcardEscape(value: string) { return value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,"); }
+
 function buildSms(p: PilgrimId, stay: Stay | undefined, loc: string, lang: string) {
   const c = stay ? cityOf(stay.city) : null;
   const ar = `نداء طوارئ: أنا الزائر ${p.nameAr || p.nameDe || "—"}${p.phone ? ` (${p.phone})` : ""}. أحتاج مساعدة عاجلة.${stay && c ? ` ${c.ar} - فندق: ${stay.hotel}، طابق: ${stay.floor}، غرفة: ${stay.room}.` : ""}`;
@@ -109,8 +111,9 @@ const emergencyFields: FieldDef[] = [
   { key: "phone", ar: "رقم الهاتف", de: "Telefonnummer", ltr: true },
 ];
 
-export function PilgrimIdView({ content }: { content: SiteContent }) {
+export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content: SiteContent; openRequestsOnLoad?: boolean }) {
   const staff = useAdminSession();
+  const { lang } = useLang();
   const saveContent = useSaveContent(staff?.password ?? "");
   const [p, save, localReady] = useLocal();
   const [editing, setEditing] = useState(false);
@@ -150,6 +153,9 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       setRequests(rows);
     } catch { /* retain last known requests while offline */ }
   };
+  useEffect(() => {
+    if (staff && openRequestsOnLoad) { setReqOpen(true); void loadRequests(); }
+  }, [staff?.password, openRequestsOnLoad]);
   useEffect(() => {
     void loadRequests();
     if (!staff) return;
@@ -223,7 +229,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const deleteVisitRequests = async () => {
     if (!staff || !activeTripId) return;
     const trip = visitTrips.find((item) => item.id === activeTripId);
-    const tripName = trip ? (trip.ar || trip.de) : activeTripId;
+    const tripName = trip ? display(lang, trip.ar, trip.de).main : activeTripId;
     if (!window.confirm("حذف جميع طلبات الهويات المرتبطة بزيارة «" + tripName + "» من سجل الحملة؟ لن تُحذف نسخ البطاقات المحفوظة على هواتف الزوار. | Alle Anfragen dieser Reise aus dem Kampagnenregister löschen?")) return;
     const result = await deleteIdRequestsForTrip({ data: { password: staff.password, tripId: activeTripId } });
     if (result.ok) { await loadRequests(); window.alert("تم حذف " + result.deleted + " طلباً من سجل الحملة. يجب على كل زائر حذف بطاقته من هاتفه أيضاً. | " + result.deleted + " Anfragen gelöscht. Besucher müssen lokale Ausweise zusätzlich selbst löschen."); }
@@ -257,7 +263,16 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const current = p.stays.find((s) => s.id === p.current) ?? p.stays[0];
-  const qr = [`${p.nameAr} ${p.nameDe}`.trim(), "حملة عشاق الحسين - Reisegruppe Ushaq al-Hussein", ...phones.map((x) => `Tel: ${x}`), current ? `${cityOf(current.city).de}: ${current.hotel} / ${current.floor} / ${current.room}` : ""].filter(Boolean).join("\n");
+  const qrStay = current ? cityOf(current.city) : null;
+  const qr = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Reisegruppe Ushaq al-Hussein - Notfallkontakt",
+    "ORG:Ushaq al-Hussein Reisegruppe - Deutschland",
+    ...phones.map((x) => `TEL;TYPE=WORK,VOICE:${clean(x)}`),
+    ...(current && qrStay ? [`ADR;TYPE=WORK:;;${vcardEscape(current.hotel || "Hotel nicht angegeben")};${vcardEscape(qrStay.de)};;;`, `NOTE:${vcardEscape(`Hotel: ${current.hotel || "—"} | Stadt: ${qrStay.de} | Etage: ${current.floor || "—"} | Zimmer: ${current.room || "—"}`)}`] : []),
+    "END:VCARD",
+  ].join("\\r\\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
     <div dir="rtl" className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
@@ -328,8 +343,8 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <label className="block text-xs font-bold text-primary">{L("name", "الاسم بالعربية", "Name (Arabisch)")}<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
-      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input type="text" inputMode="text" autoComplete="off" dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
-      {visitTrips.length > 0 && <label className="block text-xs font-bold text-primary"><T ar="الزيارة التي تسجّل فيها" de="Reise auswählen" /><select className={inputCls} value={draft.tripId || activeTripId} onChange={(e) => setDraft({ ...draft, tripId: e.target.value })}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{trip.ar} | {trip.de} — {trip.date || ""}</option>)}</select></label>}
+      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input type="text" autoComplete="off" autoCorrect="off" spellCheck={false} dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
+      {visitTrips.length > 0 && <label className="block text-xs font-bold text-primary"><T ar="الزيارة التي تسجّل فيها" de="Reise auswählen" /><select className={inputCls} value={draft.tripId || activeTripId} onChange={(e) => setDraft({ ...draft, tripId: e.target.value })}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{display(lang, trip.ar, trip.de).main} — {trip.date || ""}</option>)}</select></label>}
       <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || lb['staysAr'] || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
@@ -387,12 +402,12 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>طلبات الهوية <span className="text-sm italic text-muted-foreground">| Ausweis-Anfragen</span></DialogTitle><DialogDescription className="sr-only">Anfragen</DialogDescription></DialogHeader>
         <div className="space-y-2">
-          {visitTrips.length > 0 && <div className="space-y-2 rounded-md border border-border p-3">
-            <label className="block text-xs font-bold"><T ar="الزيارة الحالية لإدارة الطلبات" de="Reise für Anfragenverwaltung" /><select className={inputCls} value={activeTripId} onChange={(e) => setSelectedTripId(e.target.value)}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{trip.ar} | {trip.de} — {trip.date || ""}</option>)}</select></label>
-            <Button type="button" variant="destructive" className="w-full" onClick={() => void deleteVisitRequests()}><Trash2 className="h-4 w-4" /><T ar="حذف جميع طلبات هذه الزيارة" de="Alle Anfragen dieser Reise löschen" /></Button>
+          {requests.length > 0 && visitTrips.length > 0 && <div className="space-y-2 rounded-md border border-border p-3">
+            <label className="block text-xs font-bold"><T ar="الزيارة الحالية لإدارة الطلبات" de="Reise für Anfragenverwaltung" /><select className={inputCls} value={activeTripId} onChange={(e) => setSelectedTripId(e.target.value)}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{display(lang, trip.ar, trip.de).main} — {trip.date || ""}</option>)}</select></label>
+            {requests.some((r) => r.tripId === activeTripId) && <Button type="button" variant="destructive" className="w-full" onClick={() => void deleteVisitRequests()}><Trash2 className="h-4 w-4" /><T ar="حذف جميع طلبات هذه الزيارة" de="Alle Anfragen dieser Reise löschen" /></Button>}
             <p className="text-[11px] text-muted-foreground"><T ar="يحذف هذا الإجراء طلبات الخادم لهذه الزيارة فقط، ولا يستطيع حذف نسخ البطاقات المحفوظة على هواتف الزوار." de="Löscht nur Serveranfragen dieser Reise, nicht lokal gespeicherte Ausweise auf Besucherhandys." /></p>
           </div>}
-          {requests.filter((r) => r.tripId === activeTripId).length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد طلبات لهذه الزيارة | Keine Anfragen für diese Reise</p>}
+          {requests.length === 0 ? <p className="py-3 text-center text-xs text-muted-foreground">لا توجد طلبات هوية حالياً | Derzeit keine Ausweisanfragen</p> : requests.filter((r) => r.tripId === activeTripId).length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد طلبات لهذه الزيارة | Keine Anfragen für diese Reise</p>}
           {requests.filter((r) => r.tripId === activeTripId).map((r) => <div key={r.id} className={`space-y-1 rounded-md border p-3 text-xs ${r.status === "pending" ? "border-secondary bg-accent/40" : "border-border bg-card"}`}>
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1"><p className="text-sm font-bold text-primary">{r.nameAr || "—"}</p>{r.nameDe && <p dir="ltr" className="text-muted-foreground">{r.nameDe}</p>}</div>
