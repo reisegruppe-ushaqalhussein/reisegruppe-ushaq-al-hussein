@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUp, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { display, isArabic, useLang } from "@/lib/i18n";
@@ -28,7 +28,7 @@ export const cities = [
 const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" };
 const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
-export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
+export type Stay = { id: string; city: string; hotel: string; floor: string; room: string; address?: string; mapsUrl?: string };
 export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string | undefined; tripId?: string | undefined; extra?: Record<string, string> | undefined; reqId?: string | undefined; status?: "pending" | "approved" | "rejected" | "unsent" | undefined; seen?: string | undefined };
 const empty: PilgrimId = { nameAr: "", nameDe: "", phone: "", stays: [] };
 const SKEY = "ushaq-id-settings";
@@ -119,6 +119,8 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PilgrimId>(empty);
   const [manage, setManage] = useState(false);
+  const [centralOpen, setCentralOpen] = useState(false);
+  const [centralDraft, setCentralDraft] = useState<IdSettings>(defaultSettings);
   const phones = leaderPhones(content);
   const visitTrips = content.trips.filter((trip) => !trip.hidden);
   const [selectedTripId, setSelectedTripId] = useState("");
@@ -263,15 +265,24 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const current = p.stays.find((s) => s.id === p.current) ?? p.stays[0];
+  const qrCityId = st.activeCity || current?.city || "";
+  const qrCity = cityOf(qrCityId);
+  const matchingStay = p.stays.find((s) => s.city === qrCityId && (s.hotel.trim() || s.address?.trim() || s.mapsUrl?.trim()));
+  const centralHotel = st.centralHotels?.[qrCityId];
+  const qrHotel = matchingStay ? matchingStay.hotel.trim() : centralHotel?.hotel?.trim() || "";
+  const qrAddress = matchingStay ? matchingStay.address?.trim() || "" : centralHotel?.address?.trim() || "";
+  const qrMaps = (matchingStay ? matchingStay.mapsUrl?.trim() : centralHotel?.mapsUrl?.trim()) || (qrHotel || qrAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([qrHotel, qrAddress, qrCity.de].filter(Boolean).join(" "))}` : "");
   const qr = [
-    "BEGIN:VCARD",
-    "VERSION:3.0",
-    `FN:${vcardEscape("طوارئ حملة عشاق الحسين (ع) — ألمانيا")}`,
-    `ORG:${vcardEscape("حملة عشاق الحسين (ع) — ألمانيا")}`,
-    ...phones.map((x) => `TEL;TYPE=WORK,VOICE:${clean(x)}`),
-    `NOTE:${vcardEscape(`بيانات الزائر: ${`${p.nameAr} ${p.nameDe}`.trim() || "—"} | الفندق: ${current?.hotel?.trim() || "غير محدد"}`)}`,
-    "END:VCARD",
-  ].join("\r\n");
+    "حملة عشاق الحسين (ع) — ألمانيا",
+    "Reisegruppe Ushaq al-Hussein — Deutschland",
+    "--------------------------------",
+    `🏨 فندق الإقامة / Unterkunft: ${qrHotel || "غير محدد / Nicht angegeben"} (${qrCity.ar} / ${qrCity.de})`,
+    `📍 العنوان / Adresse: ${qrAddress || "غير محدد / Nicht angegeben"}`,
+    `🗺️ Google Maps: ${qrMaps || "رابط غير متوفر / Link nicht verfügbar"}`,
+    "--------------------------------",
+    "🚨 طوارئ الحملة / Notfall:",
+    ...leaderContacts(content).map((contact) => `• ${contact.ar || contact.de || "طوارئ الحملة / Kampagnen-Notfall"}: ${contact.phone}`),
+  ].join("\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
     <div dir="rtl" className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
@@ -331,8 +342,8 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
         <span className="mt-1 block">🏨 {s.hotel || "—"}</span>
         <span className="block">طابق / Etage: <b dir="ltr">{s.floor || "—"}</b> · غرفة / Zimmer: <b dir="ltr">{s.room || "—"}</b></span>
       </button>; })}</div>
-      <div className="mx-auto mt-5 w-fit rounded-lg bg-background p-3"><QRCodeSVG value={qr} size={150} /></div>
-      <p className="mt-2 text-center text-[11px] opacity-75">امسح للاتصال بالحملة · Scannen für Kontakt</p>
+      <div className="mx-auto mt-5 w-fit rounded-lg bg-background p-3"><QRCodeSVG value={qr} size={220} level="M" /></div>
+      <p className="mt-2 text-center text-[11px] opacity-75">امسح لعرض معلومات الفندق والطوارئ · Scannen für Hotel- und Notfallinfos</p>
       <div className="mt-3 flex flex-col items-center text-center text-xs [&_span]:!text-center"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block text-center font-bold text-secondary">{x}</a>)}</div>
       <Button type="button" variant="outline" className="mt-4 w-full border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => void deleteMyIdentity()}><Trash2 className="h-4 w-4" /><T ar="حذف هويتي بعد انتهاء الزيارة" de="Meinen Ausweis nach der Reise löschen" /></Button>
     </section>}
@@ -359,9 +370,11 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
           <Button type="button" variant="outline" size="icon" aria-label="حذف الإقامة | Unterkunft löschen" onClick={() => setDraft({ ...draft, stays: draft.stays.filter((x) => x.id !== s.id) })} className="h-11 w-11 shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>
         <input placeholder="اسم الفندق | Hotel" className={inputCls} value={s.hotel} onChange={(e) => setStay(s.id, { hotel: e.target.value })} />
+        <input placeholder="العنوان أو أقرب نقطة دالة | Adresse oder Orientierungspunkt (optional)" className={inputCls} value={s.address ?? ""} onChange={(e) => setStay(s.id, { address: e.target.value })} />
+        <input dir="ltr" type="url" placeholder="رابط Google Maps (اختياري) | Google-Maps-Link (optional)" className={inputCls} value={s.mapsUrl ?? ""} onChange={(e) => setStay(s.id, { mapsUrl: e.target.value })} />
         <div className="grid grid-cols-2 gap-2"><input placeholder="الطابق | Etage" className={inputCls} value={s.floor} onChange={(e) => setStay(s.id, { floor: e.target.value })} /><input placeholder="الغرفة | Zimmer" className={inputCls} value={s.room} onChange={(e) => setStay(s.id, { room: e.target.value })} /></div>
       </div>)}
-      <Button type="button" variant="outline" className="h-10 w-full" onClick={() => setDraft({ ...draft, stays: [...draft.stays, { id: crypto.randomUUID(), city: "karbala", hotel: "", floor: "", room: "" }] })}><Plus /><T ar="إضافة مدينة/فندق" de="Stadt/Hotel hinzufügen" /></Button>
+      <Button type="button" variant="outline" className="h-10 w-full" onClick={() => setDraft({ ...draft, stays: [...draft.stays, { id: crypto.randomUUID(), city: "karbala", hotel: "", floor: "", room: "", address: "", mapsUrl: "" }] })}><Plus /><T ar="إضافة مدينة/فندق" de="Stadt/Hotel hinzufügen" /></Button>
       <div className="grid grid-cols-1 gap-2 pt-2">
         <Button type="button" variant="outline" className="h-11" disabled={sending} onClick={() => {
           const same = JSON.stringify({ ...draft, current: undefined }) === JSON.stringify({ ...p, current: undefined });
