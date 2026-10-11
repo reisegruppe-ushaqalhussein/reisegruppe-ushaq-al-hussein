@@ -61,12 +61,23 @@ export function AdminBar({ content }: { content: SiteContent }) {
   }, [s?.role, s?.password, secOpen, overview]);
   const [menu, setMenu] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [hajToolsBusy, setHajToolsBusy] = useState(false);
   const qc = useQueryClient();
   const labels = content.modeLabels ?? { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة" };
   const [draft, setDraft] = useState(labels);
   if (!s) return null;
   const isAdmin = s.role === "admin";
   const trashCount = content.trash?.length ?? 0;
+  const hajToolsEnabled = !!content.cms?.hajCanManage;
+  const toggleHajTools = async () => {
+    if (!isAdmin || s.mode !== "admin" || hajToolsBusy) return;
+    setHajToolsBusy(true);
+    try {
+      await saveOrQueue(s.password, { ...content, cms: { ...(content.cms ?? {}), hajCanManage: !hajToolsEnabled } }, "صلاحيات أدوات الحاج | Hajj-Werkzeuge", qc);
+    } catch (e) {
+      window.alert(`تعذّر تحديث صلاحيات أدوات الحاج | Fehler\\n${e instanceof Error ? e.message : String(e)}`);
+    } finally { setHajToolsBusy(false); }
+  };
   const saveLabels = async () => {
     const next = { admin: draft.admin.trim() || "الإدارة", haj: draft.haj.trim() || "معاينة كحاج", leader: draft.leader.trim() || "مسؤول الحملة" };
     try { await saveOrQueue(s.password, { ...content, modeLabels: next }, "الأسماء | Namen", qc); setRenameOpen(false); }
@@ -80,6 +91,7 @@ export function AdminBar({ content }: { content: SiteContent }) {
         <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="القائمة | Menü" className="flex items-center gap-1.5 rounded-full border border-secondary bg-primary px-2.5 py-1 text-[10px] font-extrabold shadow-md">
           <span>{badge}</span>{alerts > 0 && <span className="h-2 w-2 rounded-full bg-destructive" />}<span className="text-sm leading-none tracking-widest">⋯</span>
         </button>
+        {isAdmin && s.mode === "admin" && <button type="button" disabled={hajToolsBusy} onClick={() => void toggleHajTools()} aria-pressed={hajToolsEnabled} aria-label={hajToolsEnabled ? "إخفاء أدوات الحاج | Hajj-Werkzeuge ausblenden" : "إتاحة أدوات الحاج | Hajj-Werkzeuge freigeben"} title={hajToolsEnabled ? "إخفاء أدوات الحاج | Hajj-Werkzeuge ausblenden" : "إتاحة أدوات الحاج | Hajj-Werkzeuge freigeben"} className={`ml-2 grid h-7 w-7 place-items-center rounded-full border border-secondary shadow-md ${hajToolsEnabled ? "bg-secondary text-secondary-foreground" : "bg-primary text-secondary"}`}><Pencil className="h-3.5 w-3.5" />{hajToolsEnabled ? <Eye className="h-2.5 w-2.5" /> : <EyeOff className="h-2.5 w-2.5" />}</button>}
         <button type="button" onClick={() => setToolsHidden(!toolsHidden)} aria-pressed={toolsHidden} aria-label={toolsHidden ? "إظهار أدوات التحكم | Werkzeuge zeigen" : "إخفاء أدوات التحكم | Werkzeuge ausblenden"} title={toolsHidden ? "إظهار الأدوات | Werkzeuge zeigen" : "عرض نظيف | Saubere Ansicht"} className={`ml-2 grid h-7 w-7 place-items-center rounded-full border border-secondary shadow-md ${toolsHidden ? "bg-secondary text-secondary-foreground" : "bg-primary text-secondary"}`}>{toolsHidden ? <Wrench className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</button>
                        {menu && <div className="absolute left-3 top-10 w-56 overflow-hidden rounded-lg border border-secondary bg-primary p-1 shadow-xl" onClick={() => setMenu(false)}>
           <Button size="sm" variant="ghost" className={btn} onClick={() => window.dispatchEvent(new CustomEvent("open-view", { detail: "bookings" }))}><ScrollText className="h-3.5 w-3.5 text-secondary" />{t("كشوفات التسكين والحجوزات", "Buchungen & Listen", "Room Distribution & Bookings")}</Button>
