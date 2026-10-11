@@ -68,12 +68,12 @@ export function AdminBar({ content }: { content: SiteContent }) {
   if (!s) return null;
   const isAdmin = s.role === "admin";
   const trashCount = content.trash?.length ?? 0;
-  const hajToolsEnabled = !!content.cms?.hajCanManage;
+  const hajToolsEnabled = !!content.cms?.hajToolsEnabled;
   const toggleHajTools = async () => {
     if (!isAdmin || s.mode !== "admin" || hajToolsBusy) return;
     setHajToolsBusy(true);
     try {
-      await saveOrQueue(s.password, { ...content, cms: { ...(content.cms ?? {}), hajCanManage: !hajToolsEnabled } }, "صلاحيات أدوات الحاج | Hajj-Werkzeuge", qc);
+      await saveOrQueue(s.password, { ...content, cms: { ...(content.cms ?? {}), hajToolsEnabled: !hajToolsEnabled } }, "صلاحيات أدوات الحاج | Hajj-Werkzeuge", qc);
     } catch (e) {
       window.alert(`تعذّر تحديث صلاحيات أدوات الحاج | Fehler\n${e instanceof Error ? e.message : String(e)}`);
     } finally { setHajToolsBusy(false); }
