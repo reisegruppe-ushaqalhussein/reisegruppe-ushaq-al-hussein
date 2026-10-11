@@ -1081,7 +1081,6 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
 export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
   const isAdmin = s?.role === "admin" && s.mode === "admin";
-  const canManage = isAdmin || (s?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
   const bi = biFor(lang);
@@ -1095,6 +1094,10 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   useEffect(() => {
     setHajToolsEnabled(!!savedRc?.hajToolsEnabled);
   }, [savedRc?.hajToolsEnabled]);
+  // The Haj may use the section gear when explicitly enabled by the administrator.
+  // Also support an admin previewing Haj mode, without granting hide/restore powers.
+  const isHajManager = s?.role === "haj" || (s?.role === "admin" && s.mode === "haj");
+  const canManage = isAdmin || (isHajManager && !!(savedRc?.hajToolsEnabled || hajToolsEnabled));
   const [editTitleOpen, setEditTitleOpen] = useState(false);
   const savedTitle = {
     ar: savedRc?.ar || "محاسبة الفنادق الفعلية للحاج",
