@@ -156,7 +156,7 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
       </DialogContent>
     </Dialog>
 
-    <ManageDialog open={manage} onOpenChange={setManage} ar="تسكين الزوار" de="Zimmerverteilung">
+    {canEdit && <ManageDialog open={manage} onOpenChange={setManage} ar="تسكين الزوار" de="Zimmerverteilung">
       <AddButton label={{ ar: "إضافة زائر", de: "Gast hinzufügen" }} fields={roomFields} blank={{ name: "", city: "", hotel: "", floor: "", room: "" }} onAdd={(row) => commit([...all, { ...(row as RoomEntry), id: `rm${Date.now()}` }])} />
       <div className="space-y-2 rounded-md border border-secondary/40 p-3">
         <p className="flex items-center gap-1.5 text-xs font-bold text-primary"><ClipboardPaste className="h-4 w-4" />لصق جماعي | Massenimport</p>
@@ -165,7 +165,7 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
         <Button type="button" className="h-10 w-full" disabled={!paste.trim()} onClick={importRooms}>استيراد | Importieren</Button>
       </div>
       <Button type="button" variant="destructive" className="mt-2 h-11 w-full" onClick={endTrip}><Flag />انتهاء الرحلة <span className="text-xs italic opacity-80">| Reise beenden</span></Button>
-    </ManageDialog>
+    </ManageDialog>}
   </section>;
 }
 
