@@ -341,16 +341,18 @@ export const submitIdRequest = createServerFn({ method: "POST" })
     const names = [data.nameAr, data.nameDe].map(normName).filter(Boolean);
     // Auto-approval requires both a registered name and an exact accommodation match.
     // A name alone is not enough to issue an identity card or emergency QR code.
-    const match = names.length > 0 && rooms.some((r) => {
-      if (r.hidden || !names.includes(normName(r.name))) return false;
-      return data.stays.some((stay) =>
+    const match = names.length > 0 && data.stays.length > 0 &&
+      data.stays.every((stay) =>
         !!stay.hotel.trim() && !!stay.floor.trim() && !!stay.room.trim() &&
-        normCity(r.city) === normCity(stay.city) &&
-        normName(r.hotel) === normName(stay.hotel) &&
-        normName(r.floor) === normName(stay.floor) &&
-        normName(r.room) === normName(stay.room)
+        rooms.some((r) =>
+          !r.hidden &&
+          names.includes(normName(r.name)) &&
+          normCity(r.city) === normCity(stay.city) &&
+          normName(r.hotel) === normName(stay.hotel) &&
+          normName(r.floor) === normName(stay.floor) &&
+          normName(r.room) === normName(stay.room)
+        )
       );
-    });
     const status: IdStatus = match ? "approved" : "pending";
     const row: IdRequest = { ...data, at: Date.now(), status, auto: match };
     await writeJson("id_requests", [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000));
