@@ -354,7 +354,7 @@ export const submitIdRequest = createServerFn({ method: "POST" })
         )
       );
     const status: IdStatus = match ? "approved" : "pending";
-    const row: IdRequest = { ...data, at: Date.now(), status, auto: match };
+    const row: IdRequest = { ...data, tripId: data.tripId || undefined, at: Date.now(), status, auto: match };
     await writeJson("id_requests", [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000));
     if (status === "pending" && (!existing || existing.status !== "pending")) {
       try { await notifyStaffOfIdRequest(data.nameAr, data.nameDe); }
