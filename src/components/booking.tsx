@@ -53,6 +53,18 @@ function parseDateStr(str: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function formatBirthDateInput(value: string): string {
+  const trimmed = value.trim();
+  // Keep year-first dates (YYYY-MM-DD / YYYY.MM.DD) intact.
+  if (/^\d{4}[-/.]/.test(trimmed)) return trimmed;
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  // Allow typing a year-first date before its separator is entered.
+  if (digits.length <= 4 && /^(19|20)/.test(digits)) return digits;
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+}
+
 function age(birth: string) {
   const b = parseDateStr(birth);
   if (!b) return 30;
@@ -517,12 +529,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
                 placeholder="DD.MM.YYYY"
                 value={t.birthDate}
                 onChange={(e) => {
-                  let val = e.target.value;
-                  const d = val.replace(/\D/g, "");
-                  if (!val.includes(".") && !val.includes("-") && !val.includes("/")) {
-                    if (d.length >= 5) val = `${d.slice(0, 2)}.${d.slice(2, 4)}.${d.slice(4, 8)}`;
-                    else if (d.length >= 3) val = `${d.slice(0, 2)}.${d.slice(2, 4)}`;
-                  }
+                  const val = formatBirthDateInput(e.target.value);
                   setT(i, { birthDate: val, ...(val ? { category: catOf(val) } : {}) });
                 }}
                 className={inputCls}
@@ -1119,12 +1126,7 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
             placeholder="DD.MM.YYYY"
             value={t["birthDate"]}
             onChange={(e) => {
-              let val = e.target.value;
-              const d = val.replace(/\D/g, "");
-              if (!val.includes(".") && !val.includes("-") && !val.includes("/")) {
-                if (d.length >= 5) val = `${d.slice(0, 2)}.${d.slice(2, 4)}.${d.slice(4, 8)}`;
-                else if (d.length >= 3) val = `${d.slice(0, 2)}.${d.slice(2, 4)}`;
-              }
+              const val = formatBirthDateInput(e.target.value);
               setT(i, "birthDate", val);
             }}
             className={inputCls}
