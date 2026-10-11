@@ -255,7 +255,7 @@ export const listFeedback = createServerFn({ method: "POST" })
 /* ---------- Pilgrim ID approval ---------- */
 export type IdField = { id: string; ar: string; de: string };
 export type IdStatus = "pending" | "approved" | "rejected";
-export type IdRequest = { id: string; at: number; status: IdStatus; auto?: boolean; tripId?: string; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
+export type IdRequest = { id: string; at: number; status: IdStatus; auto?: boolean; tripId?: string | undefined; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
 const t = z.string().max(500);
 
 export const getIdFields = createServerFn({ method: "GET" }).handler(async () => readJson<IdField[]>("id_fields", []));
