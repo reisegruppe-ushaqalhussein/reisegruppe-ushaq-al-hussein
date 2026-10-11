@@ -669,7 +669,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   // إحداثيات الموقع الحالي GPS
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   // مدينة مكتوبة يدوياً (تُحفظ فقط عند الإدخال اليدوي)
-  const [manualPlace, setManualPlace] = useState<{ name: string; lat: number; lng: number } | null>(() => {
+  const [manualPlace, setManualPlace] = useState<{ name: string; ar?: string; de?: string; lat: number; lng: number } | null>(() => {
     try {
       const saved = localStorage.getItem("ushaq_prayer_manual");
       return saved ? JSON.parse(saved) : null;
@@ -789,11 +789,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     setPlaceBusy(true);
     setPlaceError(null);
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ar,de,en&q=${encodeURIComponent(q)}`);
-      const j = (await r.json()) as Array<{ lat: string; lon: string; display_name: string }>;
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&namedetails=1&accept-language=de&q=${encodeURIComponent(q)}`);
+      const j = (await r.json()) as Array<{ lat: string; lon: string; name?: string; display_name: string; namedetails?: Record<string, string> }>;
       const hit = j[0];
       if (!hit) throw new Error("none");
-      const place = { name: hit.display_name.split(",").slice(0, 2).join(",").trim(), lat: Number(hit.lat), lng: Number(hit.lon) };
+      const germanName = hit.namedetails?.["name:de"] || hit.name || hit.display_name.split(",").slice(0, 2).join(",").trim();
+      const typedArabic = /[\\u0600-\\u06FF]/.test(q);
+      const arabicName = hit.namedetails?.["name:ar"] || (typedArabic ? q : germanName);
+      const place = { name: germanName, ar: arabicName, de: germanName, lat: Number(hit.lat), lng: Number(hit.lon) };
       setManualPlace(place);
       setPlaceQuery("");
       try {
@@ -1132,7 +1135,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         <div className="mb-3 space-y-2 rounded-md border border-border/70 bg-accent/20 p-2.5 text-center">
           {manualPlace ? (
             <div className="flex items-center justify-between gap-2 px-1 text-xs">
-              <span className="min-w-0 truncate font-semibold text-primary">🔍 {manualPlace.name}</span>
+              <span className="min-w-0 truncate font-semibold text-primary">🔍 <Pair ar={manualPlace.ar || manualPlace.name} de={manualPlace.de || toGerman(manualPlace.name)} /></span>
               <span className="flex shrink-0 items-center gap-2">
                 <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
                   📍 GPS
