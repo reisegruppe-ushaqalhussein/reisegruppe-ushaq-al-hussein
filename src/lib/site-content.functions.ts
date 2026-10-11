@@ -316,7 +316,7 @@ async function notifyStaffOfIdRequest(nameAr: string, nameDe: string) {
       body: JSON.stringify({ message: {
         token,
         notification: { title: "طلب هوية جديد | Neue Ausweis-Anfrage", body: `${nameAr || nameDe || "زائر جديد"} — يرجى مراجعة الطلبات | Bitte Anfrage prüfen` },
-        webpush: { fcm_options: { link: "/" }, headers: { Urgency: "high" } },
+        webpush: { fcm_options: { link: "/?openIdRequests=1#pilgrimId" }, headers: { Urgency: "high" } },
       } }),
     });
     if (!res.ok) {
