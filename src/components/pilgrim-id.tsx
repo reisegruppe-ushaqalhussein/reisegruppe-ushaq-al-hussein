@@ -199,7 +199,27 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   };
   const approved = p.status === "approved";
   const pendingCount = requests.filter((r) => r.status === "pending").length;
-  const decide = async (id: string, status: "approved" | "rejected" | "delete") => { if (!staff) return; if (status === "delete" && !window.confirm("حذف الطلب؟ | Anfrage löschen?")) return; await decideIdRequest({ data: { password: staff.password, id, status } }); loadRequests(); };
+  const decide = async (id: string, status: "approved" | "rejected" | "delete") => { if (!staff) return; if (status === "delete" && !window.confirm("حذف الطلب؟ | Anfrage löschen?")) return; await decideIdRequest({ data: { password: staff.password, id, status } }); void loadRequests(); };
+  const deleteMyIdentity = async () => {
+    if (!window.confirm("حذف هويتك وبياناتها من هذا الهاتف وحذف طلبها من سجل الحملة؟ | Ihren Ausweis und die zugehörige Anfrage löschen?")) return;
+    if (p.reqId) {
+      try { await deleteMyIdRequest({ data: { id: p.reqId } }); }
+      catch { window.alert("تعذّر حذف الطلب من سجل الحملة. اتصل بالإنترنت وحاول مجدداً. | Anfrage konnte nicht vom Kampagnenserver gelöscht werden."); return; }
+    }
+    localStorage.removeItem(KEY);
+    save(empty);
+    setDraft(empty);
+    setEditing(true);
+  };
+  const deleteVisitRequests = async () => {
+    if (!staff || !activeTripId) return;
+    const trip = visitTrips.find((item) => item.id === activeTripId);
+    const tripName = trip ? (trip.ar || trip.de) : activeTripId;
+    if (!window.confirm("حذف جميع طلبات الهويات المرتبطة بزيارة «" + tripName + "» من سجل الحملة؟ لن تُحذف نسخ البطاقات المحفوظة على هواتف الزوار. | Alle Anfragen dieser Reise aus dem Kampagnenregister löschen?")) return;
+    const result = await deleteIdRequestsForTrip({ data: { password: staff.password, tripId: activeTripId } });
+    if (result.ok) { await loadRequests(); window.alert("تم حذف " + result.deleted + " طلباً من سجل الحملة. يجب على كل زائر حذف بطاقته من هاتفه أيضاً. | " + result.deleted + " Anfragen gelöscht. Besucher müssen lokale Ausweise zusätzlich selbst löschen."); }
+    else window.alert("تعذّر الحذف أو لا تملك الصلاحية | Löschen fehlgeschlagen oder keine Berechtigung");
+  };
   const [st, setSt] = useState<IdSettings>(defaultSettings);
   useEffect(() => {
     try { const c = localStorage.getItem(SKEY); if (c) setSt({ ...defaultSettings, ...JSON.parse(c) }); } catch { /* ignore */ }
@@ -290,6 +310,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <div className="mx-auto mt-5 w-fit rounded-lg bg-background p-3"><QRCodeSVG value={qr} size={150} /></div>
       <p className="mt-2 text-center text-[11px] opacity-75">امسح للاتصال بالحملة · Scannen für Kontakt</p>
       <div className="mt-3 flex flex-col items-center text-center text-xs [&_span]:!text-center"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block text-center font-bold text-secondary">{x}</a>)}</div>
+      <Button type="button" variant="outline" className="mt-4 w-full border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => void deleteMyIdentity()}><Trash2 className="h-4 w-4" /><T ar="حذف هويتي بعد انتهاء الزيارة" de="Meinen Ausweis nach der Reise löschen" /></Button>
     </section>}
 
     {editing && !locked && !staff && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
