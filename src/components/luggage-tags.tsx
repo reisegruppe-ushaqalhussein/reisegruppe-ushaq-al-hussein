@@ -335,7 +335,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
   const [hasCustom, setHasCustom] = useState(false);
    
   const s = useAdminSession();
-  const canManage = (s?.role === "admin" && s.mode === "admin") || (s?.role === "haj" && !!content.cms?.hajCanManage);
+  const canManage = (s?.role === "admin" && s.mode === "admin") || (s?.role === "haj" && !!content.cms?.hajToolsEnabled);
   const saveContent = useSaveContent(s?.password ?? "");
   const isEditing = useSectionEditMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
