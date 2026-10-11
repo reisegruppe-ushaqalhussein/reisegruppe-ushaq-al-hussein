@@ -32,8 +32,31 @@ function waLink(raw: string) {
   return `https://wa.me/${d}`;
 }
 
+function parseDateStr(str: string): Date | null {
+  if (!str.trim()) return null;
+  const parts = str.trim().split(/[./-]/);
+  if (parts.length === 3) {
+    let year: number, month: number, day: number;
+    if (parts[0] && parts[1] && parts[2] && parts[0].length <= 2 && parts[2].length === 4) {
+      day = Number(parts[0]); month = Number(parts[1]); year = Number(parts[2]);
+    } else if (parts[0] && parts[1] && parts[2] && parts[0].length === 4) {
+      year = Number(parts[0]); month = Number(parts[1]); day = Number(parts[2]);
+    } else {
+      return null;
+    }
+    if (![year!, month!, day!].every(Number.isInteger) || year! < 1900 || month! < 1 || month! > 12 || day! < 1 || day! > 31) return null;
+    const parsed = new Date(year!, month! - 1, day!);
+    if (parsed.getFullYear() !== year! || parsed.getMonth() !== month! - 1 || parsed.getDate() !== day!) return null;
+    return parsed;
+  }
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function age(birth: string) {
-  const b = new Date(birth), n = new Date();
+  const b = parseDateStr(birth);
+  if (!b) return 30;
+  const n = new Date();
   let a = n.getFullYear() - b.getFullYear();
   if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
   return a;
@@ -483,7 +506,11 @@ export function BookingForm({ content }: { content: SiteContent }) {
           {/* 3. الاسم الكامل بالعربية لبطاقات الأمتعة */}
           <label className="block font-bold"><L ar="الاسم الكامل بالعربية (لبطاقات الأمتعة)" de="Vollständiger Name auf Arabisch (für Gepäckanhänger)" /><span className="block text-[11px] font-normal text-muted-foreground"><L ar="(الاسم الثلاثي أو الرباعي لتجنب تشابه الأسماء)" de="(Drei- oder vierteiliger Name, um Verwechslungen zu vermeiden)" /></span><input dir="rtl" autoComplete="off" value={t.arabicName} onChange={(e) => setT(i, { arabicName: e.target.value })} maxLength={120} placeholder="علي حسن محمد" className={inputCls} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="block font-bold"><L ar="تاريخ الميلاد" de="Geburtsdatum" /><input dir="ltr" type="date" value={t.birthDate} onChange={(e) => setT(i, { birthDate: e.target.value, ...(e.target.value ? { category: catOf(e.target.value) } : {}) })} className={inputCls} /></label>
+            <label className="block font-bold">
+              <L ar="تاريخ الميلاد" de="Geburtsdatum" />
+              <span className="block text-[11px] font-normal text-muted-foreground"><L ar="(مثال: 15.08.1970 أو 1970-08-15)" de="(z. B. 15.08.1970 oder 1970-08-15)" /></span>
+              <input dir="ltr" type="text" inputMode="text" placeholder="DD.MM.YYYY" value={t.birthDate} onChange={(e) => { const val = e.target.value; setT(i, { birthDate: val, ...(val ? { category: catOf(val) } : {}) }); }} className={inputCls} />
+            </label>
             <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input list="bk-nat" autoComplete="off" value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
             <label className="block font-bold"><L ar="رقم الجواز" de="Passnummer" /><input dir="ltr" list="bk-pass" autoComplete="off" value={t.passportNo} onChange={(e) => setT(i, { passportNo: e.target.value.replace(/\s/g, "") })} maxLength={20} className={inputCls + " uppercase"} /></label>
             <label className="block font-bold"><L ar="انتهاء الجواز" de="Pass gültig bis" /><input dir="ltr" type="date" value={t.passportExpiry} onChange={(e) => setT(i, { passportExpiry: e.target.value })} className={inputCls} /></label>
