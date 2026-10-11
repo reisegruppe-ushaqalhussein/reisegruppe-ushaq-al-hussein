@@ -11,8 +11,12 @@ import { duaCategories, duaCategoryOf, type DuaCategory, type DuaEntry, type Rec
 export { ADMIN_KEY } from "@/lib/admin-session";
 
 /** Returns the access code if this device is signed in (admin or campaign leader). */
-export function useAdminPassword() {
-  return useAdminSession()?.password ?? null;
+export function useAdminPassword(content?: SiteContent) {
+  const s = useAdminSession();
+  if (!s) return null;
+  if (s.role === "admin" && s.mode === "admin") return s.password;
+  if (s.role === "haj" && content?.cms?.hajCanManage) return s.password;
+  return null;
 }
 
 function useSaveDuas(password: string, content: SiteContent) {
