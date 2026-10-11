@@ -567,7 +567,7 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
-  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, phoneIndex: 4, widths: [3, 27, 8, 9, 20, 12, ...hotels.map(() => 17), 16, 17],
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, phoneIndex: 4, widths: [8, 27, 10, 9, 16, 16, ...hotels.map(() => 16), 16, 17],
     info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
     head: ["NO", "الأسماء\nNamen", "العدد\nAnz.", "الفئة\nPax", "رقم الهاتف\nTelefon", "المطار\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\n${de} / Zi.-Nr.`; }), "ملاحظات الحاج\nNotizen", "ملاحظات الزائر\nHinweise"],
     body };
