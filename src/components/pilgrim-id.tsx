@@ -343,7 +343,17 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
       {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input type="text" inputMode={/birth|birthday|geburt|ميلاد|تاريخ.*(?:ولادة|ميلاد)/i.test(`${f.id} ${f.ar} ${f.de}`) ? "text" : undefined} name={`extra-${f.id}`} autoComplete="off" autoCorrect="off" spellCheck={false} dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
-      {visitTrips.length > 0 && <label className="block text-xs font-bold text-primary"><T ar="الزيارة التي تسجّل فيها" de="Reise auswählen" /><select className={inputCls} value={draft.tripId || activeTripId} onChange={(e) => setDraft({ ...draft, tripId: e.target.value })}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{display(lang, trip.ar, trip.de).main} — {trip.date || ""}</option>)}</select></label>}
+      {visitTrips.length > 0 && (
+         <label className="block text-xs font-bold text-primary">
+           <T ar="الزيارة التي تسجّل فيها" de="Reise auswählen" />
+           <select className={inputCls} value={draft.tripId ?? ""} onChange={(e) => setDraft({ ...draft, tripId: e.target.value })}>
+             <option value="">{lang === "ar" ? "— اختر الزيارة —" : lang === "de" ? "— Reise auswählen —" : "— اختر الزيارة | Reise auswählen —"}</option>
+             {visitTrips.map((trip) => (
+               <option key={trip.id} value={trip.id}>{display(lang, trip.ar, trip.de).main} — {trip.date || ""}</option>
+             ))}
+           </select>
+         </label>
+       )}
       <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || lb['staysAr'] || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
@@ -359,7 +369,8 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
           setEditing(false);
         }}><Check className="h-4 w-4" /><T ar="حفظ فقط على هاتفي" de="Nur auf meinem Handy speichern" /></Button>
         <Button type="button" className="h-11" disabled={sending} onClick={async () => {
-          if (!(draft.nameAr.trim() || draft.nameDe.trim()) || fields.some((f) => !(draft.extra?.[f.id] ?? "").trim())) { window.alert("يرجى تعبئة الاسم وجميع الحقول المطلوبة (*) | Bitte Name und alle Pflichtfelder (*) ausfüllen"); return; }
+          if (visitTrips.length > 0 && !draft.tripId) { window.alert("يرجى اختيار الزيارة أولاً | Bitte zuerst eine Reise auswählen"); return; }
+           if (!(draft.nameAr.trim() || draft.nameDe.trim()) || fields.some((f) => !(draft.extra?.[f.id] ?? "").trim())) { window.alert("يرجى تعبئة الاسم وجميع الحقول المطلوبة (*) | Bitte Name und alle Pflichtfelder (*) ausfüllen"); return; }
           const next = { ...draft, reqId: draft.reqId ?? p.reqId ?? crypto.randomUUID(), tripId: draft.tripId || activeTripId };
           await submit(next);
           setEditing(false);
