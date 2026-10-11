@@ -509,7 +509,24 @@ export function BookingForm({ content }: { content: SiteContent }) {
             <label className="block font-bold">
               <L ar="تاريخ الميلاد" de="Geburtsdatum" />
               <span className="block text-[11px] font-normal text-muted-foreground"><L ar="(مثال: 15.08.1970 أو 1970-08-15)" de="(z. B. 15.08.1970 oder 1970-08-15)" /></span>
-              <input dir="ltr" type="text" inputMode="text" placeholder="DD.MM.YYYY" value={t.birthDate} onChange={(e) => { const val = e.target.value; setT(i, { birthDate: val, ...(val ? { category: catOf(val) } : {}) }); }} className={inputCls} />
+              <input
+                dir="ltr"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                placeholder="DD.MM.YYYY"
+                value={t.birthDate}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  const d = val.replace(/\D/g, "");
+                  if (!val.includes(".") && !val.includes("-") && !val.includes("/")) {
+                    if (d.length >= 5) val = `${d.slice(0, 2)}.${d.slice(2, 4)}.${d.slice(4, 8)}`;
+                    else if (d.length >= 3) val = `${d.slice(0, 2)}.${d.slice(2, 4)}`;
+                  }
+                  setT(i, { birthDate: val, ...(val ? { category: catOf(val) } : {}) });
+                }}
+                className={inputCls}
+              />
             </label>
             <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input list="bk-nat" autoComplete="off" value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
             <label className="block font-bold"><L ar="رقم الجواز" de="Passnummer" /><input dir="ltr" list="bk-pass" autoComplete="off" value={t.passportNo} onChange={(e) => setT(i, { passportNo: e.target.value.replace(/\s/g, "") })} maxLength={20} className={inputCls + " uppercase"} /></label>
@@ -1092,7 +1109,27 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
         <label className={lbl}>{bi("اللقب (لاتيني) | Nachname")}<input dir="ltr" value={t["lastName"]} onChange={(e) => setT(i, "lastName", e.target.value)} className={inputCls} /></label>
         <label className={lbl + " col-span-2"}>{bi("الاسم الكامل بالعربية (لبطاقات الأمتعة) | Name auf Arabisch (Gepäckanhänger)")}<span className="block text-[10px] font-normal text-muted-foreground">{bi("(ثلاثي أو رباعي لتجنب تشابه الأسماء) | (Drei-/vierteilig, Verwechslungen vermeiden)")}</span><input dir="rtl" value={t["arabicName"] ?? ""} onChange={(e) => setT(i, "arabicName", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("الجنس | Geschlecht")}<select value={t["gender"]} onChange={(e) => setT(i, "gender", e.target.value)} className={inputCls}><option value="">—</option><option value="m">{bi("ذكر | männlich")}</option><option value="f">{bi("أنثى | weiblich")}</option></select></label>
-        <label className={lbl}>{bi("تاريخ الميلاد | Geburtsdatum")}<input type="date" value={t["birthDate"]} onChange={(e) => setT(i, "birthDate", e.target.value)} className={inputCls} /></label>
+        <label className={lbl}>
+          {bi("تاريخ الميلاد | Geburtsdatum")}
+          <input
+            dir="ltr"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            placeholder="DD.MM.YYYY"
+            value={t["birthDate"]}
+            onChange={(e) => {
+              let val = e.target.value;
+              const d = val.replace(/\D/g, "");
+              if (!val.includes(".") && !val.includes("-") && !val.includes("/")) {
+                if (d.length >= 5) val = `${d.slice(0, 2)}.${d.slice(2, 4)}.${d.slice(4, 8)}`;
+                else if (d.length >= 3) val = `${d.slice(0, 2)}.${d.slice(2, 4)}`;
+              }
+              setT(i, "birthDate", val);
+            }}
+            className={inputCls}
+          />
+        </label>
         <label className={lbl}>{bi("الجنسية | Nationalität")}<input value={t["nationality"]} onChange={(e) => setT(i, "nationality", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("رقم الجواز | Passnummer")}<input dir="ltr" value={t["passportNo"]} onChange={(e) => setT(i, "passportNo", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("انتهاء الجواز | Pass gültig bis")}<input type="date" value={t["passportExpiry"]} onChange={(e) => setT(i, "passportExpiry", e.target.value)} className={inputCls} /></label>
