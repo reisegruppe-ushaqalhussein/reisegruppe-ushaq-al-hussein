@@ -1326,7 +1326,7 @@ type AdminCtx = { password: string; content: SiteContent } | null;
 
 function DuasView({ content }: { content: SiteContent }) {
   const duas = content.duas;
-  const adminPw = useAdminPassword();
+  const adminPw = useAdminPassword(content);
   const admin: AdminCtx = adminPw ? { password: adminPw, content } : null;
   const showHidden = useShowHidden();
   const managedEntries = useMemo(() => duas.filter((d) => (d.ar || d.de) && (showHidden || !d.hidden)).map((d) => ({ ...d, cat: duaCategoryOf(d), ...splitGermanText(d.textDe) })), [showHidden, duas]);
@@ -1597,7 +1597,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   }, []);
   useEffect(() => { if (welcomed !== null) sessionStorage.setItem("view", view); }, [view, welcomed]);
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
-  const adminPw = useAdminPassword();
+  const adminPw = useAdminPassword(content);
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
     const go = (next: View) => {
     if (window.history.state?.view !== next) window.history.pushState({ view: next }, "");
@@ -1669,7 +1669,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "memories" && <MemoriesView content={content} admin={admin} />}
         {view === "pilgrimId" && <PilgrimIdView content={content} />}
         {view === "bookings" && <StaffScreen content={content} id="bookings" icon={ClipboardList} ar="الحجوزات" de="Buchungen"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><BookingsPanel content={content} /></Suspense></StaffScreen>}
-        {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><RoomCalcPanel /></Suspense></StaffScreen>}
+        {view === "roomCalc" && <StaffScreen content={content} id="roomCalc" icon={Calculator} ar="حاسبة وفرز الغرف" de="Zimmer-Rechner"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><RoomCalcPanel content={content} /></Suspense></StaffScreen>}
         {view === "luggage" && <StaffScreen content={content} id="luggage" icon={Tag} ar="بطاقة الأمتعة والحقائب" de="Kofferanhänger"><Suspense fallback={<div role="status" className="p-4 text-center text-sm text-muted-foreground">جارٍ التحميل… | Wird geladen…</div>}><LuggageTags nameAr="" nameDe="" content={content} /></Suspense></StaffScreen>}
         {view === "rooms" && <StaffScreen content={content} id="rooms" icon={BedDouble} ar="تسكين الزوار" de="Zimmerverteilung"><RoomsPanel content={content} /></StaffScreen>}
         <ScrollToTop />
