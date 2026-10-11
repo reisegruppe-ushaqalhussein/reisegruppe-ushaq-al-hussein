@@ -307,14 +307,19 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
         <div className="grid grid-cols-2 gap-2"><input placeholder="الطابق | Etage" className={inputCls} value={s.floor} onChange={(e) => setStay(s.id, { floor: e.target.value })} /><input placeholder="الغرفة | Zimmer" className={inputCls} value={s.room} onChange={(e) => setStay(s.id, { room: e.target.value })} /></div>
       </div>)}
       <Button type="button" variant="outline" className="h-10 w-full" onClick={() => setDraft({ ...draft, stays: [...draft.stays, { id: crypto.randomUUID(), city: "karbala", hotel: "", floor: "", room: "" }] })}><Plus /><T ar="إضافة مدينة/فندق" de="Stadt/Hotel hinzufügen" /></Button>
-      <div className="grid grid-cols-2 gap-2 pt-2">
+      <div className="grid grid-cols-1 gap-2 pt-2">
+        <Button type="button" variant="outline" className="h-11" disabled={sending} onClick={() => {
+          const same = JSON.stringify({ ...draft, current: undefined }) === JSON.stringify({ ...p, current: undefined });
+          save({ ...draft, reqId: p.reqId, status: same ? p.status : "unsent", seen: same ? p.seen : undefined });
+          setEditing(false);
+        }}><Check className="h-4 w-4" /><T ar="حفظ فقط على هاتفي" de="Nur auf meinem Handy speichern" /></Button>
         <Button type="button" className="h-11" disabled={sending} onClick={async () => {
           if (!(draft.nameAr.trim() || draft.nameDe.trim()) || fields.some((f) => !(draft.extra?.[f.id] ?? "").trim())) { window.alert("يرجى تعبئة الاسم وجميع الحقول المطلوبة (*) | Bitte Name und alle Pflichtfelder (*) ausfüllen"); return; }
-          const same = p.status === "approved" && JSON.stringify({ ...draft, current: undefined }) === JSON.stringify({ ...p, current: undefined });
+          const next = { ...draft, reqId: draft.reqId ?? p.reqId ?? crypto.randomUUID(), tripId: draft.tripId || activeTripId };
+          await submit(next);
           setEditing(false);
-          if (same) save(draft); else await submit(draft);
-        }}><T ar="حفظ وإرسال" de="Speichern & senden" /></Button>
-        {filled && <Button type="button" variant="outline" className="h-11" onClick={() => setEditing(false)}><T ar="إلغاء" de="Abbrechen" /></Button>}
+        }}><Send className="h-4 w-4" /><T ar="حفظ وإرسال للاعتماد" de="Speichern & zur Freigabe senden" /></Button>
+        {filled && <Button type="button" variant="ghost" className="h-10" onClick={() => setEditing(false)}><T ar="إلغاء التعديل" de="Bearbeitung abbrechen" /></Button>}
       </div>
     </section>}
 
