@@ -170,7 +170,15 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     if (!p.reqId || p.status === "unsent") return;
     let alive = true;
     const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => {
-      if (alive && r.status && r.status !== p.status) {
+      if (!alive) return;
+      if (r.status === null && p.status === "approved") {
+        // A deleted visit request revokes the online identity; clear its local copy as soon as this device reconnects.
+        localStorage.removeItem(KEY);
+        save(empty);
+        setEditing(true);
+        return;
+      }
+      if (r.status && r.status !== p.status) {
         // Merge into the latest locally saved record so polling never overwrites a newer hotel selection or edit.
         let latest = p;
         try {
@@ -181,7 +189,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       }
     }).catch(() => {});
     check();
-    const t = p.status === "pending" ? window.setInterval(check, 30000) : 0;
+    const t = (p.status === "pending" || p.status === "approved") ? window.setInterval(check, 30000) : 0;
     return () => { alive = false; if (t) window.clearInterval(t); };
   }, [p.reqId, p.status]);
   const submit = async (d: PilgrimId) => {
@@ -282,7 +290,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <p className="text-xs text-muted-foreground"><T ar="يُفتح التسجيل من إدارة الحملة خلال فترة الرحلة." de="Die Reiseleitung öffnet die Registrierung während der Reise." /></p>
     </section>}
 
-    {!editing && filled && !approved && <section className="relative space-y-3 rounded-xl border-2 border-secondary bg-card p-5 text-center">
+    {!staff && !editing && filled && !approved && <section className="relative space-y-3 rounded-xl border-2 border-secondary bg-card p-5 text-center">
       <Button type="button" variant="ghost" size="icon" onClick={start} aria-label="تعديل البطاقة | Karte bearbeiten" className="absolute left-3 top-3 h-9 w-9 rounded-full"><Pencil className="h-4 w-4" /></Button>
       <span className={`mx-auto grid h-12 w-12 place-items-center rounded-full ${p.status === "rejected" ? "bg-destructive/15 text-destructive" : "bg-accent text-secondary"}`}>{p.status === "rejected" ? <X className="h-6 w-6" /> : <Clock className="h-6 w-6" />}</span>
       <p className="text-lg font-bold text-primary">{p.nameAr || p.nameDe}</p>
