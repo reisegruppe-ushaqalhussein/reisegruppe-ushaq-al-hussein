@@ -9,7 +9,7 @@ import { useAdminSession } from "@/lib/admin-session";
 import { enablePush } from "@/lib/push";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
-import { decideIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, translateLabels, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
+import { decideIdRequest, deleteIdRequestsForTrip, deleteMyIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, translateLabels, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
 
 export const DEFAULT_LEADER_PHONE = "+9647819998905";
 const KEY = "ushaq-pilgrim-id";
@@ -29,7 +29,7 @@ const fallbackCity = { id: "other", ar: "وجهة أخرى", de: "Anderer Ort" }
 const cityOf = (id: string) => cities.find((c) => c.id === id) ?? fallbackCity;
 
 export type Stay = { id: string; city: string; hotel: string; floor: string; room: string };
-export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent"; seen?: string | undefined };
+export type PilgrimId = { nameAr: string; nameDe: string; phone: string; stays: Stay[]; current?: string; tripId?: string; extra?: Record<string, string>; reqId?: string; status?: "pending" | "approved" | "rejected" | "unsent"; seen?: string | undefined };
 const empty: PilgrimId = { nameAr: "", nameDe: "", phone: "", stays: [] };
 const SKEY = "ushaq-id-settings";
 const defaultSettings: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
@@ -117,6 +117,9 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const [draft, setDraft] = useState<PilgrimId>(empty);
   const [manage, setManage] = useState(false);
   const phones = leaderPhones(content);
+  const visitTrips = content.trips.filter((trip) => !trip.hidden);
+  const [selectedTripId, setSelectedTripId] = useState("");
+  const activeTripId = selectedTripId || visitTrips[0]?.id || "";
   const filled = !!(p.nameAr || p.nameDe);
   const [fields, setFields] = useState<IdField[]>([]);
   const [requests, setRequests] = useState<IdRequest[]>([]);
@@ -185,7 +188,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     const reqId = d.reqId ?? crypto.randomUUID();
     setSending(true);
     try {
-      const r = await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
+      const r = await submitIdRequest({ data: { id: reqId, tripId: d.tripId || activeTripId || undefined, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
       if (r.closed) { window.alert("التسجيل مغلق حالياً | Die Registrierung ist derzeit geschlossen"); save({ ...d, status: "unsent" }); }
       else save({ ...d, reqId, status: r.status ?? "pending", seen: r.status === "approved" ? undefined : d.seen });
     } catch (e) {
@@ -245,7 +248,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       </GearMenu>}</div>
       {staff && newRequestAlert && <div role="alert" className="rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm font-bold text-destructive animate-pulse"><p>🔔 طلب هوية جديد | Neue Ausweis-Anfrage</p><p className="mt-1 text-xs">{newRequestAlert}</p><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => { void loadRequests(); setReqOpen(true); setNewRequestAlert(""); }}>عرض الطلبات | Anfragen ansehen</Button><Button size="sm" variant="outline" onClick={() => setNewRequestAlert("")}>إخفاء | Schließen</Button></div></div>}
     {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}{staff.role === "admin" && st.hajCanToggle ? " · صلاحية الحاج مفعّلة | Hajj-Berechtigung aktiv" : ""}</p>}
-    <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
+    <p className="text-xs text-muted-foreground"><T ar="تُحفظ بطاقتك على هاتفك وتعمل دون إنترنت. عند إرسال طلب الاعتماد، تُرسل بيانات الطلب الضرورية إلى الحملة للتحقق منها." de="Ihr Ausweis wird auf Ihrem Handy gespeichert und funktioniert offline. Beim Senden zur Freigabe werden die erforderlichen Anfragedaten zur Prüfung an die Reiseleitung übermittelt." /></p>
 
     {notice && <div className={`flex items-start gap-2 rounded-lg border-2 p-3 text-sm font-bold ${p.status === "approved" ? "border-secondary bg-accent text-primary" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
       {p.status === "approved" ? <Check className="h-5 w-5 shrink-0" /> : <X className="h-5 w-5 shrink-0" />}
@@ -270,7 +273,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       {p.status !== "pending" && p.status !== "rejected" && <Button type="button" className="h-11 w-full" disabled={sending} onClick={() => submit(p)}><Send className="h-4 w-4" /><T ar="إرسال للاعتماد" de="Zur Freigabe senden" /></Button>}
     </section>}
 
-    {!editing && filled && approved && <section className="relative overflow-hidden rounded-xl border-2 border-secondary bg-primary p-5 text-primary-foreground shadow-lg">
+    {!staff && !editing && filled && approved && <section className="relative overflow-hidden rounded-xl border-2 border-secondary bg-primary p-5 text-primary-foreground shadow-lg">
       <Button type="button" variant="ghost" size="icon" onClick={start} aria-label="تعديل البطاقة | Karte bearbeiten" className="absolute left-3 top-3 h-9 w-9 rounded-full bg-background/15 text-primary-foreground hover:bg-background/25 hover:text-primary-foreground"><Pencil className="h-4 w-4" /></Button>
       <p className="text-center text-xs text-secondary">حملة عشاق الحسين - ألمانيا<span dir="ltr" className="block">Reisegruppe Ushaq al-Hussein</span></p>
       <div className="gold-line mx-auto my-3 h-px w-24" />
@@ -293,7 +296,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <div className="mt-3 text-center text-xs"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block font-bold text-secondary">{x}</a>)}</div>
     </section>}
 
-    {editing && !locked && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+    {editing && !locked && !staff && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
       {staff && <p className="rounded-md bg-accent px-3 py-2 text-xs font-bold text-primary"><T ar="تحكم المشرف: إضافة وتعديل وحذف بيانات البطاقة والإقامة" de="Mitarbeiter: Ausweis- und Unterkunftsdaten verwalten" /></p>}
       <label className="block text-xs font-bold text-primary">{L("name", "الاسم بالعربية", "Name (Arabisch)")}<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
