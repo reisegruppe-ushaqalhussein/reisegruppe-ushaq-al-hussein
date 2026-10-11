@@ -1254,7 +1254,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
       <div dir="ltr" className="flex min-w-0 items-center gap-1.5 rounded-lg border-2 border-secondary/60 bg-card p-2.5 shadow-sm transition-all">
         {canManage && <div className="flex shrink-0 items-center gap-1"><GearMenu className="!mr-0">
           <IconBtn label={bi("إضافة فندق | Hotel hinzufügen")} onClick={addHotel}><Plus className="h-3.5 w-3.5" /></IconBtn>
-          {isAdmin && <IconBtn label={bi("تعديل إعدادات الملف | Dateieinstellungen bearbeiten")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+          {canManage && <IconBtn label={bi("تعديل إعدادات الملف | Dateieinstellungen bearbeiten")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
           <IconBtn label={bi("تحديث | Aktualisieren")} onClick={() => void load()}><RefreshCw className="h-3.5 w-3.5" /></IconBtn>
           {isAdmin && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
         </GearMenu></div>}
