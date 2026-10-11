@@ -12,7 +12,7 @@ import { MemoriesView } from "@/components/memories";
 import { PilgrimIdView, ScrollToTop } from "@/components/pilgrim-id";
 import { FolderCard, FullPage, GuidelinesFolders, RenameTitle } from "@/components/final-group";
 import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
-import { GuideView, ItineraryView, TasbeehView, TawafView } from "@/components/extras";
+import { GuideView, ItineraryView, TasbeehView, TawafView, PackingView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
 import { CustomSectionView, HomeBanner, TileGrid, pathOf, type Tile } from "@/components/cms";
 import { LanguageSwitcher } from "@/components/lang-switcher";
@@ -123,7 +123,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "custom" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "tawaf" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId" | "rooms" | "bookings" | "roomCalc" | "luggage";
+type View = "custom" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "tawaf" | "packing" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId" | "rooms" | "bookings" | "roomCalc" | "luggage";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -218,6 +218,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   guide: { ar: "دليل الإقامة والمواقع", de: "Unterkunft & Orte" },
   tasbeeh: { ar: "السبحة الإلكترونية", de: "Digitale Tasbih" },
   tawaf: { ar: "عداد الطواف والسعي", de: "Tawaf- & Sa‘i-Zähler" },
+  packing: { ar: "حقيبة السفر", de: "Reise-Checkliste" },
   qibla: { ar: "اتجاه القبلة", de: "Qibla-Kompass" },
   occasions: { ar: "المناسبات الخاصة", de: "Besondere Anlässe" },
   hadiths: { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" },
@@ -303,6 +304,7 @@ const homeTiles: Tile[] = [
     { builtin: true, id: "guide", ar: "دليل الإقامة والمواقع", de: "Unterkunft & Orte", icon: MapPin },
     { builtin: true, id: "tasbeeh", ar: "السبحة الإلكترونية", de: "Digitale Tasbih", icon: Vibrate },
     { builtin: true, id: "tawaf", ar: "عداد الطواف والسعي", de: "Tawaf- & Sa‘i-Zähler", icon: KaabaIcon },
+    { builtin: true, id: "packing", ar: "حقيبة السفر", de: "Reise-Checkliste", icon: ClipboardList },
     { builtin: true, id: "qibla", ar: "اتجاه القبلة", de: "Qibla-Kompass", icon: Compass },
     { builtin: true, id: "occasions", ar: "المناسبات الخاصة", de: "Besondere Anlässe", icon: Sparkles },
     { builtin: true, id: "hadiths", ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: Feather },
@@ -1670,6 +1672,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "guide" && <GuideView content={content} admin={admin} />}
         {view === "tasbeeh" && <TasbeehView />}
         {view === "tawaf" && <TawafView />}
+        {view === "packing" && <PackingView />}
         {view === "qibla" && <QiblaView />}
         {view === "occasions" && <ResourcesView content={content} admin={admin} kind="occasions" />}
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
