@@ -263,15 +263,13 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const current = p.stays.find((s) => s.id === p.current) ?? p.stays[0];
-  const qrStay = current ? cityOf(current.city) : null;
   const qr = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `FN:${vcardEscape(`${p.nameAr} ${p.nameDe}`.trim() || "Pilger / زائر")}`,
-    "ORG:Ushaq al-Hussein Reisegruppe - Deutschland",
-    ...(p.phone.trim() ? [`TEL;TYPE=CELL,VOICE:${clean(p.phone)}`] : []),
+    `FN:${vcardEscape("طوارئ حملة عشاق الحسين (ع) — ألمانيا")}`,
+    `ORG:${vcardEscape("حملة عشاق الحسين (ع) — ألمانيا")}`,
     ...phones.map((x) => `TEL;TYPE=WORK,VOICE:${clean(x)}`),
-    ...(current && qrStay ? [`ADR;TYPE=WORK:;;${vcardEscape(current.hotel || "Hotel nicht angegeben")};${vcardEscape(qrStay.de)};;;`, `NOTE:${vcardEscape(`Notfallkontakte: ${phones.join(", ")} | Hotel: ${current.hotel || "—"} | Stadt: ${qrStay.de} | Etage: ${current.floor || "—"} | Zimmer: ${current.room || "—"}`)}`] : []),
+    `NOTE:${vcardEscape(`بيانات الزائر: ${`${p.nameAr} ${p.nameDe}`.trim() || "—"} | الفندق: ${current?.hotel?.trim() || "غير محدد"}`)}`,
     "END:VCARD",
   ].join("\r\n");
 
@@ -344,7 +342,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
       <label className="block text-xs font-bold text-primary">{L("name", "الاسم بالعربية", "Name (Arabisch)")}<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
-      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input type="text" autoComplete="off" autoCorrect="off" spellCheck={false} dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
+      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input type="text" inputMode="text" name={`extra-${f.id}`} autoComplete="off" autoCorrect="off" spellCheck={false} dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
       {visitTrips.length > 0 && <label className="block text-xs font-bold text-primary"><T ar="الزيارة التي تسجّل فيها" de="Reise auswählen" /><select className={inputCls} value={draft.tripId || activeTripId} onChange={(e) => setDraft({ ...draft, tripId: e.target.value })}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{display(lang, trip.ar, trip.de).main} — {trip.date || ""}</option>)}</select></label>}
       <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || lb['staysAr'] || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
