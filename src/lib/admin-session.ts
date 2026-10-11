@@ -16,7 +16,7 @@ const TOOLS_KEY = "admin-tools-hidden";
 let toolsHidden = false;
 /** What editing controls see: null while the staff member has hidden the tools for a clean view. */
 let visible: AdminSession | null = null;
-const emit = () => { visible = toolsHidden ? null : session; listeners.forEach((l) => l()); };
+const emit = () => { visible = toolsHidden || (session?.role === "admin" && session.mode !== "admin") ? null : session; listeners.forEach((l) => l()); };
 
 export function deviceInfo() {
   let id = localStorage.getItem(DEVICE_KEY);
@@ -46,7 +46,7 @@ function start() {
   const role = (localStorage.getItem(ROLE_KEY) as AccessRole | null) ?? "admin";
   const mode = (localStorage.getItem(MODE_KEY) as AccessRole | null) ?? role;
   session = { password: pw, role, mode: role === "haj" ? "haj" : mode };
-  visible = toolsHidden ? null : session;
+  visible = toolsHidden || (session?.role === "admin" && session.mode !== "admin") ? null : session;
   checkAdminPassword({ data: { password: pw, ...deviceInfo() } })
     .then((r) => { if (r.ok && r.role) set({ password: pw, role: r.role, mode: r.role === "haj" ? "haj" : (session?.mode ?? r.role) }); else set(null); })
     .catch(() => { /* offline: keep the stored session */ });
@@ -73,7 +73,7 @@ export function setToolsHidden(hidden: boolean) {
 /** Full app-structure control: always the admin; the haj only when the admin has allowed it. */
 export function useCanManage(content: { cms?: { hajCanManage?: boolean } | undefined }) {
   const s = useAdminSession();
-  return !!s && (s.role === "admin" || (s.role === "haj" && !!content.cms?.hajCanManage));
+  return !!s && ((s.role === "admin" && s.mode === "admin") || (s.role === "haj" && !!content.cms?.hajCanManage));
 }
 
 /** Only the general admin in admin mode sees hidden items and hide/restore controls. */
