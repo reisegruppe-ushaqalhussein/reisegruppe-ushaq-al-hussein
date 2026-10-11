@@ -281,7 +281,6 @@ export function BookingForm({ content }: { content: SiteContent }) {
   const submit = useServerFn(submitBooking);
   const { lang } = useLang();
   const bi = biFor(lang);
-  const oneLang = (ar: string, de: string) => display(lang, ar, de).main;
   const trips = content.trips.filter((t) => t.visible !== false && !t.hidden);
   const reg = regOf(content);
   const [step, setStep] = useState(0);
@@ -649,6 +648,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const qc = useQueryClient();
   const { lang } = useLang();
   const bi = biFor(lang);
+  const oneLang = (ar: string, de: string) => { const d = display(lang, ar, de); return d.sub ? `${d.main} | ${d.sub}` : d.main; };
   const list = useServerFn(listBookings);
   const update = useServerFn(updateBooking);
   const fileUrl = useServerFn(bookingFileUrl);
