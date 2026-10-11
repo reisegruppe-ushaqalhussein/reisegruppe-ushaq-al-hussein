@@ -652,7 +652,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const { lang } = useLang();
   const prayerTitle = content ? labelOf(content, "prayer", "مواقيت الصلاة", "Gebetszeiten") : { ar: "مواقيت الصلاة", de: "Gebetszeiten" };
   const adminSession = useAdminSession();
-  const canManage = (adminSession?.role === "admin" && adminSession.mode === "admin") || (adminSession?.role === "haj" && !!content?.cms?.hajCanManage);
+  const canManage = (adminSession?.role === "admin" && adminSession.mode === "admin") || (adminSession?.role === "haj" && !!content?.cms?.hajToolsEnabled);
   const [localEdit, setLocalEdit] = useState(false);
   const isSectionEditing = useSectionEditMode();
   const isEditing = canManage && (localEdit || isSectionEditing);
