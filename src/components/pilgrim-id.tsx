@@ -272,7 +272,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
     ...phones.map((x) => `TEL;TYPE=WORK,VOICE:${clean(x)}`),
     ...(current && qrStay ? [`ADR;TYPE=WORK:;;${vcardEscape(current.hotel || "Hotel nicht angegeben")};${vcardEscape(qrStay.de)};;;`, `NOTE:${vcardEscape(`Hotel: ${current.hotel || "—"} | Stadt: ${qrStay.de} | Etage: ${current.floor || "—"} | Zimmer: ${current.room || "—"}`)}`] : []),
     "END:VCARD",
-  ].join("\\r\\n");
+  ].join("\r\n");
 
   return <div className="screen-enter space-y-5 px-4 py-7">
     <div dir="rtl" className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
