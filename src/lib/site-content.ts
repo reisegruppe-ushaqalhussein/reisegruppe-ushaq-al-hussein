@@ -75,7 +75,7 @@ export type CmsItem = { id: string; ar: string; de: string; bodyAr?: string; bod
 export type CmsSection = { id: string; ar: string; de: string; icon: string; items: CmsItem[]; hidden?: boolean };
 /** Free app structure: tile order, hidden tiles, which folder holds which tile, admin-created sections and app design. */
 export type BannerConfig = { image?: string; opacity?: number; blur?: number; titleAr?: string; titleDe?: string; lineAr?: string; lineDe?: string; textAr?: string; textDe?: string };
-export type CmsConfig = { order?: string[]; hiddenTiles?: string[]; parents?: Record<string, string>; sections?: CmsSection[]; hajCanManage?: boolean; hajToolsEnabled?: boolean; columns?: 2 | 3; theme?: string; banner?: BannerConfig; roomCalc?: { ar?: string; de?: string; subAr?: string; subDe?: string; hidden?: boolean } };
+export type CmsConfig = { order?: string[]; hiddenTiles?: string[]; parents?: Record<string, string>; sections?: CmsSection[]; hajToolsEnabled?: boolean; columns?: 2 | 3; theme?: string; banner?: BannerConfig; roomCalc?: { ar?: string; de?: string; subAr?: string; subDe?: string; hidden?: boolean } };
 export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
 
 export const defaultContacts: ContactEntry[] = [
