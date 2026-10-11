@@ -1083,6 +1083,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const adminS = useAdminSession();
   const showHidden = useShowHidden();
   const isEditing = useSectionEditMode();
+  const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.hajCanManage);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
   const bi = biFor(lang);
@@ -1141,7 +1142,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   if (!s) return null;
 
   // إذا تم إخفاء الكرت وكان المستخدم ليس إدارياً، لا يُعرض
-  if (isCardHidden && !showHidden && !adminS) return null;
+  if (isCardHidden && !(showHidden || canManage)) return null;
 
   const byTrip = trip === "all" ? active : active.filter((r) => groupKey(r) === trip);
   const words = norm(q).split(" ").filter(Boolean);
@@ -1204,7 +1205,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
         </button>
 
         {/* أزرار التحكيم الخارجية (تعديل، إخفاء/إظهار، ترس) */}
-        <div className="flex items-center gap-1 border-s border-border ps-1.5">
+        {canManage && <div className="flex items-center gap-1 border-s border-border ps-1.5">
           <button
             type="button"
             onClick={() => void load()}
@@ -1233,7 +1234,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           >
             {isCardHidden ? <Eye className="h-3.5 w-3.5 text-primary font-bold" /> : <EyeOff className="h-3.5 w-3.5" />}
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* نافذة تعديل العناوين الخارجية */}
@@ -1293,7 +1294,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
         <div className="mt-2 rounded-lg border border-border bg-card p-3 shadow-md space-y-3">
           {/* شريط الإدارة والتحكيم الداخلي */}
           <div className="flex items-center justify-between border-b border-border pb-2">
-            <div className="flex items-center gap-1.5">
+            {canManage && <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-primary flex items-center gap-1.5">
                 <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
               </span>
@@ -1308,7 +1309,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               >
                 ✏️ {isEditing ? bi("التعديل مفعّل | Aktiv") : bi("وضع التعديل | Bearbeiten")}
               </button>
-            </div>
+            </div>}
 
             <div className="flex items-center gap-1.5">
               <button
@@ -1352,7 +1353,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
           <div className="rounded-lg border-2 border-secondary/50 bg-secondary/10 p-2.5 text-xs space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-primary">🏨 {bi("محاسبة الفنادق الفعلية (للحاج) | Hotel-Abrechnung")}</span>
-              <button
+              {canManage && <button
                 type="button"
                 onClick={() =>
                   setHotels((prev) => [
@@ -1364,7 +1365,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
               >
                 <Plus className="h-3 w-3" />
                 <span>{bi("إضافة فندق | Hotel hinzufügen")}</span>
-              </button>
+              </button>}
             </div>
 
             {hotels.map((h, i) => {
@@ -1393,7 +1394,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                     />
 
                     {/* أزرار التحكيم الخاصة بكل فندق (تعديل ✏️، إخفاء 👁️، حذف 🗑️) */}
-                    <div className="flex items-center gap-0.5">
+                    {canManage && <div className="flex items-center gap-0.5">
                       <button
                         type="button"
                         onClick={() =>
@@ -1417,7 +1418,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                    </div>
+                    </div>}
                   </div>
 
                   {/* إدخال أعداد الغرف */}
