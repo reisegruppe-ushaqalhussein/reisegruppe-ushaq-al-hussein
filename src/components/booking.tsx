@@ -1081,7 +1081,6 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
 export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const s = useStaffSession();
   const isAdmin = s?.role === "admin" && s.mode === "admin";
-  const [hotelEditMode, setHotelEditMode] = useState(false);
   const canManage = isAdmin || (s?.role === "haj" && !!content?.cms?.roomCalc?.hajToolsEnabled);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
@@ -1105,6 +1104,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   };
   const [draftTitle, setCustomTitle] = useState(savedTitle);
   const [draftLabels, setDraftLabels] = useState<Record<string, { ar?: string; de?: string }>>(savedRc?.labels ?? {});
+  const [hotelDraft, setHotelDraft] = useState<RoomCalcHotel | null>(null);
   const customTitle = editTitleOpen ? draftTitle : savedTitle;
   const hotelFieldLabels = [
     { key: "city", ar: "المدينة", de: "Stadt" },
@@ -1142,11 +1142,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
 
   // بيانات الفنادق محفوظة في محتوى الحملة ومفصولة حسب الرحلة.
   const [hotels, setHotels] = useState<RoomCalcHotel[]>(savedRc?.hotels ?? []);
-  const [hotelsDirty, setHotelsDirty] = useState(false);
-  useEffect(() => {
-    setHotels(savedRc?.hotels ?? []);
-    setHotelsDirty(false);
-  }, [savedRc?.hotels]);
+  useEffect(() => { setHotels(savedRc?.hotels ?? []); }, [savedRc?.hotels]);
 
   const load = async () => {
     if (!s) return;
@@ -1189,17 +1185,16 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     setHotelsDirty(true);
   };
   const addHotel = () => {
-    if (trip === "all") {
-      window.alert(bi("اختر رحلة محددة أولاً، ثم أضف الفندق إليها | Bitte zuerst eine bestimmte Reise auswählen."));
-      return;
-    }
-    setHotels((all) => [...all, { id: "hotel_" + Date.now(), tripKey: trip, city: "", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false }]);
-    setHotelsDirty(true);
+    if (trip === "all") { setIsOpen(true); window.alert(bi("افتح القائمة واختر رحلة محددة أولاً، ثم اضغط (+) لإضافة الفندق إليها | Bitte zuerst eine bestimmte Reise auswählen und dann auf (+) tippen.")); return; }
+    setHotelDraft({ id: "hotel_" + Date.now(), tripKey: trip, city: "", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false }); setIsOpen(true);
   };
-  const saveHotels = async () => {
-    const ok = await persistRc({ hotels });
-    if (ok) setHotelsDirty(false);
+  const saveHotelDraft = async () => {
+    if (!hotelDraft) return;
+    const next = hotels.some((h) => h.id === hotelDraft.id) ? hotels.map((h) => h.id === hotelDraft.id ? hotelDraft : h) : [...hotels, hotelDraft];
+    if (await persistRc({ hotels: next })) { setHotels(next); setHotelDraft(null); }
   };
+  const toggleHotelHidden = async (hotel: RoomCalcHotel) => { const next = hotels.map((h) => h.id === hotel.id ? { ...h, hidden: !h.hidden } : h); if (await persistRc({ hotels: next })) setHotels(next); };
+  const deleteHotel = async (hotel: RoomCalcHotel) => { if (!window.confirm(bi("هل تريد حذف هذا الفندق نهائياً؟ | Dieses Hotel endgültig löschen?"))) return; const next = hotels.filter((h) => h.id !== hotel.id); if (await persistRc({ hotels: next })) setHotels(next); };
 
   if (!s) return null;
 
@@ -1228,79 +1223,33 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const shown = byTrip.filter(hit);
   const pax = byTrip.reduce((n, r) => n + r.travelers.length, 0);
 
-  // نسخ كشف المحاسبة للفنادق
-  const copyHotelReport = () => {
-    let report = `🏨 ${bi(`${customTitle.ar} | ${customTitle.de}`)}\n`;
-    report += `📌 ${tripLabel(trip, bi)} — (${pax} ${bi("زائر | Pax")})\n`;
-    report += `─────────────────────\n`;
-    hotelsForTrip.filter((h) => !h.hidden).forEach((h, idx) => {
-      const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s * 1;
-      const totalRms = h.d + h.t + h.q + h.s;
-      report += `📍 [${idx + 1}] ${tripLabel(h.tripKey, bi)} — ${h.city || "—"} / ${h.name || bi("فندق | Hotel")}:\n`;
-      if (h.d > 0) report += `  • ثنائية (×2): ${h.d}\n`;
-      if (h.t > 0) report += `  • ثلاثية (×3): ${h.t}\n`;
-      if (h.q > 0) report += `  • رباعية (×4): ${h.q}\n`;
-      if (h.s > 0) report += `  • مفردة (×1): ${h.s}\n`;
-      report += `  ← مجموع الغرف: ${totalRms} (${cap} سرير/زائر)\n\n`;
-    });
-    navigator.clipboard.writeText(report.trim());
-    window.alert(bi("تم نسخ كشف المحاسبة بنجاح! | Bericht kopiert!"));
+  // نسخ تقرير مستقل لكل فندق
+  const copyHotelReport = async (h: RoomCalcHotel) => {
+    const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s, totalRms = h.d + h.t + h.q + h.s;
+    const report = ["🏨 " + (h.name || bi("فندق | Hotel")), "📍 " + (h.city || "—"), "🧳 " + tripLabel(h.tripKey, bi), "• " + bi("غرف ثنائية | Doppelzimmer") + ": " + h.d, "• " + bi("غرف ثلاثية | Dreibettzimmer") + ": " + h.t, "• " + bi("غرف رباعية | Vierbettzimmer") + ": " + h.q, "• " + bi("غرف مفردة | Einzelzimmer") + ": " + h.s, "• " + bi("مجموع الغرف | Zimmer gesamt") + ": " + totalRms, "• " + bi("السعة الإجمالية | Gesamtkapazität") + ": " + cap].join("\n");
+    try { await navigator.clipboard.writeText(report); window.alert(bi("تم نسخ تقرير الفندق | Hotelbericht kopiert")); } catch { window.alert(bi("تعذّر النسخ. يرجى المحاولة من جديد | Kopieren fehlgeschlagen. Bitte erneut versuchen.")); }
   };
-
   return (
     <section className={`mb-4 min-w-0 ${isCardHidden ? "opacity-50 border-dashed" : ""}`}>
-      {/* 1. كرت الملف الخارجي القابل للنقر مع أزرار التحكيم الخارجية الكاملة */}
-      <div className="flex items-center gap-1.5 rounded-lg border-2 border-secondary/60 bg-card p-2.5 shadow-sm transition-all">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-start"
-        >
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary/20 text-secondary">
-            <Calculator className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-primary text-sm flex items-center gap-2">
-              <LangText ar={customTitle.ar} de={customTitle.de} />
-              {isCardHidden && <span className="text-[10px] text-destructive font-normal">(مخفي | Versteckt)</span>}
-              <span className="text-xs text-muted-foreground font-normal">({byTrip.length} / {pax} pax)</span>
-            </h3>
-            <p className="text-[11px] text-muted-foreground">
-              {isOpen ? bi("انقر للإغلاق والطي | Zum Schließen tippen") : bi(`${customTitle.subAr} | ${customTitle.subDe}`)}
-            </p>
-          </div>
-          <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground" dir="ltr">
-            {pax}
-          </span>
-          <span className="text-muted-foreground text-xs px-1">{isOpen ? "▲" : "▼"}</span>
+      {/* بطاقة الملف: أدوات الإدارة ثابتة على اليسار مهما كانت لغة العرض */}
+      <div dir="ltr" className="flex min-w-0 items-center gap-1.5 rounded-lg border-2 border-secondary/60 bg-card p-2.5 shadow-sm transition-all">
+        {canManage && <div className="flex shrink-0 items-center gap-1"><GearMenu className="!mr-0">
+          <IconBtn label={bi("إضافة فندق | Hotel hinzufügen")} onClick={addHotel}><Plus className="h-3.5 w-3.5" /></IconBtn>
+          {isAdmin && <IconBtn label={bi("تعديل إعدادات الملف | Dateieinstellungen bearbeiten")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+          <IconBtn label={bi("تحديث | Aktualisieren")} onClick={() => void load()}><RefreshCw className="h-3.5 w-3.5" /></IconBtn>
+          {isAdmin && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+        </GearMenu></div>}
+        <button type="button" dir={rtl ? "rtl" : "ltr"} onClick={() => setIsOpen(!isOpen)} className="flex min-w-0 flex-1 items-center gap-2.5 text-start">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary/20 text-secondary"><Calculator className="h-5 w-5" /></div>
+          <div className="min-w-0 flex-1"><h3 className="flex items-center gap-2 text-sm font-bold text-primary"><LangText ar={customTitle.ar} de={customTitle.de} />{isCardHidden && <span className="text-[10px] font-normal text-destructive">({bi("مخفي | Versteckt")})</span>}</h3><p className="text-[11px] text-muted-foreground">{isOpen ? bi("انقر للإغلاق والطي | Zum Schließen tippen") : <LangText ar={customTitle.subAr} de={customTitle.subDe} />}</p></div>
+          <span dir="ltr" className="grid h-7 min-w-7 shrink-0 place-items-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground">{pax}</span><span className="px-1 text-xs text-muted-foreground">{isOpen ? "▲" : "▼"}</span>
         </button>
-
-        {/* أزرار التحكيم الخارجية (تعديل، إخفاء/إظهار، ترس) */}
-        {canManage && <div className="flex items-center gap-1 border-s border-border ps-1.5">
-          <button
-            type="button"
-            onClick={() => void load()}
-            title={bi("تحديث | Aktualisieren")}
-            className="grid h-7 w-7 place-items-center rounded-full border border-border text-primary hover:bg-accent"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
-
-          <span className="hidden text-[10px] font-bold text-secondary sm:inline">{bi("تحكّم الإدارة | Verwaltung")}</span>
-          <GearMenu>
-            {isAdmin && <IconBtn label={bi("تعديل العناوين والصلاحيات | Titel und Rechte")} onClick={() => { setCustomTitle(savedTitle); setDraftLabels(savedRc?.labels ?? {}); setHajToolsEnabled(!!savedRc?.hajToolsEnabled); setEditTitleOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
-            <IconBtn label={hotelEditMode ? bi("إيقاف التعديل | Bearbeiten beenden") : bi("تفعيل تعديل الفنادق | Hotelbearbeitung aktivieren")} onClick={() => setHotelEditMode((v) => !v)}><Settings className="h-3.5 w-3.5" /></IconBtn>
-            {isAdmin && <IconBtn label={isCardHidden ? bi("إظهار القسم | Bereich anzeigen") : bi("إخفاء القسم | Bereich verbergen")} onClick={() => setIsCardHidden(!isCardHidden)}>{isCardHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
-          </GearMenu>
-
-          <span className="sr-only">{isCardHidden ? bi("القسم مخفي | Bereich verborgen") : bi("القسم ظاهر | Bereich sichtbar")}</span>
-        </div>}
       </div>
 
       {/* نافذة تعديل العناوين الخارجية */}
       {canManage && editTitleOpen && (
         <Dialog open={editTitleOpen} onOpenChange={setEditTitleOpen}>
-          <DialogContent className="max-w-[360px]" dir="rtl">
+          <DialogContent className="max-h-[85dvh] max-w-[360px] overflow-y-auto" dir={rtl ? "rtl" : "ltr"}>
             <DialogHeader className="text-right">
               <DialogTitle className="text-base font-bold text-primary">
                 {bi("تعديل تسمية حاسبة الغرف | Bereich bearbeiten")}
@@ -1341,7 +1290,9 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                   className="mt-1 w-full rounded border border-border p-2"
                 />
               </label>
-              <div className="space-y-2 rounded-lg border border-border p-3">
+              <details className="rounded-lg border border-border p-2">
+                <summary className="cursor-pointer py-1 font-bold text-primary">{bi("إعادة تسمية خانات الفندق والغرف | Hotel- und Zimmerfelder umbenennen")}</summary>
+                <div className="mt-2 space-y-2">
                 <p className="font-bold text-primary">{bi("تسمية خانات الفنادق والغرف | Feldnamen für Hotels und Zimmer")}</p>
                 {hotelFieldLabels.map((field) => (
                   <div key={field.key} className="grid grid-cols-1 gap-1.5 rounded-md bg-muted/30 p-2">
@@ -1350,7 +1301,8 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                     <input dir="ltr" value={draftLabels[field.key]?.de ?? field.de} onChange={(e) => setDraftLabels((all) => ({ ...all, [field.key]: { ...all[field.key], de: e.target.value } }))} placeholder="Name auf Deutsch" className="w-full rounded border border-input bg-background p-2" />
                   </div>
                 ))}
-              </div>
+                </div>
+              </details>
               {isAdmin && (
                 <label className="flex items-start gap-2 rounded-lg border border-secondary/40 bg-secondary/10 p-3 font-bold">
                   <input type="checkbox" checked={hajToolsEnabled} onChange={(e) => setHajToolsEnabled(e.target.checked)} className="mt-0.5 h-4 w-4 accent-secondary" />
@@ -1368,34 +1320,6 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
       {/* 2. محتوى الملف الكامل عند فتحه */}
       {isOpen && (
         <div className="mt-2 rounded-lg border border-border bg-card p-3 shadow-md space-y-3">
-          {/* شريط الإدارة والتحكيم الداخلي */}
-          <div className="flex items-center justify-between border-b border-border pb-2">
-            {canManage && <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                <span>⚙️</span> {bi("لوحة إدارة الغرف والفنادق | Verwaltung")}
-              </span>
-              <span className="text-[11px] text-muted-foreground">{hotelEditMode ? bi("وضع التعديل مفعّل | Bearbeitung aktiv") : bi("وضع العرض | Ansichtsmodus")}</span>
-            </div>}
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={copyHotelReport}
-                className="rounded bg-secondary px-2.5 py-1 text-xs font-bold text-secondary-foreground hover:opacity-90 flex items-center gap-1 shadow-sm"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                <span>{bi("نسخ التقرير | Kopieren")}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="grid h-7 w-7 place-items-center rounded-full border border-border text-xs hover:bg-accent text-muted-foreground"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
           {/* اختيار الرحلة */}
           <label className="block text-xs font-bold text-muted-foreground">
             {bi("اختر الرحلة للفرز | Reise wählen")}:
@@ -1425,64 +1349,31 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             </select>
           </label>
 
-          {/* سجل الفنادق المنظم حسب الرحلة */}
-          <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
-            <div>
-              <h4 className="font-bold text-primary"><LangText ar={customTitle.ar} de={customTitle.de} /></h4>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground"><LangText ar={customTitle.subAr} de={customTitle.subDe} /></p>
-            </div>
-            {trip === "all" && <p className="rounded-lg border border-secondary/40 bg-secondary/10 p-2 text-[11px]">{bi("لعرض فنادق رحلة معينة أو إضافة فندق، اختَر رحلة من القائمة أعلاه. | Bitte oben eine bestimmte Reise auswählen.")}</p>}
-            {canManage && <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
-              <button type="button" onClick={() => setHotelEditMode((v) => !v)} className={"rounded-lg border px-3 py-2 text-xs font-bold " + (hotelEditMode ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-background text-foreground")}>{hotelEditMode ? bi("إيقاف وضع التعديل | Bearbeiten beenden") : bi("تفعيل وضع التعديل | Bearbeiten aktivieren")}</button>
-              <button type="button" onClick={addHotel} disabled={!hotelEditMode} className="rounded-lg border border-secondary bg-background px-3 py-2 text-xs font-bold disabled:opacity-40">{bi("إضافة فندق | Hotel hinzufügen")}</button>
-              <button type="button" onClick={() => void saveHotels()} disabled={!hotelEditMode || !hotelsDirty} className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40">{bi("حفظ البيانات | Daten speichern")}</button>
-              <button type="button" onClick={() => { setHotels(savedRc?.hotels ?? []); setHotelsDirty(false); }} disabled={!hotelEditMode || !hotelsDirty} className="rounded-lg border border-border px-3 py-2 text-xs disabled:opacity-40">{bi("إلغاء التغييرات | Verwerfen")}</button>
-              {hotelsDirty && <span className="self-center text-[11px] font-bold text-secondary">{bi("تغييرات غير محفوظة | Ungespeichert")}</span>}
-            </div>}
-            {shownHotels.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card px-3 py-6 text-center">
-                <Calculator className="mx-auto mb-2 h-6 w-6 text-secondary" />
-                <p className="text-sm font-bold">{bi("لا توجد فنادق محفوظة لهذه الرحلة بعد | Noch keine Hotels für diese Reise")}</p>
-                {canManage && <p className="mt-1 text-[11px] text-muted-foreground">{bi("فعّل وضع التعديل، أضف فندقاً، ثم احفظ البيانات. | Bearbeitungsmodus aktivieren, Hotel hinzufügen und speichern.")}</p>}
-              </div>
-            ) : shownHotels.map((h, i) => {
-              const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s;
-              const totalRms = h.d + h.t + h.q + h.s;
-              return (
-                <div key={h.id} className={"space-y-3 rounded-xl border bg-card p-3 shadow-sm " + (h.hidden ? "border-dashed opacity-60" : "border-border")}>
-                  <div className="flex items-start gap-2">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-secondary/15 font-bold text-primary">{i + 1}</span>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      {trip === "all" && <p className="text-[10px] font-bold text-secondary">{tripLabel(h.tripKey, bi)}</p>}
-                      <label className="block text-[11px] font-bold text-muted-foreground">{hotelLabel("city", "المدينة", "Stadt")}
-                        <input value={h.city} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { city: e.target.value })} placeholder={bi("مثلاً كربلاء، النجف، مكة... | z. B. Kerbela, Nadschaf, Mekka")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
-                      </label>
-                      <label className="block text-[11px] font-bold text-muted-foreground">{hotelLabel("hotel", "اسم الفندق", "Hotelname")}
-                        <input value={h.name} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { name: e.target.value })} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground disabled:opacity-75" />
-                      </label>
-                    </div>
-                    {canManage && hotelEditMode && <div className="flex shrink-0 gap-1">
-                      <button type="button" onClick={() => updateHotel(h.id, { hidden: !h.hidden })} title={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-primary">{h.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
-                      <button type="button" onClick={() => { if (window.confirm(bi("هل تريد حذف هذا الفندق؟ | Dieses Hotel löschen?"))) { setHotels((all) => all.filter((x) => x.id !== h.id)); setHotelsDirty(true); } }} title={bi("حذف الفندق | Hotel löschen")} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-destructive"><Trash2 className="h-4 w-4" /></button>
-                    </div>}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {([{key:"d",ar:"ثنائية ×2",de:"Doppel ×2",factor:2},{key:"t",ar:"ثلاثية ×3",de:"Dreibett ×3",factor:3},{key:"q",ar:"رباعية ×4",de:"Vierbett ×4",factor:4},{key:"s",ar:"مفردة ×1",de:"Einzel ×1",factor:1}] as const).map((room) => (
-                      <label key={room.key} className="rounded-lg border border-border bg-muted/30 p-2 text-center">
-                        <span className="block text-[11px] font-bold">{hotelLabel(room.key, room.ar, room.de)}</span>
-                        <span className="mt-0.5 block text-[10px] text-muted-foreground">{bi(room.factor + " زائر/الغرفة | " + room.factor + " Personen/Zimmer")}</span>
-                        <input type="number" min="0" step="1" value={h[room.key] || ""} disabled={!canManage || !hotelEditMode} onChange={(e) => updateHotel(h.id, { [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" />
-                      </label>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg bg-primary/5 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("totalRooms", "مجموع الغرف", "Zimmer gesamt")}</span><strong className="text-lg text-primary">{totalRms}</strong></div>
-                    <div className="rounded-lg bg-secondary/15 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("capacity", "السعة الإجمالية", "Gesamtkapazität")}</span><strong className="text-lg text-primary">{cap}</strong><span className="ms-1 text-[10px]">{bi("زائر | Personen")}</span></div>
-                  </div>
-                </div>
-              );
+          {/* الفنادق كملفات مختصرة، وتفاصيل كل فندق في نافذة صغيرة */}
+          <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-2.5">
+            <div className="flex items-center justify-between gap-2"><div className="min-w-0"><h4 className="text-sm font-bold text-primary"><LangText ar={customTitle.ar} de={customTitle.de} /></h4><p className="mt-0.5 text-[11px] text-muted-foreground"><LangText ar={customTitle.subAr} de={customTitle.subDe} /></p></div><span className="shrink-0 rounded-full bg-secondary/15 px-2 py-1 text-[10px] font-bold">{shownHotels.length} {bi("فنادق | Hotels")}</span></div>
+            {trip === "all" && <p className="rounded-lg border border-secondary/40 bg-secondary/10 p-2 text-[11px]">{bi("اختر رحلة محددة من القائمة أعلاه لإضافة فندق جديد. | Bitte oben eine bestimmte Reise wählen, um ein Hotel hinzuzufügen.")}</p>}
+            {shownHotels.length === 0 ? <div className="rounded-lg border border-dashed border-border bg-card px-3 py-5 text-center"><Calculator className="mx-auto mb-2 h-5 w-5 text-secondary" /><p className="text-xs font-bold">{bi("لا توجد فنادق لهذه الرحلة بعد | Noch keine Hotels für diese Reise")}</p>{canManage && <p className="mt-1 text-[10px] text-muted-foreground">{bi("استخدم (+) في ترس الإدارة لإضافة فندق. | Mit (+) im Verwaltungsmenü ein Hotel hinzufügen.")}</p>}</div> : shownHotels.map((h) => {
+              const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s, totalRms = h.d + h.t + h.q + h.s;
+              return <div key={h.id} className={"flex min-w-0 items-center gap-2 rounded-lg border bg-card p-2 shadow-sm " + (h.hidden ? "border-dashed opacity-60" : "border-border")}>
+                <button type="button" onClick={() => setHotelDraft({ ...h })} className="flex min-w-0 flex-1 items-center gap-2 text-start"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary/15 text-primary"><FileText className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-primary">{h.name || bi("فندق جديد | Neues Hotel")}</span><span className="block truncate text-[10px] text-muted-foreground">{[h.city, trip === "all" ? tripLabel(h.tripKey, bi) : ""].filter(Boolean).join(" · ") || bi("اضغط لعرض التفاصيل | Tippen für Details")}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{totalRms} {bi("غرف | Zimmer")} · {cap} {bi("زائر | Personen")}</span></span><span className="shrink-0 text-muted-foreground">›</span></button>
+                <div className="flex shrink-0 items-center gap-0.5"><button type="button" onClick={() => void copyHotelReport(h)} aria-label={bi("نسخ تقرير الفندق | Hotelbericht kopieren")} title={bi("نسخ التقرير | Bericht kopieren")} className="grid h-8 w-8 place-items-center rounded-md border border-border text-primary"><Copy className="h-3.5 w-3.5" /></button>{canManage && <button type="button" onClick={() => void toggleHotelHidden(h)} aria-label={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} title={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} className="grid h-8 w-8 place-items-center rounded-md border border-border text-primary">{h.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</button>}{canManage && <button type="button" onClick={() => void deleteHotel(h)} aria-label={bi("حذف الفندق | Hotel löschen")} title={bi("حذف الفندق | Hotel löschen")} className="grid h-8 w-8 place-items-center rounded-md border border-border text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>}</div>
+              </div>;
             })}
           </div>
+          <Dialog open={!!hotelDraft} onOpenChange={(open) => { if (!open) setHotelDraft(null); }}>
+            {hotelDraft && <DialogContent className="max-h-[85dvh] max-w-[360px] overflow-y-auto" dir={rtl ? "rtl" : "ltr"}>
+              <DialogHeader className="text-start"><DialogTitle className="text-sm font-bold text-primary">{hotelDraft.name || bi("بيانات الفندق | Hoteldaten")}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <label className="block text-xs font-bold">{hotelLabel("city", "المدينة", "Stadt")}<input value={hotelDraft.city} disabled={!canManage} onChange={(e) => setHotelDraft((prev) => prev ? { ...prev, city: e.target.value } : prev)} placeholder={bi("مثلاً كربلاء، النجف، مكة... | z. B. Kerbela, Nadschaf, Mekka")} className={inputCls} /></label>
+                <label className="block text-xs font-bold">{hotelLabel("hotel", "اسم الفندق", "Hotelname")}<input value={hotelDraft.name} disabled={!canManage} onChange={(e) => setHotelDraft((prev) => prev ? { ...prev, name: e.target.value } : prev)} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className={inputCls} /></label>
+                <div className="grid grid-cols-2 gap-2">{([{key:"d",ar:"ثنائية ×2",de:"Doppelzimmer ×2",factor:2},{key:"t",ar:"ثلاثية ×3",de:"Dreibettzimmer ×3",factor:3},{key:"q",ar:"رباعية ×4",de:"Vierbettzimmer ×4",factor:4},{key:"s",ar:"مفردة ×1",de:"Einzelzimmer ×1",factor:1}] as const).map((room) => <label key={room.key} className="rounded-lg border border-border bg-muted/30 p-2 text-center text-xs font-bold"><span className="block">{hotelLabel(room.key, room.ar, room.de)}</span><span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">{bi(room.factor + " زائر/الغرفة | " + room.factor + " Personen/Zimmer")}</span><input type="number" min="0" step="1" value={hotelDraft[room.key] || ""} disabled={!canManage} onChange={(e) => setHotelDraft((prev) => prev ? { ...prev, [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) } : prev)} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" /></label>)}</div>
+                <div className="grid grid-cols-2 gap-2"><div className="rounded-lg bg-primary/5 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("totalRooms", "مجموع الغرف", "Zimmer gesamt")}</span><strong className="text-lg text-primary">{hotelDraft.d + hotelDraft.t + hotelDraft.q + hotelDraft.s}</strong></div><div className="rounded-lg bg-secondary/15 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("capacity", "السعة الإجمالية", "Gesamtkapazität")}</span><strong className="text-lg text-primary">{hotelDraft.d * 2 + hotelDraft.t * 3 + hotelDraft.q * 4 + hotelDraft.s}</strong><span className="ms-1 text-[10px]">{bi("زائر | Personen")}</span></div></div>
+                <p className="text-[10px] text-muted-foreground">{bi("الرحلة | Reise")}: {tripLabel(hotelDraft.tripKey, bi)}</p>
+                <div className="flex gap-2 pt-1">{canManage && <Button className="flex-1" onClick={() => void saveHotelDraft()}>{bi("حفظ الفندق | Hotel speichern")}</Button>}<Button variant="outline" className="flex-1" onClick={() => setHotelDraft(null)}>{bi("إلغاء | Abbrechen")}</Button></div>
+              </div>
+            </DialogContent>}
+          </Dialog>
 
           {/* البحث بالاسم أو الهاتف وقائمة الزوار المفرزة */}
           <div className="space-y-1.5 pt-1">
