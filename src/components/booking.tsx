@@ -762,7 +762,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const keep = [0, ...leaderFieldsAll.filter((id) => leaderFields.includes(id)).flatMap((id) => indexes[id] ?? [])];
     const title = lang === "ar" ? leaderTitleAr : lang === "de" || lang === "en" ? leaderTitleDe : `${leaderTitleAr} | ${leaderTitleDe}`;
     const fieldIdForIndex = (i: number) => i === 1 ? "names" : i === 2 ? "count" : i === 3 ? "category" : i === 4 ? "phone" : i === 5 ? "airport" : i >= hotelStart && i < leaderNotesIndex ? "hotels" : i === leaderNotesIndex ? "leaderNotes" : i === visitorNotesIndex ? "visitorNotes" : "";
-    const head = keep.map((i) => { const original = sheet.head[i] ?? ""; const id = fieldIdForIndex(i); const custom = id ? leaderFieldNames[id] : undefined; if (!custom || id === "hotels") return original; return `${custom.ar}\\n${custom.de}`; });
+    const head = keep.map((i) => { const original = sheet.head[i] ?? ""; const id = fieldIdForIndex(i); const custom = id ? leaderFieldNames[id] : undefined; if (!custom || id === "hotels") return original; return `${custom.ar}\n${custom.de}`; });
     return { ...sheet, title: title.trim() || (lang === "ar" ? "قائمة الحاج" : "Leiterliste"), head, widths: keep.map((i) => sheet.widths[i] ?? 12), phoneIndex: keep.indexOf(4), countIndex: keep.indexOf(2), body: sheet.body.map((row) => row.band ? row : ({ ...row, cells: keep.map((i) => row.cells[i] ?? "") })) };
   };
   const saveLeaderSettings = async () => {
