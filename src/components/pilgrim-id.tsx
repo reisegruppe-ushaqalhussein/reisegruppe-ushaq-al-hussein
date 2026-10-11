@@ -60,8 +60,6 @@ function T({ ar, de }: { ar: string; de: string }) {
   return <span className="block">{main}<span lang="de" dir="ltr" className="block text-[0.8em] italic opacity-75">{sub}</span></span>;
 }
 
-function vcardEscape(value: string) { return value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,"); }
-
 function buildSms(p: PilgrimId, stay: Stay | undefined, loc: string, lang: string) {
   const c = stay ? cityOf(stay.city) : null;
   const ar = `نداء طوارئ: أنا الزائر ${p.nameAr || p.nameDe || "—"}${p.phone ? ` (${p.phone})` : ""}. أحتاج مساعدة عاجلة.${stay && c ? ` ${c.ar} - فندق: ${stay.hotel}، طابق: ${stay.floor}، غرفة: ${stay.room}.` : ""}`;
