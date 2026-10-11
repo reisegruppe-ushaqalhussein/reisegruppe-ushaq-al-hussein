@@ -267,10 +267,11 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   const qr = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    "FN:Reisegruppe Ushaq al-Hussein - Notfallkontakt",
+    `FN:${vcardEscape(`${p.nameAr} ${p.nameDe}`.trim() || "Pilger / زائر")}`,
     "ORG:Ushaq al-Hussein Reisegruppe - Deutschland",
+    ...(p.phone.trim() ? [`TEL;TYPE=CELL,VOICE:${clean(p.phone)}`] : []),
     ...phones.map((x) => `TEL;TYPE=WORK,VOICE:${clean(x)}`),
-    ...(current && qrStay ? [`ADR;TYPE=WORK:;;${vcardEscape(current.hotel || "Hotel nicht angegeben")};${vcardEscape(qrStay.de)};;;`, `NOTE:${vcardEscape(`Hotel: ${current.hotel || "—"} | Stadt: ${qrStay.de} | Etage: ${current.floor || "—"} | Zimmer: ${current.room || "—"}`)}`] : []),
+    ...(current && qrStay ? [`ADR;TYPE=WORK:;;${vcardEscape(current.hotel || "Hotel nicht angegeben")};${vcardEscape(qrStay.de)};;;`, `NOTE:${vcardEscape(`Notfallkontakte: ${phones.join(", ")} | Hotel: ${current.hotel || "—"} | Stadt: ${qrStay.de} | Etage: ${current.floor || "—"} | Zimmer: ${current.room || "—"}`)}`] : []),
     "END:VCARD",
   ].join("\r\n");
 
