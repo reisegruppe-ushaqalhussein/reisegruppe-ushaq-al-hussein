@@ -794,7 +794,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       const hit = j[0];
       if (!hit) throw new Error("none");
       const germanName = hit.namedetails?.["name:de"] || hit.name || hit.display_name.split(",").slice(0, 2).join(",").trim();
-      const typedArabic = /[\\u0600-\\u06FF]/.test(q);
+      const typedArabic = /[\u0600-\u06FF]/.test(q);
       const arabicName = hit.namedetails?.["name:ar"] || (typedArabic ? q : germanName);
       const place = { name: germanName, ar: arabicName, de: germanName, lat: Number(hit.lat), lng: Number(hit.lon) };
       setManualPlace(place);
