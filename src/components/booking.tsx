@@ -1083,7 +1083,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   const adminS = useAdminSession();
   const showHidden = useShowHidden();
   const isEditing = useSectionEditMode();
-  const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.hajCanManage);
+  const canManage = (adminS?.role === "admin" && adminS.mode === "admin") || (adminS?.role === "haj" && !!content?.cms?.hajToolsEnabled);
   const list = useServerFn(listBookings);
   const { lang } = useLang();
   const bi = biFor(lang);
