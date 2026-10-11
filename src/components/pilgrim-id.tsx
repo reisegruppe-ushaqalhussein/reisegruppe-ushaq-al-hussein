@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { display, isArabic, useLang } from "@/lib/i18n";
 import { FavStar } from "@/components/group2";
 import { useAdminSession } from "@/lib/admin-session";
+import { enablePush } from "@/lib/push";
 import { AddButton, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { EmergencyEntry, SiteContent } from "@/lib/site-content";
 import { decideIdRequest, getIdFields, getIdSettings, getIdStatus, listIdRequests, saveIdFields, saveIdSettings, submitIdRequest, translateLabels, type IdField, type IdRequest, type IdSettings } from "@/lib/site-content.functions";
@@ -151,6 +152,16 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     if (!staff) return;
     const timer = window.setInterval(() => { void loadRequests(true); }, 20000);
     return () => window.clearInterval(timer);
+  }, [staff?.password]);
+  // If this device previously enabled notifications before staff signed in, refresh its token
+  // now so the server marks it as a staff device and can notify it while the app is closed.
+  useEffect(() => {
+    if (!staff || typeof window === "undefined") return;
+    try {
+      if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") {
+        void enablePush().catch((e) => console.error("refresh staff push registration", e));
+      }
+    } catch { /* push is optional; in-app alerts still work */ }
   }, [staff?.password]);
   useEffect(() => {
     if (!p.reqId || p.status === "unsent") return;
