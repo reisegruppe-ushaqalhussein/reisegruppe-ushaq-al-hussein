@@ -1600,6 +1600,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
   const adminPw = useAdminPassword(content);
   const admin: AdminProps = adminPw ? { password: adminPw, content } : null;
+  const adminSession = useAdminSession();
+  const adminOnly: AdminProps = adminSession?.role === "admin" && adminSession.mode === "admin" ? { password: adminSession.password, content } : null;
     const go = (next: View) => {
     if (window.history.state?.view !== next) window.history.pushState({ view: next }, "");
     try { window.location.hash = next; } catch {}
@@ -1654,7 +1656,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "home" && <HomeView open={open} content={content} payment={content.payment ?? defaultContent.payment} />}
         {view === "custom" && customId && <CustomSectionView key={customId} content={content} id={customId} builtins={homeTiles} onOpen={open} />}
         {view === "trips" && <TripsView content={content} admin={admin} />}
-        {view === "registration" && <RegistrationView content={content} admin={admin} />}
+        {view === "registration" && <RegistrationView content={content} admin={adminOnly} />}
         {view === "contacts" && <ContactsView content={content} admin={admin} />}
         {view === "news" && <NewsView content={content} admin={admin} />}
         {view === "donations" && <DonationsView content={content} admin={admin} />}
