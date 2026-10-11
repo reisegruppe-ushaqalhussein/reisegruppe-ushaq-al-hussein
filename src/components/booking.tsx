@@ -250,7 +250,7 @@ function ScanButton({ reg, onFill, pen }: { reg: RegCfg; onFill: (p: Partial<Tra
 const AIRPORTS = ["Frankfurt (FRA)", "Berlin (BER)", "Düsseldorf (DUS)", "München (MUC)", "Hamburg (HAM)", "Hannover (HAJ)", "Köln/Bonn (CGN)", "Stuttgart (STR)"];
 type Lbl = { ar: string; de: string };
 type ExtraField = { id: string; ar: string; de: string; step: 1 | 2 | 3; required?: boolean };
-type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string>; leaderSheetTitleAr?: string; leaderSheetTitleDe?: string; leaderSheetFields?: string[] };
+type RegCfg = { closed?: boolean; noteAr?: string; noteDe?: string; ocrOff?: boolean; ocrPublic?: boolean; titleAr?: string; titleDe?: string; introAr?: string; introDe?: string; ocrNoteAr?: string; ocrNoteDe?: string; labels?: Record<string, Lbl>; extra?: ExtraField[]; cityOff?: boolean; hotels?: Record<string, string>; leaderSheetTitleAr?: string; leaderSheetTitleDe?: string; leaderSheetFields?: string[]; leaderSettingsLabelAr?: string; leaderSettingsLabelDe?: string; leaderFieldsLabelAr?: string; leaderFieldsLabelDe?: string; leaderSettingsNoteAr?: string; leaderSettingsNoteDe?: string };
 const CITY: ExtraField = { id: "city", ar: "مدينة / منطقة السكن في ألمانيا", de: "Wohnort / Region in Deutschland", step: 2 };
 const extraFields = (reg: RegCfg) => [...(reg.cityOff ? [] : [CITY]), ...(reg.extra ?? [])];
 const labelOf = (reg: RegCfg, f: ExtraField): Lbl => { const o = reg.labels?.[f.ar]; return { ar: o?.ar || f.ar, de: o?.de || f.de }; };
@@ -527,7 +527,7 @@ const norm = (v: string | null | undefined) => (v ?? "").normalize("NFD").replac
 const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
 type Kind = "flight" | "visa" | "rooms";
-type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; body: Array<{ cells: unknown[]; pax: string; band?: boolean }>; tall?: number };
+type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; body: Array<{ cells: unknown[]; pax: string; band?: boolean }>; tall?: number; phoneIndex?: number };
 const live = (rows: BookingRow[]) => rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
 const hotelsFor = (trip: string) => { const d = destOf(trip); return d === "umrah" ? ["مكة / Mekka", "المدينة / Medina"] : d === "iran" ? ["مشهد / Mashhad", "قم / Qom"] : ["الكاظمية / Kadhimiya", "كربلاء / Karbala", "النجف / Najaf"]; };
 const groupOf = (r: BookingRow) => r.travelers.length > 1 ? 0 : r.travelers[0]?.["gender"] === "f" ? 2 : 1;
@@ -567,14 +567,14 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
     });
   });
   const gc = [0, 1, 2].map((g) => lv.filter((r) => groupOf(r) === g).length);
-  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, widths: [4, 27, 5, 8, 23, 8, ...hotels.map(() => 25), 13, 17],
+  return { title: "قائمة الحاج — التجمّع والتسكين / Leiterliste", tall: 42, phoneIndex: 4, widths: [3, 27, 8, 9, 20, 12, ...hotels.map(() => 17), 16, 17],
     info: [total, `✈ ${[...air].map(([a, k]) => `${a}: ${k}`).join(" · ")}`, `👪 ${gc[0]} · 👨 ${gc[1]} · 🧕 ${gc[2]}`, ...hotels.filter((h) => hotelMap[h]).map((h) => `🏨 ${h}: ${hotelMap[h]}`)],
-    head: ["NO", "الأسماء\nNamen", "العدد\nAnz.", "الفئة\nPax", "رقم الهاتف\nTelefon", "المطار\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\n${de} / Zimmer-Nr.`; }), "ملاحظات الحاج\nNotizen", "ملاحظات الزائر\nHinweise"],
+    head: ["NO", "الأسماء\nNamen", "العدد\nAnz.", "الفئة\nPax", "رقم الهاتف\nTelefon", "المطار\nFlughafen", ...hotels.map((h) => { const [ar, de] = h.split(" / "); return `${ar} / رقم الغرفة${hotelMap[h] ? `\n🏨 ${hotelMap[h]}` : ""}\n${de} / Zi.-Nr.`; }), "ملاحظات الحاج\nNotizen", "ملاحظات الزائر\nHinweise"],
     body };
 }
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 function printHtml(s: Sheet, group: string) {
-  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c, i) => `<td${i === 4 ? ` class="phone" dir="ltr"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("");
+  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c, i) => `<td${s.phoneIndex === i ? ` class="phone" dir="ltr"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("");
   const widthTotal = s.widths.reduce((sum, width) => sum + width, 0) || 1;
   const cols = s.widths.map((width) => `<col style="width:${(width / widthTotal * 100).toFixed(3)}%">`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>
@@ -584,8 +584,8 @@ function printHtml(s: Sheet, group: string) {
 html,body{margin:0;padding:0;background:#fff;color:#172033;font-family:Arial,"Noto Sans",sans-serif;font-size:10pt;line-height:1.3}
 h2{font-size:14pt;color:#172033}
 p{font-size:9pt}
-table{border-collapse:collapse;width:100%;table-layout:auto;font-size:9pt}
-td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}th{white-space:pre-line}td.phone{white-space:nowrap;overflow-wrap:normal;word-break:keep-all;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:9pt}
+td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}th{white-space:pre-line}th:first-child,td:first-child{white-space:nowrap;word-break:keep-all;overflow-wrap:normal}th:nth-child(3),td:nth-child(3){word-break:normal;overflow-wrap:normal}td.phone{white-space:nowrap;overflow-wrap:normal;word-break:keep-all;font-variant-numeric:tabular-nums}
 th{background:#1a2a5e!important;color:#fff!important;font-weight:700;text-align:start;font-size:9pt}
 tr{break-inside:avoid;page-break-inside:avoid}
 button{font-size:16px;padding:10px 18px;margin:8px 0}
@@ -650,9 +650,17 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [push, setPush] = useState("");
   const [leaderSettingsOpen, setLeaderSettingsOpen] = useState(false);
   const [leaderFieldsOpen, setLeaderFieldsOpen] = useState(false);
+  const [leaderTextEditOpen, setLeaderTextEditOpen] = useState(false);
   const [leaderTitleAr, setLeaderTitleAr] = useState(regOf(content).leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين");
   const [leaderTitleDe, setLeaderTitleDe] = useState(regOf(content).leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft");
+  const [leaderSettingsLabelAr, setLeaderSettingsLabelAr] = useState(regOf(content).leaderSettingsLabelAr ?? "إعدادات قائمة الحاج");
+  const [leaderSettingsLabelDe, setLeaderSettingsLabelDe] = useState(regOf(content).leaderSettingsLabelDe ?? "Leiterlisten-Einstellungen");
+  const [leaderFieldsLabelAr, setLeaderFieldsLabelAr] = useState(regOf(content).leaderFieldsLabelAr ?? "معلومات الجدول — اختاري ما تريدين طباعته");
+  const [leaderFieldsLabelDe, setLeaderFieldsLabelDe] = useState(regOf(content).leaderFieldsLabelDe ?? "Tabellenfelder — Auswahl für den Druck");
+  const [leaderSettingsNoteAr, setLeaderSettingsNoteAr] = useState(regOf(content).leaderSettingsNoteAr ?? "تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي.");
+  const [leaderSettingsNoteDe, setLeaderSettingsNoteDe] = useState(regOf(content).leaderSettingsNoteDe ?? "Diese Optionen gelten nur für PDF und Excel der Leiterliste; Flug- und Visalisten bleiben unverändert.");
   const [leaderFields, setLeaderFields] = useState<string[]>(regOf(content).leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]);
+  useEffect(() => { const reg = regOf(content); setLeaderTitleAr(reg.leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe(reg.leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft"); setLeaderSettingsLabelAr(reg.leaderSettingsLabelAr ?? "إعدادات قائمة الحاج"); setLeaderSettingsLabelDe(reg.leaderSettingsLabelDe ?? "Leiterlisten-Einstellungen"); setLeaderFieldsLabelAr(reg.leaderFieldsLabelAr ?? "معلومات الجدول — اختاري ما تريدين طباعته"); setLeaderFieldsLabelDe(reg.leaderFieldsLabelDe ?? "Tabellenfelder — Auswahl für den Druck"); setLeaderSettingsNoteAr(reg.leaderSettingsNoteAr ?? "تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي."); setLeaderSettingsNoteDe(reg.leaderSettingsNoteDe ?? "Diese Optionen gelten nur für PDF und Excel der Leiterliste; Flug- und Visalisten bleiben unverändert."); setLeaderFields(reg.leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]); }, [content]);
   useEffect(() => { const reg = regOf(content); setLeaderTitleAr(reg.leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe(reg.leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(reg.leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]); }, [content]);
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
@@ -814,19 +822,35 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
         <Button size="sm" variant="outline" onClick={() => printList(k)}>🖨 PDF</Button>
       </div>)}
        {adminS?.role === "admin" && <div className="rounded-md border border-secondary/70 bg-card p-2">
-         <button type="button" onClick={() => setLeaderSettingsOpen((v) => !v)} aria-expanded={leaderSettingsOpen} className="flex w-full items-center justify-between gap-2 text-start font-bold text-primary">
-           <span className="flex items-center gap-2"><Settings className="h-4 w-4" />{bi("إعدادات قائمة الحاج | Leiterliste-Einstellungen")}</span>
-           <span aria-hidden="true">{leaderSettingsOpen ? "⌃" : "⌄"}</span>
-         </button>
+         <div className="flex items-center gap-2">
+           <button type="button" onClick={() => setLeaderSettingsOpen((v) => !v)} aria-expanded={leaderSettingsOpen} className="flex min-w-0 flex-1 items-center justify-between gap-2 text-start font-bold text-primary">
+             <span className="flex min-w-0 items-center gap-2"><Settings className="h-4 w-4 shrink-0" /><span>{bi(`${leaderSettingsLabelAr} | ${leaderSettingsLabelDe}`)}</span></span><span aria-hidden="true">{leaderSettingsOpen ? "⌃" : "⌄"}</span>
+           </button>
+           <button type="button" aria-label={bi("تعديل نصوص القسم | Edit section text")} title={bi("تعديل نصوص القسم | Edit section text")} onClick={() => { setLeaderSettingsOpen(true); setLeaderTextEditOpen((v) => !v); }} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border bg-card text-primary"><Pencil className="h-4 w-4" /></button>
+         </div>
          {leaderSettingsOpen && <div className="mt-3 space-y-3 border-t border-border pt-3" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
-           <label className="block font-semibold">{bi("اسم الكشف بالعربية | Titel auf Arabisch")}<input dir="rtl" value={leaderTitleAr} onChange={(e) => setLeaderTitleAr(e.target.value)} className={inputCls} /></label>
-           <label className="block font-semibold">{bi("اسم الكشف بالألمانية | Titel auf Deutsch")}<input dir="ltr" value={leaderTitleDe} onChange={(e) => setLeaderTitleDe(e.target.value)} className={inputCls} /></label>
-            <div className="rounded-md border border-border/70"><button type="button" aria-expanded={leaderFieldsOpen} onClick={() => setLeaderFieldsOpen((v) => !v)} className="flex w-full items-center justify-between gap-2 p-2 text-start font-bold"><span>{bi("معلومات الجدول — اختاري ما تريدين طباعته | Tabellenfelder auswählen")}</span><span aria-hidden="true">{leaderFieldsOpen ? "⌃" : "⌄"}</span></button>{leaderFieldsOpen && <div className="space-y-1.5 border-t border-border p-2">
-             {leaderFieldLabels.map((field) => <label key={field.id} dir="rtl" className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-                <input dir="ltr" type="checkbox" checked={leaderFields.includes(field.id)} onChange={(e) => setLeaderFields((prev) => e.target.checked ? [...prev.filter((x) => x !== field.id), field.id] : prev.filter((x) => x !== field.id))} className="h-5 w-5 shrink-0 accent-secondary" /><span className="min-w-0 flex-1 text-start"><span dir="rtl" className="block">{field.ar}</span><span dir="ltr" className="block text-start text-xs text-muted-foreground">{field.de}</span></span>
-            </label>)}</div>}</div>
-           <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void saveLeaderSettings()}>{bi("حفظ الإعدادات | Einstellungen speichern")}</Button><Button size="sm" variant="outline" onClick={() => { setLeaderTitleAr("قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe("Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(leaderFieldsAll); }}>{bi("إعادة الافتراضي | Zurücksetzen")}</Button></div>
-           <p className="text-xs text-muted-foreground">{bi("تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي. | Diese Einstellungen gelten nur für die Leiterliste; Flug- und Visalisten bleiben unverändert.")}</p>
+           {leaderTextEditOpen && <div className="space-y-2 rounded-md border border-secondary/50 bg-accent/20 p-2">
+             <p className="font-bold">{bi("تعديل نصوص القسم | Edit section text")}</p>
+             <label className="block font-semibold">{bi("عنوان الإعدادات بالعربية | Settings title in Arabic")}<input dir="rtl" value={leaderSettingsLabelAr} onChange={(e) => setLeaderSettingsLabelAr(e.target.value)} className={inputCls} /></label>
+             <label className="block font-semibold">{bi("عنوان الإعدادات بالألمانية | Settings title in German")}<input dir="ltr" value={leaderSettingsLabelDe} onChange={(e) => setLeaderSettingsLabelDe(e.target.value)} className={inputCls} /></label>
+             <label className="block font-semibold">{bi("عنوان اختيار الخانات بالعربية | Field selector title in Arabic")}<input dir="rtl" value={leaderFieldsLabelAr} onChange={(e) => setLeaderFieldsLabelAr(e.target.value)} className={inputCls} /></label>
+             <label className="block font-semibold">{bi("عنوان اختيار الخانات بالألمانية | Field selector title in German")}<input dir="ltr" value={leaderFieldsLabelDe} onChange={(e) => setLeaderFieldsLabelDe(e.target.value)} className={inputCls} /></label>
+             <label className="block font-semibold">{bi("الجملة التوضيحية بالعربية | Note in Arabic")}<textarea dir="rtl" rows={2} value={leaderSettingsNoteAr} onChange={(e) => setLeaderSettingsNoteAr(e.target.value)} className={inputCls} /></label>
+             <label className="block font-semibold">{bi("الجملة التوضيحية بالألمانية | Note in German")}<textarea dir="ltr" rows={2} value={leaderSettingsNoteDe} onChange={(e) => setLeaderSettingsNoteDe(e.target.value)} className={inputCls} /></label>
+           </div>}
+           <label className="block font-semibold">{bi("اسم الكشف بالعربية | List title in Arabic")}<input dir="rtl" value={leaderTitleAr} onChange={(e) => setLeaderTitleAr(e.target.value)} className={inputCls} /></label>
+           <label className="block font-semibold">{bi("اسم الكشف بالألمانية | List title in German")}<input dir="ltr" value={leaderTitleDe} onChange={(e) => setLeaderTitleDe(e.target.value)} className={inputCls} /></label>
+           <div className="rounded-md border border-border/70">
+             <button type="button" aria-expanded={leaderFieldsOpen} onClick={() => setLeaderFieldsOpen((v) => !v)} className="flex w-full items-center justify-between gap-2 p-2 text-start font-bold"><span>{bi(`${leaderFieldsLabelAr} | ${leaderFieldsLabelDe}`)}</span><span aria-hidden="true">{leaderFieldsOpen ? "⌃" : "⌄"}</span></button>
+             {leaderFieldsOpen && <div className="space-y-1.5 border-t border-border p-2">
+               {leaderFieldLabels.map((field) => <label key={field.id} className="flex items-center gap-3 rounded-md border border-border/70 px-3 py-2">
+                 <input dir="ltr" type="checkbox" checked={leaderFields.includes(field.id)} onChange={(e) => setLeaderFields((prev) => e.target.checked ? [...prev.filter((x) => x !== field.id), field.id] : prev.filter((x) => x !== field.id))} className="h-5 w-5 shrink-0 accent-secondary" />
+                 <span className="min-w-0 flex-1 text-start">{bi(`${field.ar} | ${field.de}`)}</span>
+               </label>)}
+             </div>}
+           </div>
+           <div className="flex gap-2"><Button size="sm" className="flex-1" onClick={() => void saveLeaderSettings()}>{bi("حفظ الإعدادات | Save settings")}</Button><Button size="sm" variant="outline" onClick={() => { setLeaderTitleAr("قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe("Leiterliste — Treffpunkt und Unterkunft"); setLeaderSettingsLabelAr("إعدادات قائمة الحاج"); setLeaderSettingsLabelDe("Leiterlisten-Einstellungen"); setLeaderFieldsLabelAr("معلومات الجدول — اختاري ما تريدين طباعته"); setLeaderFieldsLabelDe("Tabellenfelder — Auswahl für den Druck"); setLeaderSettingsNoteAr("تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي."); setLeaderSettingsNoteDe("Diese Optionen gelten nur für PDF und Excel der Leiterliste; Flug- und Visalisten bleiben unverändert."); setLeaderFields(leaderFieldsAll); }}>{bi("إعادة الافتراضي | Reset")}</Button></div>
+           <p className="text-xs text-muted-foreground">{bi(`${leaderSettingsNoteAr} | ${leaderSettingsNoteDe}`)}</p>
          </div>}
        </div>}
       <p className="text-muted-foreground">{bi("🟨 طفل CHD · 🟥 رضيع INF — الملغى والمحذوف لا يظهر · الكشوفات دائماً بالأحرف اللاتينية | Kinder gelb, Kleinkinder rot markiert")}</p>
@@ -967,6 +991,7 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
   const [paid, setPaid] = useState(row?.paid_amount ?? 0);
   const [total, setTotal] = useState(row?.total_amount ?? 0);
   const [tr, setTr] = useState<MT[]>(row ? row.travelers.map((t) => ({ ...blankMT(), ...t })) : [blankMT()]);
+  const [expandedTravelers, setExpandedTravelers] = useState<number[]>([0]);
   const [busy, setBusy] = useState(false);
   const [errs, setErrs] = useState<string[]>([]);
   const setT = (i: number, k: string, v: string) => setTr((a) => a.map((t, j) => j !== i ? t : { ...t, [k]: v, ...(k === "birthDate" && v ? { category: catOf(v) } : {}) }));
@@ -1010,9 +1035,9 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
       <label className={lbl}>{bi("الهاتف / واتساب | Telefon")}<input dir="ltr" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} /></label>
     </div>
     <label className={lbl}>{bi("الإيميل (اختياري) | E-Mail (optional)")}<input dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} /></label>
-    {tr.map((t, i) => <div key={i} className="space-y-1.5 rounded-md border border-border bg-muted/50 p-2">
-      <div className="flex items-center justify-between"><b className="text-primary">{bi(i === 0 ? "👤 صاحب الحجز | Hauptperson" : `👥 مرافق ${i} | Begleitung ${i}`)} · {paxOf(t)}</b>{tr.length > 1 && <button type="button" className="text-destructive" onClick={() => { if (window.confirm("حذف هذا المسافر؟ | Entfernen?")) setTr(tr.filter((_, j) => j !== i)); }}><Trash2 className="h-4 w-4" /></button>}</div>
-      <div className="grid grid-cols-2 gap-1.5">
+    {tr.map((t, i) => <div key={i} className="rounded-md border border-border bg-muted/50 p-2">
+      <div className="flex items-center gap-2"><button type="button" aria-expanded={expandedTravelers.includes(i)} onClick={() => setExpandedTravelers((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i])} className="flex min-w-0 flex-1 items-center justify-between gap-2 text-start font-bold"><span className="min-w-0"><span className="block text-primary">{bi(i === 0 ? "👤 صاحب الحجز | Hauptperson" : `👥 مرافق ${i} | Begleitung ${i}`)} · {paxOf(t)}</span><span dir="ltr" className="block truncate text-[11px] font-normal text-muted-foreground">{[t["firstName"], t["lastName"]].filter(Boolean).join(" ") || bi("البيانات الشخصية | Personal details")}</span></span><ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${expandedTravelers.includes(i) ? "rotate-90" : ""}`} /></button>{tr.length > 1 && <button type="button" aria-label={bi("حذف المسافر | Remove traveler")} className="shrink-0 text-destructive" onClick={() => { if (window.confirm(bi("حذف هذا المسافر؟ | Remove this traveler?"))) { setTr(tr.filter((_, j) => j !== i)); setExpandedTravelers((prev) => prev.filter((x) => x !== i).map((x) => x > i ? x - 1 : x)); } }}><Trash2 className="h-4 w-4" /></button>}</div>
+      {expandedTravelers.includes(i) && <div className="mt-2 space-y-1.5"><div className="grid grid-cols-2 gap-1.5">
         <label className={lbl}>{bi("الاسم الأول (لاتيني) | Vorname")}<input dir="ltr" value={t["firstName"]} onChange={(e) => setT(i, "firstName", e.target.value)} className={inputCls} /></label>
         <label className={lbl}>{bi("اللقب (لاتيني) | Nachname")}<input dir="ltr" value={t["lastName"]} onChange={(e) => setT(i, "lastName", e.target.value)} className={inputCls} /></label>
         <label className={lbl + " col-span-2"}>{bi("الاسم الكامل بالعربية (لبطاقات الأمتعة) | Name auf Arabisch (Gepäckanhänger)")}<span className="block text-[10px] font-normal text-muted-foreground">{bi("(ثلاثي أو رباعي لتجنب تشابه الأسماء) | (Drei-/vierteilig, Verwechslungen vermeiden)")}</span><input dir="rtl" value={t["arabicName"] ?? ""} onChange={(e) => setT(i, "arabicName", e.target.value)} className={inputCls} /></label>
@@ -1024,9 +1049,9 @@ function ManualBooking({ content, row, trips, rows, password, onDone }: { conten
         <label className={lbl}>{bi("المطار | Flughafen")}<input value={t["airport"]} onChange={(e) => setT(i, "airport", e.target.value)} className={inputCls} /></label>
         {!t["birthDate"] && <label className={lbl}>{bi("الفئة | Kategorie")}<select value={t["category"]} onChange={(e) => setT(i, "category", e.target.value)} className={inputCls}>{cats.map((c) => <option key={c.id} value={c.id}>{bi(`${c.ar} | ${c.de}`)}</option>)}</select></label>}
         {i > 0 && <label className={lbl}>{bi("صلة القرابة | Beziehung")}<input value={t["relation"]} onChange={(e) => setT(i, "relation", e.target.value)} className={inputCls} /></label>}
-      </div>
+      </div></div>}
     </div>)}
-    <Button size="sm" variant="outline" className="w-full" onClick={() => setTr([...tr, blankMT(tr[0]?.["airport"] ?? "")])}><Plus className="h-3.5 w-3.5" />{bi("إضافة مرافق | Begleitperson hinzufügen")}</Button>
+    <Button size="sm" variant="outline" className="w-full" onClick={() => { setTr([...tr, blankMT(tr[0]?.["airport"] ?? "")]); setExpandedTravelers((prev) => [...prev.filter((x) => x !== tr.length), tr.length]); }}><Plus className="h-3.5 w-3.5" />{bi("إضافة مرافق | Begleitperson hinzufügen")}</Button>
     <label className={lbl}>{bi("ملاحظات الزائر | Hinweise")}<textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} /></label>
     <div className="grid grid-cols-2 gap-1.5">
       <select value={status} onChange={(e) => setStatus(e.target.value as "new")} className={inputCls}><option value="new">{bi(statusLabels["new"]!)}</option><option value="confirmed">{bi(statusLabels["confirmed"]!)}</option></select>
