@@ -48,7 +48,6 @@ const en: Record<string, string> = {
   "Irak-Reise": "Iraq Ziyara",
   "Irak Ziyara": "Iraq Ziyara",
   "Iran Ziyara": "Iran Ziyara",
-  "Arten der Zyarat bei dieser Reise": "Types of Ziyara on this trip",
   "Iran — Zyarat Imam Rida (as)": "Iran — Ziyarat Imam Rida (as)",
   "Jetzt anmelden": "Register now",
   "Kerbela": "Karbala",
