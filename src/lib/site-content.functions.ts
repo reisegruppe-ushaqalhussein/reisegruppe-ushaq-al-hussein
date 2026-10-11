@@ -268,18 +268,65 @@ export const saveIdFields = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string; titleAr?: string; titleDe?: string; lockAr?: string; lockDe?: string; labels?: Record<string, string> };
+export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string; titleAr?: string; titleDe?: string; lockAr?: string; lockDe?: string; labels?: Record<string, string>; hajCanToggle?: boolean };
 const idSettingsDefault: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
 export const getIdSettings = createServerFn({ method: "GET" }).handler(async () => ({ ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) }));
 export const saveIdSettings = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000), titleAr: t.optional(), titleDe: t.optional(), lockAr: z.string().max(1000).optional(), lockDe: z.string().max(1000).optional(), labels: z.record(z.string().max(50), t).optional() }) }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000), titleAr: t.optional(), titleDe: t.optional(), lockAr: z.string().max(1000).optional(), lockDe: z.string().max(1000).optional(), labels: z.record(z.string().max(50), t).optional(), hajCanToggle: z.boolean().optional() }) }).parse(d))
   .handler(async ({ data }) => {
-    if ((await verifyRole(data.password)) !== "admin") return { ok: false };
-    await writeJson("id_settings", data.settings);
+    const role = await verifyRole(data.password);
+    if (role === "admin") {
+      await writeJson("id_settings", data.settings);
+      return { ok: true };
+    }
+    if (role !== "haj") return { ok: false };
+    const current = { ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) };
+    if (!current.hajCanToggle) return { ok: false };
+    // The campaign leader may only open/close registration, never alter admin settings.
+    await writeJson("id_settings", { ...current, open: data.settings.open });
     return { ok: true };
   });
 
 const normName = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g, "").replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+const normCity = (s: string) => {
+  const n = normName(s);
+  if (/كربلا|karbala|kerbela/.test(n)) return "karbala";
+  if (/نجف|najaf|nadschaf/.test(n)) return "najaf";
+  if (/كاظم|kazim|kadhim/.test(n)) return "kazimiyya";
+  if (/سامرا|samarra/.test(n)) return "samarra";
+  if (/مشهد|mashhad|maschhad/.test(n)) return "mashhad";
+  if (/قم|qom|ghom/.test(n)) return "qom";
+  if (/مكه|mecca|mekka/.test(n)) return "mecca";
+  if (/مدينه|medina/.test(n)) return "medina";
+  return n;
+};
+
+async function notifyStaffOfIdRequest(nameAr: string, nameDe: string) {
+  const lovableKey = process.env["LOVABLE_API_KEY"];
+  const fcmKey = process.env["FIREBASE_MESSAGING_API_KEY"];
+  if (!lovableKey || !fcmKey) return;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("push_tokens").select("token").eq("staff", true).limit(100);
+  const stale: string[] = [];
+  const headers = { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": fcmKey, "Content-Type": "application/json" };
+  await Promise.all((data ?? []).map(async ({ token }) => {
+    const res = await fetch("https://connector-gateway.lovable.dev/firebase_messaging/v1/projects/_/messages:send", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message: {
+        token,
+        notification: { title: "طلب هوية جديد | Neue Ausweis-Anfrage", body: `${nameAr || nameDe || "زائر جديد"} — يرجى مراجعة الطلبات | Bitte Anfrage prüfen` },
+        webpush: { fcm_options: { link: "/" }, headers: { Urgency: "high" } },
+      } }),
+    });
+    if (!res.ok) {
+      const message = await res.text();
+      if (res.status === 404 || res.status === 400) stale.push(token);
+      else console.error(`ID request push failed [${res.status}]: ${message}`);
+    }
+  }));
+  if (stale.length) await supabaseAdmin.from("push_tokens").delete().in("token", stale);
+}
 
 export const submitIdRequest = createServerFn({ method: "POST" })
   .validator((d) => z.object({ id: z.string().min(8).max(100), nameAr: t, nameDe: t, phone: t, extra: z.record(z.string().max(100), t), stays: z.array(z.object({ city: t, hotel: t, floor: t, room: t })).max(20) }).parse(d))
@@ -292,10 +339,25 @@ export const submitIdRequest = createServerFn({ method: "POST" })
     const { data: row0 } = await supabaseAdmin.from("site_content").select("data").eq("id", "main").maybeSingle();
     const rooms = mergeContent(row0?.data).rooms ?? [];
     const names = [data.nameAr, data.nameDe].map(normName).filter(Boolean);
-    const match = names.length > 0 && rooms.some((r) => !r.hidden && names.includes(normName(r.name)));
+    // Auto-approval requires both a registered name and an exact accommodation match.
+    // A name alone is not enough to issue an identity card or emergency QR code.
+    const match = names.length > 0 && rooms.some((r) => {
+      if (r.hidden || !names.includes(normName(r.name))) return false;
+      return data.stays.some((stay) =>
+        !!stay.hotel.trim() && !!stay.floor.trim() && !!stay.room.trim() &&
+        normCity(r.city) === normCity(stay.city) &&
+        normName(r.hotel) === normName(stay.hotel) &&
+        normName(r.floor) === normName(stay.floor) &&
+        normName(r.room) === normName(stay.room)
+      );
+    });
     const status: IdStatus = match ? "approved" : "pending";
     const row: IdRequest = { ...data, at: Date.now(), status, auto: match };
     await writeJson("id_requests", [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000));
+    if (status === "pending" && (!existing || existing.status !== "pending")) {
+      try { await notifyStaffOfIdRequest(data.nameAr, data.nameDe); }
+      catch (e) { console.error("ID request notification", e); }
+    }
     return { ok: true, closed: false, status };
   });
 
