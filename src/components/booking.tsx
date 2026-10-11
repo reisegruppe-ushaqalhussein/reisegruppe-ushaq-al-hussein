@@ -672,7 +672,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
   const [leaderFields, setLeaderFields] = useState<string[]>(regOf(content).leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]);
   const [leaderFieldNames, setLeaderFieldNames] = useState<Record<string, { ar: string; de: string }>>(regOf(content).leaderSheetFieldLabels ?? DEFAULT_LEADER_FIELD_LABELS);
   useEffect(() => { const reg = regOf(content); setLeaderTitleAr(reg.leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe(reg.leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft"); setLeaderSettingsLabelAr(reg.leaderSettingsLabelAr ?? "إعدادات قائمة الحاج"); setLeaderSettingsLabelDe(reg.leaderSettingsLabelDe ?? "Leiterlisten-Einstellungen"); setLeaderFieldsLabelAr(reg.leaderFieldsLabelAr ?? "معلومات الجدول — اختاري ما تريدين طباعته"); setLeaderFieldsLabelDe(reg.leaderFieldsLabelDe ?? "Tabellenfelder — Auswahl für den Druck"); setLeaderSettingsNoteAr(reg.leaderSettingsNoteAr ?? "تُطبّق هذه الخيارات على PDF وExcel لقائمة الحاج فقط؛ كشوف الطيران والفيزا تبقى كما هي."); setLeaderSettingsNoteDe(reg.leaderSettingsNoteDe ?? "Diese Optionen gelten nur für PDF und Excel der Leiterliste; Flug- und Visalisten bleiben unverändert."); setLeaderFields(reg.leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]); setLeaderFieldNames(reg.leaderSheetFieldLabels ?? DEFAULT_LEADER_FIELD_LABELS); }, [content]);
-  useEffect(() => { const reg = regOf(content); setLeaderTitleAr(reg.leaderSheetTitleAr ?? "قائمة الحاج — التجمّع والتسكين"); setLeaderTitleDe(reg.leaderSheetTitleDe ?? "Leiterliste — Treffpunkt und Unterkunft"); setLeaderFields(reg.leaderSheetFields ?? ["names", "count", "category", "phone", "airport", "hotels", "leaderNotes", "visitorNotes"]); }, [content]);
   useEffect(() => { if (localStorage.getItem("push-enabled") === "1" && "Notification" in window && Notification.permission === "granted") setPush(bi("✓ التنبيهات مفعّلة على هذا الهاتف | Aktiv")); }, []);
   const load = async () => { if (!s) return; const r = await list({ data: { password: s.password } }); setRows(r.rows); };
   useEffect(() => { void load(); }, [s?.password]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -851,9 +850,6 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
            </div>}
            <label className="block font-semibold">{bi("اسم الكشف بالعربية | List title in Arabic")}<input dir="rtl" value={leaderTitleAr} onChange={(e) => setLeaderTitleAr(e.target.value)} className={inputCls} /></label>
            <label className="block font-semibold">{bi("اسم الكشف بالألمانية | List title in German")}<input dir="ltr" value={leaderTitleDe} onChange={(e) => setLeaderTitleDe(e.target.value)} className={inputCls} /></label>
-           <div className="rounded-md border border-border/70">
-             <button type="button" aria-expanded={leaderFieldsOpen} onClick={() => setLeaderFieldsOpen((v) => !v)} className="flex w-full items-center justify-between gap-2 p-2 text-start font-bold"><span>{bi(`${leaderFieldsLabelAr} | ${leaderFieldsLabelDe}`)}</span><span aria-hidden="true">{leaderFieldsOpen ? "⌃" : "⌄"}</span></button>
-             {leaderFieldsOpen && <div className="space-y-1.5 border-t border-border p-2">
              {leaderTextEditOpen && <div className="space-y-2 rounded-md border border-border/70 p-2">
                <p className="font-bold">{bi("تعديل أسماء الخانات بالعربية والألمانية | Edit field names in Arabic and German")}</p>
                {leaderFieldLabels.map((field) => <div key={field.id} className="grid grid-cols-1 gap-1 rounded-md border border-border/60 p-2">
@@ -861,6 +857,9 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
                  <label className="block text-xs font-semibold">{bi("الألمانية | German")}<input dir="ltr" value={leaderFieldNames[field.id]?.de ?? field.de} onChange={(e) => setLeaderFieldNames((prev) => ({ ...prev, [field.id]: { ...(prev[field.id] ?? field), de: e.target.value } }))} className={inputCls} /></label>
                </div>)}
              </div>}
+           <div className="rounded-md border border-border/70">
+             <button type="button" aria-expanded={leaderFieldsOpen} onClick={() => setLeaderFieldsOpen((v) => !v)} className="flex w-full items-center justify-between gap-2 p-2 text-start font-bold"><span>{bi(`${leaderFieldsLabelAr} | ${leaderFieldsLabelDe}`)}</span><span aria-hidden="true">{leaderFieldsOpen ? "⌃" : "⌄"}</span></button>
+             {leaderFieldsOpen && <div className="space-y-1.5 border-t border-border p-2">
                {leaderFieldLabels.map((field) => <label key={field.id} className="flex items-center gap-3 rounded-md border border-border/70 px-3 py-2">
                  <input dir="ltr" type="checkbox" checked={leaderFields.includes(field.id)} onChange={(e) => setLeaderFields((prev) => e.target.checked ? [...prev.filter((x) => x !== field.id), field.id] : prev.filter((x) => x !== field.id))} className="h-5 w-5 shrink-0 accent-secondary" />
                  <span className="min-w-0 flex-1 text-start">{bi(`${leaderFieldNames[field.id]?.ar ?? field.ar} | ${leaderFieldNames[field.id]?.de ?? field.de}`)}</span>
