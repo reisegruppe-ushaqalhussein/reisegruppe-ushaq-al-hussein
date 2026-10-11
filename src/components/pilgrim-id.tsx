@@ -257,7 +257,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   const lb = st.labels ?? {};
   const centralCityId = centralDraft.activeCity || "karbala";
   const centralCityData = centralDraft.centralHotels?.[centralCityId] ?? { hotel: "", address: "", mapsUrl: "" };
-  const updateCentralHotel = (patch: Partial<{ hotel: string; address: string; mapsUrl: string }>) => setCentralDraft({ ...centralDraft, activeCity: centralCityId, centralHotels: { ...(centralDraft.centralHotels ?? {}), [centralCityId]: { ...centralCityData, ...patch } } });
+  const updateCentralHotel = (patch: Partial<{ hotel: string; address: string; mapsUrl: string; phone: string }>) => setCentralDraft({ ...centralDraft, activeCity: centralCityId, centralHotels: { ...(centralDraft.centralHotels ?? {}), [centralCityId]: { ...centralCityData, ...patch } } });
   const L = (k: string, ar: string, de: string) => { const a = lb[`${k}Ar`] || ""; const d = lb[`${k}De`] || ""; return <T ar={a || ar} de={d || (a ? a : de)} />; };
   const locked = !st.open && !p.reqId && !staff;
   const canSeeEmergency = !!staff || approved || st.emergencyPublic;
@@ -277,6 +277,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   const qrHotel = matchingStay ? matchingStay.hotel.trim() : centralHotel?.hotel?.trim() || "";
   const qrAddress = matchingStay ? matchingStay.address?.trim() || "" : centralHotel?.address?.trim() || "";
   const qrMaps = (matchingStay ? matchingStay.mapsUrl?.trim() : centralHotel?.mapsUrl?.trim()) || (qrHotel || qrAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([qrHotel, qrAddress, qrCity.de].filter(Boolean).join(" "))}` : "");
+  const qrHotelPhone = matchingStay ? "" : centralHotel?.phone?.trim() || "";
   const qr = [
     "حملة عشاق الحسين (ع) — ألمانيا",
     "Reisegruppe Ushaq al-Hussein — Deutschland",
@@ -284,6 +285,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
     `🏨 فندق الإقامة / Unterkunft: ${qrHotel || "غير محدد / Nicht angegeben"} (${qrCity.ar} / ${qrCity.de})`,
     `📍 العنوان / Adresse: ${qrAddress || "غير محدد / Nicht angegeben"}`,
     `🗺️ Google Maps: ${qrMaps || "رابط غير متوفر / Link nicht verfügbar"}`,
+    ...(qrHotelPhone ? [`📞 هاتف الفندق / Hotel-Tel: ${qrHotelPhone}`] : []),
     "--------------------------------",
     "🚨 طوارئ الحملة / Notfall:",
     ...leaderContacts(content).map((contact) => `• ${contact.ar || contact.de || "طوارئ الحملة / Kampagnen-Notfall"}: ${contact.phone}`),
@@ -479,6 +481,7 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
           <label className="block space-y-1 text-xs font-bold"><T ar="اسم الفندق المركزي" de="Zentraler Hotelname" /><input className={inputCls} value={centralCityData.hotel} onChange={(e) => updateCentralHotel({ hotel: e.target.value })} placeholder={lang === "ar" ? "اسم الفندق" : "Hotelname"} /></label>
           <label className="block space-y-1 text-xs font-bold"><T ar="العنوان أو أقرب نقطة دالة" de="Adresse oder Orientierungspunkt" /><input className={inputCls} value={centralCityData.address} onChange={(e) => updateCentralHotel({ address: e.target.value })} placeholder={lang === "ar" ? "العنوان أو أقرب نقطة دالة" : "Adresse oder Orientierungspunkt"} /></label>
           <label className="block space-y-1 text-xs font-bold"><T ar="رابط Google Maps (اختياري)" de="Google-Maps-Link (optional)" /><input dir="ltr" type="url" className={inputCls} value={centralCityData.mapsUrl ?? ""} onChange={(e) => updateCentralHotel({ mapsUrl: e.target.value })} placeholder={lang === "ar" ? "رابط Google Maps (اختياري)" : "Google-Maps-Link (optional)"} /></label>
+          <label className="block space-y-1 text-xs font-bold"><T ar="هاتف استقبال الفندق (اختياري)" de="Telefon der Hotelrezeption (optional)" /><input dir="ltr" type="tel" className={inputCls} value={centralCityData.phone ?? ""} onChange={(e) => updateCentralHotel({ phone: e.target.value })} placeholder="+964 ..." /></label>
           <p className="text-xs text-muted-foreground"><T ar="تُستخدم هذه البيانات في رمز الطوارئ للزوار الذين لم يدخلوا بيانات فندقهم يدوياً. لا تُضاف أسماء الزوار أو أرقامهم أو أرقام الغرف إلى الرمز." de="Diese Daten erscheinen im Notfall-QR, wenn Besucher keine eigenen Hoteldaten eingetragen haben. Namen, persönliche Telefonnummern und Zimmernummern werden nicht codiert." /></p>
           <Button type="button" className="h-11 w-full" onClick={async () => { const ok = await saveSt({ ...st, activeCity: centralCityId, centralHotels: centralDraft.centralHotels ?? {} }); if (ok) setCentralOpen(false); }}><Check className="h-4 w-4" /><T ar="حفظ بيانات المحطة" de="Stationsdaten speichern" /></Button>
         </div>
