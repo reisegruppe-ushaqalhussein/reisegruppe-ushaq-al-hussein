@@ -377,8 +377,13 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>طلبات الهوية <span className="text-sm italic text-muted-foreground">| Ausweis-Anfragen</span></DialogTitle><DialogDescription className="sr-only">Anfragen</DialogDescription></DialogHeader>
         <div className="space-y-2">
-          {requests.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد طلبات | Keine Anfragen</p>}
-          {requests.map((r) => <div key={r.id} className={`space-y-1 rounded-md border p-3 text-xs ${r.status === "pending" ? "border-secondary bg-accent/40" : "border-border bg-card"}`}>
+          {visitTrips.length > 0 && <div className="space-y-2 rounded-md border border-border p-3">
+            <label className="block text-xs font-bold"><T ar="الزيارة الحالية لإدارة الطلبات" de="Reise für Anfragenverwaltung" /><select className={inputCls} value={activeTripId} onChange={(e) => setSelectedTripId(e.target.value)}>{visitTrips.map((trip) => <option key={trip.id} value={trip.id}>{trip.ar} | {trip.de} — {trip.date || ""}</option>)}</select></label>
+            <Button type="button" variant="destructive" className="w-full" onClick={() => void deleteVisitRequests()}><Trash2 className="h-4 w-4" /><T ar="حذف جميع طلبات هذه الزيارة" de="Alle Anfragen dieser Reise löschen" /></Button>
+            <p className="text-[11px] text-muted-foreground"><T ar="يحذف هذا الإجراء طلبات الخادم لهذه الزيارة فقط، ولا يستطيع حذف نسخ البطاقات المحفوظة على هواتف الزوار." de="Löscht nur Serveranfragen dieser Reise, nicht lokal gespeicherte Ausweise auf Besucherhandys." /></p>
+          </div>}
+          {requests.filter((r) => r.tripId === activeTripId).length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد طلبات لهذه الزيارة | Keine Anfragen für diese Reise</p>}
+          {requests.filter((r) => r.tripId === activeTripId).map((r) => <div key={r.id} className={`space-y-1 rounded-md border p-3 text-xs ${r.status === "pending" ? "border-secondary bg-accent/40" : "border-border bg-card"}`}>
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1"><p className="text-sm font-bold text-primary">{r.nameAr || "—"}</p>{r.nameDe && <p dir="ltr" className="text-muted-foreground">{r.nameDe}</p>}</div>
               {r.auto && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-primary">⚡ تلقائي | Auto</span>}
