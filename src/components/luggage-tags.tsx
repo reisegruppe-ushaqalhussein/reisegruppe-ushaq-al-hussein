@@ -335,6 +335,7 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
   const [hasCustom, setHasCustom] = useState(false);
    
   const s = useAdminSession();
+  const canManage = (s?.role === "admin" && s.mode === "admin") || (s?.role === "haj" && !!content.cms?.hajCanManage);
   const saveContent = useSaveContent(s?.password ?? "");
   const isEditing = useSectionEditMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -565,9 +566,9 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       <span className="text-lg text-muted-foreground">{open ? "−" : "+"}</span>
     </button>
     {open && <div className="space-y-3">
-      {s?.role === "admin" && <div className="flex items-center justify-between"><SectionAdminBar /><span className="text-[10px] text-muted-foreground"><L ar="أدوات الإدارة" de="Verwaltungswerkzeuge" /></span></div>}
-      {s?.role === "admin" && isEditing && <div className="flex justify-start"><GearMenu><IconBtn label="إعدادات القسم | Abschnittseinstellungen" onClick={() => setSettingsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
-      {settingsOpen && <EditDialog open={settingsOpen} onOpenChange={setSettingsOpen} title={{ ar: "إعدادات بطاقات الأمتعة", de: "Einstellungen der Kofferanhänger" }} fields={settingsFields} initial={settingsInitial} onSubmit={saveSettings} />}
+      {canManage && <div className="flex items-center justify-between"><SectionAdminBar /><span className="text-[10px] text-muted-foreground"><L ar="أدوات الإدارة" de="Verwaltungswerkzeuge" /></span></div>}
+      {canManage && isEditing && <div className="flex justify-start"><GearMenu><IconBtn label="إعدادات القسم | Abschnittseinstellungen" onClick={() => setSettingsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
+      {canManage && settingsOpen && <EditDialog open={settingsOpen} onOpenChange={setSettingsOpen} title={{ ar: "إعدادات بطاقات الأمتعة", de: "Einstellungen der Kofferanhänger" }} fields={settingsFields} initial={settingsInitial} onSubmit={saveSettings} />}
 
       <div className="grid grid-cols-2 gap-2">
         {(["iraq", "umrah"] as Kind[]).map((k) => <button key={k} type="button" onClick={() => {
