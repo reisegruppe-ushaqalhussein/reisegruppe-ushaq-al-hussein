@@ -610,7 +610,7 @@ button{font-size:16px;padding:10px 18px;margin:8px 0}
 </style></head><body>
 <button onclick="window.print()">🖨 طباعة / PDF – Drucken</button>
 <h2 style="margin:4px 0">${esc(s.title)} — Reisegruppe Ushaq al-Hussein DE</h2><p style="margin:2px 0"><b>${esc(group)}</b></p>${s.info.map((i) => `<p style="margin:2px 0">${esc(i)}</p>`).join("")}
-<table><colgroup>${cols}</colgroup><tr>${s.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
+<table><colgroup>${cols}</colgroup><tr>${s.head.map((h, i) => `<th${s.countIndex === i ? ` class="count"` : ""}>${esc(h)}</th>`).join("")}</tr>${tr}</table></body></html>`;
 }
 function sheetXlsx(s: Sheet, group: string): XSheet {
   const rows: XSheet["rows"] = [
