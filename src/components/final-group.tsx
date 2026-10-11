@@ -7,7 +7,7 @@ import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
-import { useAdminSession, useShowHidden } from "@/lib/admin-session";
+import { useAdminSession, useShowHidden, useCanManage } from "@/lib/admin-session";
 import { AddButton, EditDialog, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
 
@@ -355,7 +355,7 @@ function GuidePost({ g, fallbackPdf, onUpdate, onDelete }: { g: GuidelineEntry; 
   const cur = pics[img % Math.max(n, 1)] ?? "";
   return <article className={`relative space-y-3 rounded-lg border border-secondary/40 bg-card p-3 shadow-sm ${g.hidden ? "opacity-60" : ""}`}>
     {g.hidden && <span className="text-xs text-muted-foreground">مخفي | Versteckt</span>}
-    {staff && <div className="flex justify-end"><GuideItemMenu g={g} pics={pics} imgIndex={img % Math.max(n, 1)} onUpdate={onUpdate} onDelete={onDelete} /></div>}
+    {canManage && <div className="flex justify-end"><GuideItemMenu g={g} pics={pics} imgIndex={img % Math.max(n, 1)} onUpdate={onUpdate} onDelete={onDelete} /></div>}
     {n > 0 && <div className="relative overflow-hidden rounded-md">
       <SmartImg key={cur} src={cur} alt={g.destAr || ""} onOpen={() => setZoom(true)} />
       {n > 1 && <>
@@ -401,6 +401,7 @@ const blankGuide = { destAr: "", destDe: "", ar: "", de: "", images: "", pdf: ""
 
 export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
+  const canManage = useCanManage(content);
   const showHidden = useShowHidden();
   const save = useSaveContent(staff?.password ?? "");
 
@@ -473,7 +474,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       },
     ]);
 
-  const sectionMenu = staff && (
+  const sectionMenu = canManage && (
     <GearMenu>
       <RenameTitle
         content={content}
