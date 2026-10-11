@@ -168,7 +168,13 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     let alive = true;
     const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => {
       if (alive && r.status && r.status !== p.status) {
-        save({ ...p, status: r.status, seen: undefined });
+        // Merge into the latest locally saved record so polling never overwrites a newer hotel selection or edit.
+        let latest = p;
+        try {
+          const raw = localStorage.getItem(KEY);
+          if (raw) latest = { ...empty, ...JSON.parse(raw) as PilgrimId };
+        } catch { /* use the current React state */ }
+        save({ ...latest, status: r.status, seen: undefined });
       }
     }).catch(() => {});
     check();
