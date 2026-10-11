@@ -196,7 +196,7 @@ export const listBookings = createServerFn({ method: "POST" })
       const trip = canonicalTripLabel(match);
       const tripDate = match.date ?? row.trip_date;
       if (row.trip_id !== match.id || row.trip !== trip || row.trip_date !== tripDate) {
-        repairs.push(supabaseAdmin.from("bookings").update({ trip_id: match.id, trip, trip_date: tripDate }).eq("id", row.id));
+        repairs.push(Promise.resolve(supabaseAdmin.from("bookings").update({ trip_id: match.id, trip, trip_date: tripDate }).eq("id", row.id)));
       }
       return { ...row, trip_id: match.id, trip, trip_date: tripDate };
     });
