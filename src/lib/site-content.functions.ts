@@ -268,11 +268,11 @@ export const saveIdFields = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string; titleAr?: string; titleDe?: string; lockAr?: string; lockDe?: string; labels?: Record<string, string>; hajCanToggle?: boolean };
+export type IdSettings = { open: boolean; emergencyPublic: boolean; emTitleAr: string; emTitleDe: string; emNoteAr: string; emNoteDe: string; titleAr?: string; titleDe?: string; lockAr?: string; lockDe?: string; labels?: Record<string, string>; hajCanToggle?: boolean; activeCity?: string; centralHotels?: Record<string, { hotel: string; address: string; mapsUrl?: string }> };
 const idSettingsDefault: IdSettings = { open: false, emergencyPublic: false, emTitleAr: "", emTitleDe: "", emNoteAr: "", emNoteDe: "" };
 export const getIdSettings = createServerFn({ method: "GET" }).handler(async () => ({ ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) }));
 export const saveIdSettings = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000), titleAr: t.optional(), titleDe: t.optional(), lockAr: z.string().max(1000).optional(), lockDe: z.string().max(1000).optional(), labels: z.record(z.string().max(50), t).optional(), hajCanToggle: z.boolean().optional() }) }).parse(d))
+  .validator((d) => z.object({ password: z.string().max(200), settings: z.object({ open: z.boolean(), emergencyPublic: z.boolean(), emTitleAr: t, emTitleDe: t, emNoteAr: z.string().max(1000), emNoteDe: z.string().max(1000), titleAr: t.optional(), titleDe: t.optional(), lockAr: z.string().max(1000).optional(), lockDe: z.string().max(1000).optional(), labels: z.record(z.string().max(50), t).optional(), hajCanToggle: z.boolean().optional(), activeCity: z.string().max(50).optional(), centralHotels: z.record(z.string().max(50), z.object({ hotel: z.string().max(500), address: z.string().max(1000), mapsUrl: z.string().max(5000).optional() })).optional() }) }).parse(d))
   .handler(async ({ data }) => {
     const role = await verifyRole(data.password);
     if (role === "admin") {
@@ -282,8 +282,14 @@ export const saveIdSettings = createServerFn({ method: "POST" })
     if (role !== "haj") return { ok: false };
     const current = { ...idSettingsDefault, ...(await readJson<Partial<IdSettings>>("id_settings", {})) };
     if (!current.hajCanToggle) return { ok: false };
-    // The campaign leader may only open/close registration, never alter admin settings.
-    await writeJson("id_settings", { ...current, open: data.settings.open });
+    // The campaign leader may manage the active station and its public hotel details,
+    // but cannot change admin-only registration/security text or permissions.
+    await writeJson("id_settings", {
+      ...current,
+      open: data.settings.open,
+      activeCity: data.settings.activeCity ?? current.activeCity,
+      centralHotels: data.settings.centralHotels ?? current.centralHotels,
+    });
     return { ok: true };
   });
 
