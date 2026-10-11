@@ -527,7 +527,7 @@ const norm = (v: string | null | undefined) => (v ?? "").normalize("NFD").replac
 const groupKey = (r: BookingRow) => `${r.trip}${r.trip_date ? ` — ${r.trip_date}` : ""}`;
 
 type Kind = "flight" | "visa" | "rooms";
-type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; body: Array<{ cells: unknown[]; pax: string; band?: boolean }>; tall?: number; phoneIndex?: number };
+type Sheet = { title: string; head: string[]; widths: number[]; info: string[]; body: Array<{ cells: unknown[]; pax: string; band?: boolean }>; tall?: number; phoneIndex?: number; countIndex?: number };
 const live = (rows: BookingRow[]) => rows.filter((r) => r.status !== "cancelled" && r.status !== "deleted");
 const hotelsFor = (trip: string) => { const d = destOf(trip); return d === "umrah" ? ["مكة / Mekka", "المدينة / Medina"] : d === "iran" ? ["مشهد / Mashhad", "قم / Qom"] : ["الكاظمية / Kadhimiya", "كربلاء / Karbala", "النجف / Najaf"]; };
 const groupOf = (r: BookingRow) => r.travelers.length > 1 ? 0 : r.travelers[0]?.["gender"] === "f" ? 2 : 1;
@@ -574,7 +574,7 @@ function sheetOf(kind: Kind, rows: BookingRow[], hotelMap: Record<string, string
 }
 const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
 function printHtml(s: Sheet, group: string) {
-  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c, i) => `<td${s.phoneIndex === i ? ` class="phone" dir="ltr"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("");
+  const tr = s.body.map((b) => b.band ? `<tr><td colspan="${s.head.length}" style="background:#e8dfc8;font-weight:bold;padding:6px">${esc(b.cells[0])}</td></tr>` : `<tr style="background:${b.pax === "INF" ? "#fde2e2" : b.pax === "CHD" ? "#fff3c4" : "#fff"};${s.tall ? "height:44px" : ""}">${b.cells.map((c, i) => `<td${s.phoneIndex === i ? ` class="phone" dir="ltr"` : s.countIndex === i ? ` class="count"` : ""}>${esc(c)}</td>`).join("")}</tr>`).join("");
   const widthTotal = s.widths.reduce((sum, width) => sum + width, 0) || 1;
   const cols = s.widths.map((width) => `<col style="width:${(width / widthTotal * 100).toFixed(3)}%">`).join("");
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(s.title)} – ${esc(group)}</title><style>
@@ -585,7 +585,7 @@ html,body{margin:0;padding:0;background:#fff;color:#172033;font-family:Arial,"No
 h2{font-size:14pt;color:#172033}
 p{font-size:9pt}
 table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:9pt}
-td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}th{white-space:pre-line}th:first-child,td:first-child{white-space:nowrap;word-break:keep-all;overflow-wrap:normal}th:nth-child(3),td:nth-child(3){word-break:normal;overflow-wrap:normal}td.phone{white-space:nowrap;overflow-wrap:normal;word-break:keep-all;font-variant-numeric:tabular-nums}
+td,th{border:1px solid #687386;padding:5px 6px;vertical-align:top;color:#172033;overflow-wrap:anywhere;word-break:normal}th{white-space:pre-line}th:first-child,td:first-child{white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.count{white-space:normal;word-break:normal;overflow-wrap:normal}td.phone{white-space:nowrap;overflow-wrap:normal;word-break:keep-all;font-variant-numeric:tabular-nums}
 th{background:#1a2a5e!important;color:#fff!important;font-weight:700;text-align:start;font-size:9pt}
 tr{break-inside:avoid;page-break-inside:avoid}
 button{font-size:16px;padding:10px 18px;margin:8px 0}
@@ -751,7 +751,7 @@ export function BookingsPanel({ content }: { content: SiteContent }) {
     const indexes: Record<string, number[]> = { names: [1], count: [2], category: [3], phone: [4], airport: [5], hotels: Array.from({ length: hotelCount }, (_, i) => hotelStart + i), leaderNotes: [leaderNotesIndex], visitorNotes: [visitorNotesIndex] };
     const keep = [0, ...leaderFieldsAll.filter((id) => leaderFields.includes(id)).flatMap((id) => indexes[id] ?? [])];
     const title = lang === "ar" ? leaderTitleAr : lang === "de" || lang === "en" ? leaderTitleDe : `${leaderTitleAr} | ${leaderTitleDe}`;
-    return { ...sheet, title: title.trim() || (lang === "ar" ? "قائمة الحاج" : "Leiterliste"), head: keep.map((i) => sheet.head[i] ?? ""), widths: keep.map((i) => sheet.widths[i] ?? 12), body: sheet.body.map((row) => row.band ? row : ({ ...row, cells: keep.map((i) => row.cells[i] ?? "") })) };
+    return { ...sheet, title: title.trim() || (lang === "ar" ? "قائمة الحاج" : "Leiterliste"), head: keep.map((i) => sheet.head[i] ?? ""), widths: keep.map((i) => sheet.widths[i] ?? 12), phoneIndex: keep.indexOf(4), countIndex: keep.indexOf(2), body: sheet.body.map((row) => row.band ? row : ({ ...row, cells: keep.map((i) => row.cells[i] ?? "") })) };
   };
   const saveLeaderSettings = async () => {
     if (!adminS || adminS.role !== "admin") return;
