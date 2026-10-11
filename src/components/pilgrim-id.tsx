@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { display, isArabic, useLang } from "@/lib/i18n";
@@ -171,7 +171,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     let alive = true;
     const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => {
       if (!alive) return;
-      if (r.status === null && p.status === "approved") {
+      if (r.status === null && p.status !== "unsent") {
         // A deleted visit request revokes the online identity; clear its local copy as soon as this device reconnects.
         localStorage.removeItem(KEY);
         save(empty);
@@ -189,7 +189,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       }
     }).catch(() => {});
     check();
-    const t = (p.status === "pending" || p.status === "approved") ? window.setInterval(check, 30000) : 0;
+    const t = p.status !== "unsent" ? window.setInterval(check, 30000) : 0;
     return () => { alive = false; if (t) window.clearInterval(t); };
   }, [p.reqId, p.status]);
   const submit = async (d: PilgrimId) => {
@@ -210,14 +210,15 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const decide = async (id: string, status: "approved" | "rejected" | "delete") => { if (!staff) return; if (status === "delete" && !window.confirm("حذف الطلب؟ | Anfrage löschen?")) return; await decideIdRequest({ data: { password: staff.password, id, status } }); void loadRequests(); };
   const deleteMyIdentity = async () => {
     if (!window.confirm("حذف هويتك وبياناتها من هذا الهاتف وحذف طلبها من سجل الحملة؟ | Ihren Ausweis und die zugehörige Anfrage löschen?")) return;
-    if (p.reqId) {
-      try { await deleteMyIdRequest({ data: { id: p.reqId } }); }
-      catch { window.alert("تعذّر حذف الطلب من سجل الحملة. اتصل بالإنترنت وحاول مجدداً. | Anfrage konnte nicht vom Kampagnenserver gelöscht werden."); return; }
-    }
+    const requestId = p.reqId;
     localStorage.removeItem(KEY);
     save(empty);
     setDraft(empty);
     setEditing(true);
+    if (requestId) {
+      try { await deleteMyIdRequest({ data: { id: requestId } }); }
+      catch { window.alert("تم حذف الهوية من هذا الهاتف، لكن تعذّر حذف طلبها من سجل الحملة دون إنترنت. يمكن للإدارة حذفه لاحقاً. | Ausweis lokal gelöscht; die Serveranfrage konnte offline nicht gelöscht werden."); }
+    }
   };
   const deleteVisitRequests = async () => {
     if (!staff || !activeTripId) return;
@@ -299,6 +300,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       {p.status === "rejected" && <p className="text-sm font-bold text-destructive"><T ar="رُفض الطلب: البيانات غير مطابقة لسجل الحملة. عدّلها وأعد الإرسال." de="Abgelehnt: Daten stimmen nicht mit der Gruppenliste überein. Bitte korrigieren und erneut senden." /></p>}
       {(!p.status || p.status === "unsent") && <p className="text-xs text-muted-foreground"><T ar="أرسل بياناتك لاعتماد بطاقتك من إدارة الحملة." de="Senden Sie Ihre Daten zur Freigabe an die Reiseleitung." /></p>}
       {p.status !== "pending" && p.status !== "rejected" && <Button type="button" className="h-11 w-full" disabled={sending} onClick={() => submit(p)}><Send className="h-4 w-4" /><T ar="إرسال للاعتماد" de="Zur Freigabe senden" /></Button>}
+      <Button type="button" variant="outline" className="h-10 w-full border-destructive/40 text-destructive" onClick={() => void deleteMyIdentity()}><Trash2 className="h-4 w-4" /><T ar="حذف بياناتي وطلب الهوية" de="Meine Daten und Anfrage löschen" /></Button>
     </section>}
 
     {!staff && !editing && filled && approved && <section className="relative overflow-hidden rounded-xl border-2 border-secondary bg-primary p-5 text-primary-foreground shadow-lg">
