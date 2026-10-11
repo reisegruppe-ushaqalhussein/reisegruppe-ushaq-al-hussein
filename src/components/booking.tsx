@@ -1178,6 +1178,26 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
     () => [...new Set([...announcedTrips.map((t) => t.key), ...active.map(groupKey), ...(savedRc?.hotels ?? []).map((h) => h.tripKey).filter(Boolean)])],
     [active, announcedTrips, savedRc?.hotels]
   );
+  // Resolve stored trip keys against all configured trips, including hidden/legacy trips.
+  const localizedTripLabel = (value: string) => {
+    const normalizedValue = norm(value);
+    const matched = (content.trips ?? []).find((t) => {
+      const names = [t.ar, t.de, ...(t.aliases ?? [])].map(norm).filter(Boolean);
+      const normalizedDate = norm(t.date);
+      const fullKey = norm(`${[t.ar, t.de].filter(Boolean).join(" | ")}${t.date ? ` — ${t.date}` : ""}`);
+      if (fullKey && normalizedValue === fullKey) return true;
+      if (names.some((name) => normalizedValue === name || normalizedValue.startsWith(`${name} — `))) return true;
+      if (normalizedDate && normalizedValue.includes(normalizedDate)) {
+        const withoutDate = normalizedValue.replace(normalizedDate, "").replace(/[|—–-]/g, "").trim();
+        if (!withoutDate || names.some((name) => withoutDate === name.replace(/[|—–-]/g, "").trim())) return true;
+      }
+      return false;
+    });
+    if (!matched) return tripLabel(value, bi);
+    const shown = display(lang, matched.ar, toGerman(matched.de));
+    const name = lang === "both" && shown.sub ? `${shown.main} | ${shown.sub}` : shown.main;
+    return `${name}${matched.date ? ` — ${matched.date}` : ""}`;
+  };
   const hotelsForTrip = hotels.filter((h) => trip === "all" || h.tripKey === trip);
   const shownHotels = hotelsForTrip.filter((h) => isAdmin || !h.hidden);
   const addHotel = () => {
@@ -1222,7 +1242,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   // نسخ تقرير مستقل لكل فندق
   const copyHotelReport = async (h: RoomCalcHotel) => {
     const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s, totalRms = h.d + h.t + h.q + h.s;
-    const report = ["🏨 " + (h.name || bi("فندق | Hotel")), "📍 " + (h.city || "—"), "🧳 " + tripLabel(h.tripKey, bi), "• " + bi("غرف ثنائية | Doppelzimmer") + ": " + h.d, "• " + bi("غرف ثلاثية | Dreibettzimmer") + ": " + h.t, "• " + bi("غرف رباعية | Vierbettzimmer") + ": " + h.q, "• " + bi("غرف مفردة | Einzelzimmer") + ": " + h.s, "• " + bi("مجموع الغرف | Zimmer gesamt") + ": " + totalRms, "• " + bi("السعة الإجمالية | Gesamtkapazität") + ": " + cap].join("\n");
+    const report = ["🏨 " + (h.name || bi("فندق | Hotel")), "📍 " + (h.city || "—"), "🧳 " + localizedTripLabel(h.tripKey), "• " + bi("غرف ثنائية | Doppelzimmer") + ": " + h.d, "• " + bi("غرف ثلاثية | Dreibettzimmer") + ": " + h.t, "• " + bi("غرف رباعية | Vierbettzimmer") + ": " + h.q, "• " + bi("غرف مفردة | Einzelzimmer") + ": " + h.s, "• " + bi("مجموع الغرف | Zimmer gesamt") + ": " + totalRms, "• " + bi("السعة الإجمالية | Gesamtkapazität") + ": " + cap].join("\n");
     try { await navigator.clipboard.writeText(report); window.alert(bi("تم نسخ تقرير الفندق | Hotelbericht kopiert")); } catch { window.alert(bi("تعذّر النسخ. يرجى المحاولة من جديد | Kopieren fehlgeschlagen. Bitte erneut versuchen.")); }
   };
   return (
@@ -1338,7 +1358,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                     }
                     return names.some((name) => normalizedValue === name || normalizedValue.startsWith(`${name} — `));
                   });
-                const fallback = tripLabel(t, bi);
+                const fallback = localizedTripLabel(t);
                 const label = announced ? `${announced.label}${announced.date ? ` — ${announced.date}` : ""}` : fallback;
                 return <option key={announced?.id ?? t} value={t}>{label}</option>;
               })}
@@ -1352,7 +1372,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
             {shownHotels.length === 0 ? <div className="rounded-lg border border-dashed border-border bg-card px-3 py-5 text-center"><Calculator className="mx-auto mb-2 h-5 w-5 text-secondary" /><p className="text-xs font-bold">{bi("لا توجد فنادق لهذه الرحلة بعد | Noch keine Hotels für diese Reise")}</p>{canManage && <p className="mt-1 text-[10px] text-muted-foreground">{bi("استخدم (+) في ترس الإدارة لإضافة فندق. | Mit (+) im Verwaltungsmenü ein Hotel hinzufügen.")}</p>}</div> : shownHotels.map((h) => {
               const cap = h.d * 2 + h.t * 3 + h.q * 4 + h.s, totalRms = h.d + h.t + h.q + h.s;
               return <div key={h.id} className={"flex min-w-0 items-center gap-2 rounded-lg border bg-card p-2 shadow-sm " + (h.hidden ? "border-dashed opacity-60" : "border-border")}>
-                <button type="button" onClick={() => setHotelDraft({ ...h })} className="flex min-w-0 flex-1 items-center gap-2 text-start"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary/15 text-primary"><FileText className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-primary">{h.name || bi("فندق جديد | Neues Hotel")}</span><span className="block truncate text-[10px] text-muted-foreground">{[h.city, trip === "all" ? tripLabel(h.tripKey, bi) : ""].filter(Boolean).join(" · ") || bi("اضغط لعرض التفاصيل | Tippen für Details")}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{totalRms} {bi("غرف | Zimmer")} · {cap} {bi("زائر | Personen")}</span></span><span className="shrink-0 text-muted-foreground">›</span></button>
+                <button type="button" onClick={() => setHotelDraft({ ...h })} className="flex min-w-0 flex-1 items-center gap-2 text-start"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary/15 text-primary"><FileText className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-primary">{h.name || bi("فندق جديد | Neues Hotel")}</span><span className="block truncate text-[10px] text-muted-foreground">{[h.city, trip === "all" ? localizedTripLabel(h.tripKey) : ""].filter(Boolean).join(" · ") || bi("اضغط لعرض التفاصيل | Tippen für Details")}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{totalRms} {bi("غرف | Zimmer")} · {cap} {bi("زائر | Personen")}</span></span><span className="shrink-0 text-muted-foreground">›</span></button>
                 <div className="flex shrink-0 items-center gap-0.5">{canManage && <button type="button" onClick={() => void copyHotelReport(h)} aria-label={bi("نسخ تقرير الفندق | Hotelbericht kopieren")} title={bi("نسخ التقرير | Bericht kopieren")} className="grid h-8 w-8 place-items-center rounded-md border border-border text-primary"><Copy className="h-3.5 w-3.5" /></button>}{isAdmin && <button type="button" onClick={() => void toggleHotelHidden(h)} aria-label={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} title={h.hidden ? bi("إظهار الفندق | Hotel anzeigen") : bi("إخفاء الفندق | Hotel ausblenden")} className="grid h-8 w-8 place-items-center rounded-md border border-border text-primary">{h.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</button>}{canManage && <button type="button" onClick={() => void deleteHotel(h)} aria-label={bi("حذف الفندق | Hotel löschen")} title={bi("حذف الفندق | Hotel löschen")} className="grid h-8 w-8 place-items-center rounded-md border border-border text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>}</div>
               </div>;
             })}
@@ -1365,7 +1385,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                 <label className="block text-xs font-bold">{hotelLabel("hotel", "اسم الفندق", "Hotelname")}<input value={hotelDraft.name} disabled={!canManage} onChange={(e) => setHotelDraft((prev) => prev ? { ...prev, name: e.target.value } : prev)} placeholder={bi("اكتب اسم الفندق هنا | Hotelnamen eingeben")} className={inputCls} /></label>
                 <div className="grid grid-cols-2 gap-2">{([{key:"d",ar:"ثنائية ×2",de:"Doppelzimmer ×2",factor:2},{key:"t",ar:"ثلاثية ×3",de:"Dreibettzimmer ×3",factor:3},{key:"q",ar:"رباعية ×4",de:"Vierbettzimmer ×4",factor:4},{key:"s",ar:"مفردة ×1",de:"Einzelzimmer ×1",factor:1}] as const).map((room) => <label key={room.key} className="rounded-lg border border-border bg-muted/30 p-2 text-center text-xs font-bold"><span className="block">{hotelLabel(room.key, room.ar, room.de)}</span><span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">{bi(room.factor + " زائر/الغرفة | " + room.factor + " Personen/Zimmer")}</span><input type="number" min="0" step="1" value={hotelDraft[room.key] || ""} disabled={!canManage} onChange={(e) => setHotelDraft((prev) => prev ? { ...prev, [room.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) } : prev)} placeholder="0" className="mt-1 w-full rounded-md border border-input bg-background py-2 text-center text-base font-bold text-primary disabled:opacity-75" /></label>)}</div>
                 <div className="grid grid-cols-2 gap-2"><div className="rounded-lg bg-primary/5 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("totalRooms", "مجموع الغرف", "Zimmer gesamt")}</span><strong className="text-lg text-primary">{hotelDraft.d + hotelDraft.t + hotelDraft.q + hotelDraft.s}</strong></div><div className="rounded-lg bg-secondary/15 p-2 text-center"><span className="block text-[10px] text-muted-foreground">{hotelLabel("capacity", "السعة الإجمالية", "Gesamtkapazität")}</span><strong className="text-lg text-primary">{hotelDraft.d * 2 + hotelDraft.t * 3 + hotelDraft.q * 4 + hotelDraft.s}</strong><span className="ms-1 text-[10px]">{bi("زائر | Personen")}</span></div></div>
-                <p className="text-[10px] text-muted-foreground">{bi("الرحلة | Reise")}: {tripLabel(hotelDraft.tripKey, bi)}</p>
+                <p className="text-[10px] text-muted-foreground">{bi("الرحلة | Reise")}: {localizedTripLabel(hotelDraft.tripKey)}</p>
                 <div className="flex gap-2 pt-1">{canManage && <Button className="flex-1" onClick={() => void saveHotelDraft()}>{bi("حفظ الفندق | Hotel speichern")}</Button>}<Button variant="outline" className="flex-1" onClick={() => setHotelDraft(null)}>{bi("إلغاء | Abbrechen")}</Button></div>
               </div>
             </DialogContent>}
@@ -1405,7 +1425,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-muted-foreground">
                         <span className="rounded-full bg-primary px-2 py-0.5 font-bold text-primary-foreground">
                         </span>
-                        <span>{r.travelers.length} pax · {tripLabel(r.trip, bi)}</span>
+                        <span>{r.travelers.length} pax · {localizedTripLabel(r.trip)}</span>
                       </p>
                     </div>
 
