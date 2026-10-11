@@ -114,7 +114,7 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
 
   const [page, setPage] = useState(false);
   const [detail, setDetail] = useState<RoomEntry | null>(null);
-  const canEdit = (staff?.role === "admin" && staff.mode === "admin") || (staff?.role === "haj" && !!content.cms?.hajCanManage);
+  const canEdit = (staff?.role === "admin" && staff.mode === "admin") || (staff?.role === "haj" && !!content.cms?.hajToolsEnabled);
   const gear = canEdit ? <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة التسكين | Zimmer verwalten" title="إدارة | Verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button> : null;
 
   return <section className="min-w-0">
