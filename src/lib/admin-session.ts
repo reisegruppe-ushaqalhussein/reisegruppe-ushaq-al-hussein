@@ -71,9 +71,9 @@ export function setToolsHidden(hidden: boolean) {
   emit();
 }
 /** Full app-structure control: always the admin; the haj only when the admin has allowed it. */
-export function useCanManage(content: { cms?: { hajCanManage?: boolean } | undefined }) {
+export function useCanManage(content: { cms?: { hajToolsEnabled?: boolean } | undefined }) {
   const s = useAdminSession();
-  return !!s && ((s.role === "admin" && s.mode === "admin") || (s.role === "haj" && !!content.cms?.hajCanManage));
+  return !!s && ((s.role === "admin" && s.mode === "admin") || (s.role === "haj" && !!content.cms?.hajToolsEnabled));
 }
 
 /** Only the general admin in admin mode sees hidden items and hide/restore controls. */
