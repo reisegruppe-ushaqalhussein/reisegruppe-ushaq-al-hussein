@@ -281,11 +281,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       {p.nameDe && <p dir="ltr" className="text-center text-sm opacity-80">{p.nameDe}</p>}
       {p.phone && <p dir="ltr" className="mt-1 text-center text-xs opacity-75">{p.phone}</p>}
       {fields.filter((f) => p.extra?.[f.id]).map((f) => <div key={f.id} className="mt-1 text-center text-xs opacity-80"><T ar={f.ar || f.de} de={f.de || f.ar} /><b dir="auto">{p.extra?.[f.id]}</b></div>)}
-      {current && <div className="mt-4 rounded-md border border-primary-foreground/20 bg-primary-foreground/10 p-3 text-sm">
-        <p className="flex items-center justify-center gap-1.5 font-bold text-secondary"><BedDouble className="h-4 w-4" />{cityOf(current.city).ar} | {cityOf(current.city).de}</p>
-        <p className="mt-1 text-center">{current.hotel || "—"}</p>
-        <p className="mt-1 text-center text-xs">الطابق / Etage: <b dir="ltr">{current.floor || "—"}</b> · الغرفة / Zimmer: <b dir="ltr">{current.room || "—"}</b></p>
-      </div>}
+
       <div className="mt-4 space-y-2">{p.stays.map((s) => { const c = cityOf(s.city); const on = s.id === current?.id; return <button type="button" key={s.id} onClick={() => save({ ...p, current: s.id })} className={`w-full rounded-md border p-3 text-start text-sm ${on ? "border-secondary bg-secondary/20" : "border-primary-foreground/20"}`}>
         <span className="font-bold text-secondary">{c.ar} | {c.de}{on && " ✓"}</span>
         <span className="mt-1 block">🏨 {s.hotel || "—"}</span>
@@ -293,7 +289,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       </button>; })}</div>
       <div className="mx-auto mt-5 w-fit rounded-lg bg-background p-3"><QRCodeSVG value={qr} size={150} /></div>
       <p className="mt-2 text-center text-[11px] opacity-75">امسح للاتصال بالحملة · Scannen für Kontakt</p>
-      <div className="mt-3 text-center text-xs"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block font-bold text-secondary">{x}</a>)}</div>
+      <div className="mt-3 flex flex-col items-center text-center text-xs [&_span]:!text-center"><T ar="رقم الحاج للطوارئ" de="Notfallnummer des Hajj" />{phones.map((x) => <a key={x} href={`tel:${clean(x)}`} dir="ltr" className="block text-center font-bold text-secondary">{x}</a>)}</div>
     </section>}
 
     {editing && !locked && !staff && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
@@ -301,7 +297,7 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       <label className="block text-xs font-bold text-primary">{L("name", "الاسم بالعربية", "Name (Arabisch)")}<input className={inputCls} value={draft.nameAr} onChange={(e) => setDraft({ ...draft, nameAr: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("foreign", "الأحرف الأجنبية (ألماني / إنجليزي)", "Fremdschrift (Deutsch / Englisch)")}<input dir="ltr" className={inputCls} value={draft.nameDe} onChange={(e) => setDraft({ ...draft, nameDe: e.target.value })} /></label>
       <label className="block text-xs font-bold text-primary">{L("phone", "رقم هاتفي (اختياري)", "Meine Nummer")}<input dir="ltr" type="tel" className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
-      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
+      {fields.map((f) => <label key={f.id} className="block text-xs font-bold text-primary"><T ar={`${f.ar || f.de} *`} de={`${f.de || f.ar} *`} /><input type="text" inputMode="text" autoComplete="off" dir="auto" className={inputCls} value={draft.extra?.[f.id] ?? ""} onChange={(e) => setDraft({ ...draft, extra: { ...(draft.extra ?? {}), [f.id]: e.target.value } })} /></label>)}
       <p className="pt-2 text-sm font-bold text-primary"><T ar={lb['staysAr'] || "الإقامة في كل مدينة"} de={lb['staysDe'] || lb['staysAr'] || "Unterkunft je Stadt"} /></p>
       {draft.stays.map((s) => <div key={s.id} className="space-y-2 rounded-md border border-secondary/40 p-3">
         <div className="flex gap-2"><select className={inputCls} value={s.city} onChange={(e) => setStay(s.id, { city: e.target.value })}>{cities.map((c) => <option key={c.id} value={c.id}>{c.ar} | {c.de}</option>)}</select>
