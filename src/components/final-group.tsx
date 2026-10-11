@@ -348,6 +348,7 @@ async function downloadImage(src: string) {
 /** One guideline post rendered inline: gear, carousel, download, text, PDF. */
 function GuidePost({ g, fallbackPdf, onUpdate, onDelete }: { g: GuidelineEntry; fallbackPdf?: string | undefined; onUpdate: (g: GuidelineEntry) => Promise<void>; onDelete: () => Promise<void> }) {
   const staff = useAdminSession();
+  const canManage = Boolean(staff);
   const [img, setImg] = useState(0);
   const [zoom, setZoom] = useState(false);
   const pics = splitPics(g.images);
