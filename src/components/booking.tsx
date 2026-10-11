@@ -1180,10 +1180,6 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   );
   const hotelsForTrip = hotels.filter((h) => trip === "all" || h.tripKey === trip);
   const shownHotels = hotelsForTrip.filter((h) => isAdmin || !h.hidden);
-  const updateHotel = (id: string, patch: Partial<RoomCalcHotel>) => {
-    setHotels((all) => all.map((h) => h.id === id ? { ...h, ...patch } : h));
-    setHotelsDirty(true);
-  };
   const addHotel = () => {
     if (trip === "all") { setIsOpen(true); window.alert(bi("افتح القائمة واختر رحلة محددة أولاً، ثم اضغط (+) لإضافة الفندق إليها | Bitte zuerst eine bestimmte Reise auswählen und dann auf (+) tippen.")); return; }
     setHotelDraft({ id: "hotel_" + Date.now(), tripKey: trip, city: "", name: "", d: 0, t: 0, q: 0, s: 0, hidden: false }); setIsOpen(true);
