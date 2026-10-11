@@ -15,7 +15,7 @@ export function useAdminPassword(content?: SiteContent) {
   const s = useAdminSession();
   if (!s) return null;
   if (s.role === "admin" && s.mode === "admin") return s.password;
-  if (s.role === "haj" && content?.cms?.hajCanManage) return s.password;
+  if (s.role === "haj" && content?.cms?.hajToolsEnabled) return s.password;
   return null;
 }
 
