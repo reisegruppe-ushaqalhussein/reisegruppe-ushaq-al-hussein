@@ -380,8 +380,8 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
   const saveSettings = async (row: Record<string, unknown>) => {
     const nextLabels = { ...labels,
       "luggage:title": { ar: String(row["titleAr"] || ""), de: String(row["titleDe"] || "") },
-      "luggage:design": { ar: String(row.designAr || ""), de: String(row.designDe || ""), hidden: !!row["hideDesign"] },
-      "luggage:bulk": { ar: String(row.bulkAr || ""), de: String(row.bulkDe || ""), hidden: !!row["hideBulk"] },
+      "luggage:design": { ar: String(row["designAr"] || ""), de: String(row["designDe"] || ""), hidden: !!row["hideDesign"] },
+      "luggage:bulk": { ar: String(row["bulkAr"] || ""), de: String(row["bulkDe"] || ""), hidden: !!row["hideBulk"] },
       "luggage:name-style": { ar: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").ar, de: label("luggage:name-style", "خط اسم الزائر", "Schrift des Namens").de, hidden: !!row["hideNameStyle"] },
       "luggage:copies": { ar: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").ar, de: label("luggage:copies", "توزيع البطاقات والنسخ", "Kartenanzahl").de, hidden: !!row["hideCopies"] },
       "luggage:single-name": { ar: label("luggage:single-name", "اسم الزائر", "Pilgername").ar, de: label("luggage:single-name", "اسم الزائر", "Pilgername").de, hidden: !!row["hideSingleName"] },
