@@ -32,9 +32,10 @@ export const customTileId = (id: string) => `c:${id}`;
 function useCms(content: SiteContent) {
   const qc = useQueryClient();
   const s = useAdminSession();
+  const canManage = useCanManage(content);
   const cms: CmsConfig = content.cms ?? {};
   const save = async (next: CmsConfig, extra: Partial<SiteContent> = {}) => {
-    if (!s) return;
+    if (!s || !canManage) return;
     // Show the change instantly; the server save follows.
     qc.setQueryData(["site-content"], { ...content, ...extra, cms: next });
     try {
@@ -328,11 +329,12 @@ function cleanArabic(x: unknown, key = ""): unknown {
 function DesignDialog({ content, onClose }: { content: SiteContent; onClose: () => void }) {
   const { cms } = useCms(content);
   const s = useAdminSession();
+  const canManage = useCanManage(content);
   const qc = useQueryClient();
   const [draft, setDraft] = useState<CmsConfig>(cms);
   const [busy, setBusy] = useState(false);
   const persist = async (next: SiteContent) => {
-    if (!s) return;
+    if (!s || !canManage) return;
     setBusy(true);
     try {
       const { queued } = await saveOrQueue(s.password, next, "التصميم | Design", qc);
