@@ -255,7 +255,7 @@ export const listFeedback = createServerFn({ method: "POST" })
 /* ---------- Pilgrim ID approval ---------- */
 export type IdField = { id: string; ar: string; de: string };
 export type IdStatus = "pending" | "approved" | "rejected";
-export type IdRequest = { id: string; at: number; status: IdStatus; auto?: boolean; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
+export type IdRequest = { id: string; at: number; status: IdStatus; auto?: boolean; tripId?: string; nameAr: string; nameDe: string; phone: string; extra: Record<string, string>; stays: { city: string; hotel: string; floor: string; room: string }[] };
 const t = z.string().max(500);
 
 export const getIdFields = createServerFn({ method: "GET" }).handler(async () => readJson<IdField[]>("id_fields", []));
@@ -329,7 +329,7 @@ async function notifyStaffOfIdRequest(nameAr: string, nameDe: string) {
 }
 
 export const submitIdRequest = createServerFn({ method: "POST" })
-  .validator((d) => z.object({ id: z.string().min(8).max(100), nameAr: t, nameDe: t, phone: t, extra: z.record(z.string().max(100), t), stays: z.array(z.object({ city: t, hotel: t, floor: t, room: t })).max(20) }).parse(d))
+  .validator((d) => z.object({ id: z.string().min(8).max(100), tripId: z.string().max(100).optional(), nameAr: t, nameDe: t, phone: t, extra: z.record(z.string().max(100), t), stays: z.array(z.object({ city: t, hotel: t, floor: t, room: t })).max(20) }).parse(d))
   .handler(async ({ data }) => {
     const list = await readJson<IdRequest[]>("id_requests", []);
     const existing = list.find((r) => r.id === data.id);
@@ -361,6 +361,28 @@ export const submitIdRequest = createServerFn({ method: "POST" })
       catch (e) { console.error("ID request notification", e); }
     }
     return { ok: true, closed: false, status };
+  });
+
+/** Allows a visitor to remove their own request using its unguessable client-generated ID. */
+export const deleteMyIdRequest = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ id: z.string().min(8).max(100) }).parse(d))
+  .handler(async ({ data }) => {
+    const list = await readJson<IdRequest[]>("id_requests", []);
+    await writeJson("id_requests", list.filter((r) => r.id !== data.id));
+    return { ok: true };
+  });
+
+/** Deletes requests only for the selected visit; legacy records without a trip ID are left untouched. */
+export const deleteIdRequestsForTrip = createServerFn({ method: "POST" })
+  .validator((d) => z.object({ password: z.string().max(200), tripId: z.string().min(1).max(100) }).parse(d))
+  .handler(async ({ data }) => {
+    const role = await verifyRole(data.password);
+    if (role !== "admin" && role !== "haj") return { ok: false, deleted: 0 };
+    const list = await readJson<IdRequest[]>("id_requests", []);
+    const remaining = list.filter((r) => r.tripId !== data.tripId);
+    const deleted = list.length - remaining.length;
+    await writeJson("id_requests", remaining);
+    return { ok: true, deleted };
   });
 
 export const getIdStatus = createServerFn({ method: "POST" })
