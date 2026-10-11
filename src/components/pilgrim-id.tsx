@@ -409,6 +409,21 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
               <Button type="button" variant="destructive" className="h-9" disabled={r.status === "rejected"} onClick={() => decide(r.id, "rejected")}><X className="h-4 w-4" />رفض <span className="text-[10px] italic opacity-80">| Ablehnen</span></Button>
             </div>
           </div>)}
+          {requests.some((r) => !r.tripId) && <div className="space-y-2 border-t-2 border-dashed border-border pt-3">
+            <p className="text-xs font-bold text-muted-foreground"><T ar="طلبات قديمة غير مرتبطة بزيارة (قبل التحديث) — راجعيها يدوياً" de="Ältere, keiner Reise zugeordnete Anfragen — bitte manuell prüfen" /></p>
+            {requests.filter((r) => !r.tripId).map((r) => <div key={r.id} className="space-y-1 rounded-md border border-border bg-card p-3 text-xs">
+              <p className="font-bold text-primary">{r.nameAr || r.nameDe || "—"} {r.nameDe ? "· " + r.nameDe : ""}</p>
+              {r.phone && <p dir="ltr">{r.phone}</p>}
+              {Object.entries(r.extra ?? {}).map(([k, v]) => { const f = fields.find((x) => x.id === k); return <p key={k}>{f ? (f.ar || f.de) : k}: <b dir="auto">{v}</b></p>; })}
+              {r.stays.map((stay, i) => <p key={i}>🏨 {stay.city} · {stay.hotel || "—"} · طابق {stay.floor || "—"} · غرفة {stay.room || "—"}</p>)}
+              <p className="text-[10px] text-muted-foreground">{r.status === "approved" ? "معتمد | Bestätigt" : r.status === "rejected" ? "مرفوض | Abgelehnt" : "معلق | Ausstehend"}</p>
+              <div className="grid grid-cols-3 gap-1">
+                <Button type="button" size="sm" disabled={r.status === "approved"} onClick={() => decide(r.id, "approved")}><Check className="h-3 w-3" />موافقة</Button>
+                <Button type="button" size="sm" variant="destructive" disabled={r.status === "rejected"} onClick={() => decide(r.id, "rejected")}><X className="h-3 w-3" />رفض</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => decide(r.id, "delete")}><Trash2 className="h-3 w-3" />حذف</Button>
+              </div>
+            </div>)}
+          </div>}
         </div>
       </DialogContent>
     </Dialog>}
