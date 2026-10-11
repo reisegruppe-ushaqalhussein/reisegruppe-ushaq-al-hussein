@@ -652,9 +652,10 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const { lang } = useLang();
   const prayerTitle = content ? labelOf(content, "prayer", "مواقيت الصلاة", "Gebetszeiten") : { ar: "مواقيت الصلاة", de: "Gebetszeiten" };
   const adminSession = useAdminSession();
+  const canManage = (adminSession?.role === "admin" && adminSession.mode === "admin") || (adminSession?.role === "haj" && !!content?.cms?.hajCanManage);
   const [localEdit, setLocalEdit] = useState(false);
   const isSectionEditing = useSectionEditMode();
-  const isEditing = Boolean(adminSession) && (localEdit || isSectionEditing);
+  const isEditing = canManage && (localEdit || isSectionEditing);
 
   // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
   const [activeRegion, setActiveRegion] = useState<string>(() => {
@@ -1018,7 +1019,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           </h2>
           {isEditing && content && <RenameTitle content={content} labelKey="prayer" ar={prayerTitle.ar} de={prayerTitle.de} />}
         </div>
-        {adminSession && (
+        {canManage && (
           <button
             type="button"
             onClick={() => {
