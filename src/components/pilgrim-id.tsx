@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowUp, BedDouble, Check, ClipboardList, Clock, Globe, IdCard, ListChecks, Lock, LockOpen, Send, ShieldCheck, X, MessageSquare, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,9 +35,14 @@ const defaultSettings: IdSettings = { open: false, emergencyPublic: false, emTit
 
 function useLocal() {
   const [data, setData] = useState<PilgrimId>(empty);
-  useEffect(() => { try { const raw = localStorage.getItem(KEY); if (raw) setData({ ...empty, ...JSON.parse(raw) }); } catch { /* ignore */ } }, []);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    try { const raw = localStorage.getItem(KEY); if (raw) setData({ ...empty, ...JSON.parse(raw) }); }
+    catch { /* ignore */ }
+    finally { setReady(true); }
+  }, []);
   const save = (next: PilgrimId) => { setData(next); localStorage.setItem(KEY, JSON.stringify(next)); };
-  return [data, save] as const;
+  return [data, save, ready] as const;
 }
 
 export function leaderContacts(content: SiteContent) {
@@ -106,7 +111,7 @@ const emergencyFields: FieldDef[] = [
 export function PilgrimIdView({ content }: { content: SiteContent }) {
   const staff = useAdminSession();
   const saveContent = useSaveContent(staff?.password ?? "");
-  const [p, save] = useLocal();
+  const [p, save, localReady] = useLocal();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<PilgrimId>(empty);
   const [manage, setManage] = useState(false);
@@ -114,16 +119,47 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const filled = !!(p.nameAr || p.nameDe);
   const [fields, setFields] = useState<IdField[]>([]);
   const [requests, setRequests] = useState<IdRequest[]>([]);
+  const knownPendingIds = useRef<Set<string> | null>(null);
+  const [newRequestAlert, setNewRequestAlert] = useState("");
   const [reqOpen, setReqOpen] = useState(false);
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [sending, setSending] = useState(false);
   useEffect(() => { getIdFields().then(setFields).catch(() => {}); }, []);
-  const loadRequests = () => { if (staff) listIdRequests({ data: { password: staff.password } }).then((r) => setRequests(r.rows)).catch(() => {}); };
-  useEffect(loadRequests, [staff?.password]);
+  const loadRequests = async (notify = false) => {
+    if (!staff) return;
+    try {
+      const r = await listIdRequests({ data: { password: staff.password } });
+      const rows = r.rows ?? [];
+      const pending = rows.filter((row) => row.status === "pending");
+      const currentIds = new Set(pending.map((row) => row.id));
+      const previousIds = knownPendingIds.current;
+      if (notify && previousIds) {
+        const added = pending.find((row) => !previousIds.has(row.id));
+        if (added) {
+          setNewRequestAlert(added.nameAr || added.nameDe || "طلب هوية جديد");
+          if ("Notification" in window && Notification.permission === "granted") {
+            try { new Notification("طلب هوية جديد | Neue Ausweis-Anfrage", { body: added.nameAr || added.nameDe || "يرجى مراجعة الطلبات", icon: "/icons/icon-192.png" }); } catch { /* push handles background notifications */ }
+          }
+        }
+      }
+      knownPendingIds.current = currentIds;
+      setRequests(rows);
+    } catch { /* retain last known requests while offline */ }
+  };
+  useEffect(() => {
+    void loadRequests();
+    if (!staff) return;
+    const timer = window.setInterval(() => { void loadRequests(true); }, 20000);
+    return () => window.clearInterval(timer);
+  }, [staff?.password]);
   useEffect(() => {
     if (!p.reqId || p.status === "unsent") return;
     let alive = true;
-    const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => { if (alive && r.status && r.status !== p.status) save({ ...p, status: r.status }); }).catch(() => {});
+    const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => {
+      if (alive && r.status && r.status !== p.status) {
+        save({ ...p, status: r.status, seen: undefined });
+      }
+    }).catch(() => {});
     check();
     const t = p.status === "pending" ? window.setInterval(check, 30000) : 0;
     return () => { alive = false; if (t) window.clearInterval(t); };
@@ -135,7 +171,10 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
       const r = await submitIdRequest({ data: { id: reqId, nameAr: d.nameAr, nameDe: d.nameDe, phone: d.phone, extra: d.extra ?? {}, stays: d.stays.map(({ city, hotel, floor, room }) => ({ city: cityOf(city).ar, hotel, floor, room })) } });
       if (r.closed) { window.alert("التسجيل مغلق حالياً | Die Registrierung ist derzeit geschlossen"); save({ ...d, status: "unsent" }); }
       else save({ ...d, reqId, status: r.status ?? "pending", seen: r.status === "approved" ? undefined : d.seen });
-    } catch { save({ ...d, reqId, status: "unsent" }); }
+    } catch (e) {
+      save({ ...d, reqId, status: "unsent" });
+      window.alert(`تعذّر إرسال طلب الهوية. تحقق من الاتصال وحاول مجدداً. | Ausweis-Anfrage fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen.\n${e instanceof Error ? e.message : ""}`);
+    }
     setSending(false);
   };
   const approved = p.status === "approved";
@@ -147,9 +186,10 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
     getIdSettings().then((s) => { setSt(s); localStorage.setItem(SKEY, JSON.stringify(s)); }).catch(() => {});
   }, []);
   const saveSt = async (next: IdSettings) => {
-    if (staff?.role !== "admin") return;
+    if (!staff || (staff.role !== "admin" && !(staff.role === "haj" && st.hajCanToggle && next.open !== st.open))) return;
     const r = await saveIdSettings({ data: { password: staff.password, settings: next } });
-    if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); } else window.alert("تعذّر الحفظ | Speichern fehlgeschlagen");
+    if (r.ok) { setSt(next); localStorage.setItem(SKEY, JSON.stringify(next)); }
+    else window.alert("تعذّر الحفظ أو لا تملك الصلاحية | Speichern fehlgeschlagen oder keine Berechtigung");
   };
   const [textOpen, setTextOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
@@ -160,7 +200,11 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   const locked = !st.open && !p.reqId && !staff;
   const canSeeEmergency = !!staff || approved || st.emergencyPublic;
   const notice = (p.status === "approved" || p.status === "rejected") && p.seen !== p.status;
-  useEffect(() => { if (!filled) setEditing(true); }, [filled]);
+  useEffect(() => {
+    if (!localReady) return;
+    // Wait until the saved visitor record has been restored before deciding whether to show the form or ID.
+    setEditing(!filled);
+  }, [localReady, filled, p.status]);
   const start = () => { setDraft(p); setEditing(true); };
   const setStay = (id: string, patch: Partial<Stay>) => setDraft({ ...draft, stays: draft.stays.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const current = p.stays.find((s) => s.id === p.current) ?? p.stays[0];
@@ -169,17 +213,21 @@ export function PilgrimIdView({ content }: { content: SiteContent }) {
   return <div className="screen-enter space-y-5 px-4 py-7">
     <div dir="rtl" className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-md bg-accent text-primary"><IdCard className="h-5 w-5" /></span><h2 className="flex-1 text-primary"><T ar={st.titleAr || "هويتي والطوارئ"} de={st.titleDe || st.titleAr || "Mein Ausweis & Notfall"} /></h2><FavStar id="section:pilgrim-id" />
       {staff && <div className="relative">
-        <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
+        <button type="button" aria-label="طلبات الهوية | Ausweis-Anfragen" title="طلبات الهوية | Ausweis-Anfragen" onClick={() => { void loadRequests(); setReqOpen(true); }} className={`grid h-7 w-7 place-items-center rounded-full shadow-sm ${pendingCount > 0 ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-primary text-secondary"}`}><ListChecks className="h-3.5 w-3.5" /></button>
         {pendingCount > 0 && <span className="pointer-events-none absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-background bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" dir="ltr">{pendingCount}</span>}
       </div>}
-      {staff?.role === "admin" && <GearMenu>
-        <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
-        <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="تعديل | Bearbeiten" onClick={() => setLabelsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="إضافة خانة | Feld hinzufügen" onClick={() => { setAddNew(true); setFieldsOpen(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="حذف خانة | Feld löschen" danger onClick={() => setDelOpen(true)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+      {(staff?.role === "admin" || (staff?.role === "haj" && st.hajCanToggle)) && <GearMenu>
+        <IconBtn label={st.open ? "إغلاق التسجيل | Registrierung schließen" : "فتح التسجيل | Registrierung öffnen"} onClick={() => void saveSt({ ...st, open: !st.open })}>{st.open ? <LockOpen className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</IconBtn>
+        {staff?.role === "admin" && <IconBtn label={st.hajCanToggle ? "إلغاء صلاحية الحاج لفتح وإغلاق التسجيل | Berechtigung entziehen" : "السماح للحاج بفتح وإغلاق التسجيل | Hajj darf Registrierung steuern"} onClick={() => void saveSt({ ...st, hajCanToggle: !st.hajCanToggle })}><ShieldCheck className="h-3.5 w-3.5" /></IconBtn>}
+        {staff?.role === "admin" && <>
+          <IconBtn label="حقول التحقق | Prüffelder" onClick={() => setFieldsOpen(true)}><ClipboardList className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn label="تعديل | Bearbeiten" onClick={() => setLabelsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn label="إضافة خانة | Feld hinzufügen" onClick={() => { setAddNew(true); setFieldsOpen(true); }}><Plus className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn label="حذف خانة | Feld löschen" danger onClick={() => setDelOpen(true)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+        </>}
       </GearMenu>}</div>
-    {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}</p>}
+      {staff && newRequestAlert && <div role="alert" className="rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm font-bold text-destructive animate-pulse"><p>🔔 طلب هوية جديد | Neue Ausweis-Anfrage</p><p className="mt-1 text-xs">{newRequestAlert}</p><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => { void loadRequests(); setReqOpen(true); setNewRequestAlert(""); }}>عرض الطلبات | Anfragen ansehen</Button><Button size="sm" variant="outline" onClick={() => setNewRequestAlert("")}>إخفاء | Schließen</Button></div></div>}
+    {staff && <p className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-bold ${st.open ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{st.open ? "🔓 التسجيل مفتوح | Offen" : "🔒 التسجيل مغلق | Geschlossen"}{staff.role === "admin" && st.hajCanToggle ? " · صلاحية الحاج مفعّلة | Hajj-Berechtigung aktiv" : ""}</p>}
     <p className="text-xs text-muted-foreground"><T ar="تُحفظ هذه البيانات على هاتفك فقط وتعمل بدون إنترنت." de="Diese Daten bleiben nur auf Ihrem Handy und funktionieren offline." /></p>
 
     {notice && <div className={`flex items-start gap-2 rounded-lg border-2 p-3 text-sm font-bold ${p.status === "approved" ? "border-secondary bg-accent text-primary" : "border-destructive/50 bg-destructive/10 text-destructive"}`}>
