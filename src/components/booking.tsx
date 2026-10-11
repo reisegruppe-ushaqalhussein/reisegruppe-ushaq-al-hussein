@@ -1193,7 +1193,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
   // Resolve stored trip keys against all configured trips, including hidden/legacy trips.
   const localizedTripLabel = (value: string) => {
     const normalizedValue = norm(value);
-    const matched = (content.trips ?? []).find((t) => {
+    const matched = (content?.trips ?? []).find((t) => {
       const names = [t.ar, t.de, ...(t.aliases ?? [])].map(norm).filter(Boolean);
       const normalizedDate = norm(t.date);
       const fullKey = norm(`${[t.ar, t.de].filter(Boolean).join(" | ")}${t.date ? ` — ${t.date}` : ""}`);
