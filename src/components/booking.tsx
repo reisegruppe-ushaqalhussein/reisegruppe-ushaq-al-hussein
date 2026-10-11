@@ -1238,7 +1238,7 @@ export function RoomCalcPanel({ content }: { content?: SiteContent }) {
       </div>
 
       {/* نافذة تعديل العناوين الخارجية */}
-      {editTitleOpen && (
+      {canManage && editTitleOpen && (
         <Dialog open={editTitleOpen} onOpenChange={setEditTitleOpen}>
           <DialogContent className="max-w-[360px]" dir="rtl">
             <DialogHeader className="text-right">
