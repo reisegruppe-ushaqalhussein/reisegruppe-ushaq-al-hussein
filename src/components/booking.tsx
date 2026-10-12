@@ -520,7 +520,6 @@ export function BookingForm({ content }: { content: SiteContent }) {
           <div className="grid grid-cols-2 gap-2">
             <label className="block font-bold">
               <L ar="تاريخ الميلاد" de="Geburtsdatum" />
-              <span className="block text-[11px] font-normal text-muted-foreground"><L ar="(مثال: 15.08.1970 أو 1970-08-15)" de="(z. B. 15.08.1970 oder 1970-08-15)" /></span>
               <input
                 dir="ltr"
                 type="text"
@@ -534,6 +533,7 @@ export function BookingForm({ content }: { content: SiteContent }) {
                 }}
                 className={inputCls}
               />
+              <span className="block text-[11px] font-normal text-muted-foreground"><L ar="(مثال: 15.08.1970 أو 1970-08-15)" de="(z. B. 15.08.1970 oder 1970-08-15)" /></span>
             </label>
             <label className="block font-bold"><L ar="الجنسية" de="Staatsangehörigkeit" /><input list="bk-nat" autoComplete="off" value={t.nationality} onChange={(e) => setT(i, { nationality: e.target.value })} maxLength={60} className={inputCls} /></label>
             <label className="block font-bold"><L ar="رقم الجواز" de="Passnummer" /><input dir="ltr" list="bk-pass" autoComplete="off" value={t.passportNo} onChange={(e) => setT(i, { passportNo: e.target.value.replace(/\s/g, "") })} maxLength={20} className={inputCls + " uppercase"} /></label>
