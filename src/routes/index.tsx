@@ -378,6 +378,7 @@ function FavoritesView({ content, go }: { content: SiteContent; go: (view: View)
 function IraqItemsView({ content, admin, kind }: { content: SiteContent; admin: AdminProps; kind: "details" | "types" }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const showHidden = useShowHidden();
+  const [sectionEditing, setSectionEditing] = useState(false);
   const iraqAll = content.iraqItems ?? defaultIraqItems;
   const visible = iraqAll.filter((x) => showHidden || !x.hidden);
   const saveIraq = (iraqItems: IraqItem[]) => saveContent({ ...content, iraqItems });
@@ -387,13 +388,13 @@ function IraqItemsView({ content, admin, kind }: { content: SiteContent; admin: 
   const typesHidden = content.labels?.["iraqTypes"]?.hidden ?? false;
   const toggleHidden = (key: "iraqDetails" | "iraqTypes", hidden: boolean) => saveContent({ ...content, labels: { ...(content.labels ?? {}), [key]: { ar: content.labels?.[key]?.ar ?? "", de: content.labels?.[key]?.de ?? "", hidden } } });
   const iraqIcon = (x: IraqItem): IconType => (x.id === "flight" || /طير|flug/i.test(x.ar + x.de) ? Plane : x.id === "hotel" || /سكن|unterkunft|hotel/i.test(x.ar + x.de) ? Hotel : x.id === "majlis" || /مجالس|majlis/i.test(x.ar + x.de) ? BedDouble : x.id === "food" || /طعام|verpflegung/i.test(x.ar + x.de) ? Soup : CircleCheck);
-  const iraqActions = (x: IraqItem) => admin && <ItemActions fields={iraqFields} item={x} hidden={x.hidden ?? false} onVisibilityChange={(hidden) => saveIraq(iraqAll.map((y) => (y.id === x.id ? { ...y, hidden } : y)))} onSave={(row) => saveIraq(iraqAll.map((y) => (y.id === x.id ? { ...y, ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") } : y)))} onDelete={() => saveIraq(iraqAll.filter((y) => y.id !== x.id))} />;
+  const iraqActions = (x: IraqItem) => admin && <ItemActions editMode={sectionEditing} fields={iraqFields} item={x} hidden={x.hidden ?? false} onVisibilityChange={(hidden) => saveIraq(iraqAll.map((y) => (y.id === x.id ? { ...y, hidden } : y)))} onSave={(row) => saveIraq(iraqAll.map((y) => (y.id === x.id ? { ...y, ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") } : y)))} onDelete={() => saveIraq(iraqAll.filter((y) => y.id !== x.id))} />;
   const menu = admin && <GearMenu>
     <RenameTitle content={content} labelKey={kind === "details" ? "iraqDetails" : "iraqTypes"} ar={iraqTitle.ar} de={iraqTitle.de} />
-    {kind === "details" && <SectionAdminBar onRestore={() => saveIraq(defaultIraqItems)} /> }
-    <AddButton inline label={{ ar: "إضافة نوع زيارة", de: "Ziyara-Art hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `it${Date.now()}`, kind: "type", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />
+    <SectionAdminBar editMode={sectionEditing} onEditClick={() => setSectionEditing((v) => !v)} onRestore={kind === "details" ? () => saveIraq(defaultIraqItems) : undefined} />
+    {kind === "types" && <AddButton inline label={{ ar: "إضافة نوع زيارة", de: "Ziyara-Art hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `it${Date.now()}`, kind: "type", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />}
     {kind === "details" && <AddButton inline label={{ ar: "إضافة تفصيل للرحلة", de: "Reisedetail hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `id${Date.now()}`, kind: "detail", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />}
-    {showHidden && <IconBtn label={(kind === "details" ? iraqHidden : typesHidden) ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleHidden(kind === "details" ? "iraq" : "iraqTypes", !(kind === "details" ? iraqHidden : typesHidden))}>{(kind === "details" ? iraqHidden : typesHidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+    {showHidden && <IconBtn label={(kind === "details" ? iraqHidden : typesHidden) ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleHidden(kind === "details" ? "iraqDetails" : "iraqTypes", !(kind === "details" ? iraqHidden : typesHidden))}>{(kind === "details" ? iraqHidden : typesHidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
   return <section className={`mb-5 rounded-lg border border-border bg-card p-4 shadow-sm ${((kind === "details" && iraqHidden) || (kind === "types" && typesHidden)) ? "opacity-60" : ""}`}>
     <div className="relative mb-3 min-h-7"><h2 className="pl-9 text-lg font-bold text-primary"><Pair ar={iraqTitle.ar} de={iraqTitle.de} /></h2><div className="absolute left-0 top-0">{menu}</div></div>
