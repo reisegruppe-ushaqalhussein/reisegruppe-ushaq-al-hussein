@@ -128,10 +128,11 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
         {shown.map((t) => {
           const Icon = t.icon;
           const off = hiddenTiles.has(t.id);
+          const iraqFolder = t.id === "system:iraq-details" || t.id === "system:iraq-types";
           return <div key={t.id} className={`relative min-w-0 ${off ? "opacity-45" : ""}`}>
-            <Button variant="outline" onClick={() => !arranging && onOpen(t.id)} className={`${cms.columns === 3 ? "h-28 gap-2 px-1.5 text-xs" : "h-32 gap-3 px-3"} w-full flex-col whitespace-normal bg-card shadow-sm hover:border-secondary hover:bg-card`}>
+            <Button variant="outline" onClick={() => !arranging && onOpen(t.id)} className={`${cms.columns === 3 ? "h-28 gap-2 px-1.5 text-xs" : "h-32 gap-3 px-3"} w-full flex-col whitespace-normal bg-card shadow-sm hover:border-secondary hover:bg-card ${iraqFolder ? "justify-start pt-3" : ""}`}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-primary"><Icon className="h-5 w-5" /></span>
-              <span className="w-full"><LangText ar={t.ar} de={t.de} center /></span>
+              <span className={`w-full ${iraqFolder ? "min-h-10 flex items-center justify-center" : ""}`}><LangText ar={t.ar} de={t.de} center /></span>
             </Button>
             {arranging && <div className="absolute inset-x-1 bottom-1 flex flex-wrap justify-center gap-1">
               {shown.length > 1 && <IconBtn label="قبل | Davor" onClick={() => void move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>}
