@@ -69,7 +69,8 @@ export function allTiles(content: SiteContent, builtins: Tile[]): Tile[] {
   const custom = (content.cms?.sections ?? []).map((s) => ({ id: customTileId(s.id), ar: s.ar, de: s.de, icon: cmsIcons[s.icon] ?? Folder, builtin: false }));
   const tripTypes: Tile[] = (content.tripTypes ?? []).map((t) => ({ id: `triptype:${t.id}`, ar: t.ar, de: t.de, icon: Folder, builtin: false, tripType: true, defaultParent: "trips" }));
   const iraqTypesFolder: Tile = { id: "system:iraq-types", ...labelOf(content, "iraqTypes", "أنواع الزيارة ضمن هذه الرحلة", "Arten der Ziyara innerhalb dieser Reise"), icon: Folder, builtin: true, defaultParent: "triptype:iraq" };
-  return [...builtins.map((b) => ({ ...b, ...labelOf(content, `tile:${b.id}`, b.ar, b.de) })), ...custom, ...tripTypes, iraqTypesFolder];
+  const iraqDetailsFolder: Tile = { id: "system:iraq-details", ...labelOf(content, "iraqDetails", "تفاصيل الرحلة", "Reisedetails"), icon: Folder, builtin: true, defaultParent: "triptype:iraq" };
+  return [...builtins.map((b) => ({ ...b, ...labelOf(content, `tile:${b.id}`, b.ar, b.de) })), ...custom, ...tripTypes, iraqDetailsFolder, iraqTypesFolder];
 }
 
 /** The luxury tile grid used on home and inside every folder, so new sections look exactly like the existing ones. */
@@ -162,7 +163,7 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
     setBusy(true);
     const filled = await fillGerman({ ar: ar.trim(), de: de.trim() }, [["ar", "de"]]);
     if (tile?.builtin) {
-      const labelKey = tile.id === "system:iraq-types" ? "iraqTypes" : `tile:${tile.id}`;
+      const labelKey = tile.id === "system:iraq-types" ? "iraqTypes" : tile.id === "system:iraq-details" ? "iraqDetails" : `tile:${tile.id}`;
       await save(cms, { labels: { ...(content.labels ?? {}), [labelKey]: { ar: filled.ar, de: filled.de } } });
     } else if (sec) {
       await save({ ...cms, sections: (cms.sections ?? []).map((s) => s.id === sec.id ? { ...s, ...filled, icon } : s) });
