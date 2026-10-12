@@ -15,12 +15,14 @@ type FailRow = { ua: string; at: number };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("admin_settings").select("value").eq("key", key).maybeSingle();
+  const { data, error } = await supabaseAdmin.from("admin_settings").select("value").eq("key", key).maybeSingle();
+  if (error) throw new Error(`Unable to read setting "${key}": ${error.message}`);
   try { return data?.value ? (JSON.parse(data.value) as T) : fallback; } catch { return fallback; }
 }
 async function writeJson(key: string, value: unknown) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("admin_settings").upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
+  const { error } = await supabaseAdmin.from("admin_settings").upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
+  if (error) throw new Error(`Unable to save setting "${key}": ${error.message}`);
 }
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async (): Promise<SiteContent> => {
@@ -362,7 +364,8 @@ export const submitIdRequest = createServerFn({ method: "POST" })
       );
     const status: IdStatus = match ? "approved" : "pending";
     const row: IdRequest = { ...data, tripId: data.tripId || undefined, at: Date.now(), status, auto: match };
-    await writeJson("id_requests", [row, ...list.filter((r) => r.id !== data.id)].slice(0, 1000));
+    // Keep existing requests: truncating this list can silently remove older visitors' IDs.
+    await writeJson("id_requests", [row, ...list.filter((r) => r.id !== data.id)]);
     if (status === "pending" && (!existing || existing.status !== "pending")) {
       try { await notifyStaffOfIdRequest(data.nameAr, data.nameDe); }
       catch (e) { console.error("ID request notification", e); }
@@ -395,8 +398,13 @@ export const deleteIdRequestsForTrip = createServerFn({ method: "POST" })
 export const getIdStatus = createServerFn({ method: "POST" })
   .validator((d) => z.object({ id: z.string().max(100) }).parse(d))
   .handler(async ({ data }) => {
-    const list = await readJson<IdRequest[]>("id_requests", []);
-    return { status: (list.find((r) => r.id === data.id)?.status ?? null) as IdStatus | null };
+    try {
+      const list = await readJson<IdRequest[]>("id_requests", []);
+      return { ok: true as const, status: (list.find((r) => r.id === data.id)?.status ?? null) as IdStatus | null };
+    } catch (error) {
+      console.error("getIdStatus failed", error);
+      return { ok: false as const, status: null };
+    }
   });
 
 export const listIdRequests = createServerFn({ method: "POST" })
