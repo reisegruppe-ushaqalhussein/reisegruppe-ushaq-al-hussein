@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { BedDouble, CalendarClock, Landmark, MapPin, Navigation, Phone, Plus, RotateCcw, Settings, Users, Vibrate } from "lucide-react";
+import { BedDouble, CalendarClock, Eye, EyeOff, Landmark, MapPin, Navigation, Pencil, Phone, Plus, RotateCcw, Settings, Trash2, Users, Vibrate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, ItemActions, ManageRow, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, ItemActions, ManageRow, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import { defaultContent, defaultPackingGroups, type PackingCategory } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
@@ -275,7 +275,6 @@ const packingCategoryFields = (lang: ReturnType<typeof useLang>["lang"]): FieldD
 export function PackingView({ content, admin }: { content?: SiteContent; admin?: Admin }) {
   const { lang } = useLang();
   const showHidden = useShowHidden();
-  const isEditing = useSectionEditMode();
   const save = useSaveContent(admin?.password ?? "");
   const categories: PackingCategory[] = content?.packing ?? defaultPackingGroups;
   const commit = async (next: PackingCategory[]) => {
@@ -286,6 +285,13 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
   const [custom, setCustom] = useState<{ id: string; text: string }[]>([]);
   const [text, setText] = useState("");
   const [ready, setReady] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [editingTarget, setEditingTarget] = useState<
+    | { kind: "category"; categoryId: string; ar: string; de: string }
+    | { kind: "item"; categoryId: string; itemId: string; ar: string; de: string }
+    | { kind: "new-item"; categoryId: string; ar: string; de: string }
+    | null
+  >(null);
 
   useEffect(() => {
     try {
@@ -315,6 +321,54 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
   const addPlaceholder = ui("أضف غرضاً خاصاً...", "Eigenen Gegenstand hinzufügen...", "Add personal item...");
   const categoryFields = packingCategoryFields(lang);
   const itemFields = packingItemFields(lang);
+  const editCategory = (group: PackingCategory) => {
+    setManageOpen(false);
+    setEditingTarget({ kind: "category", categoryId: group.id, ar: group.ar, de: group.de });
+  };
+  const editItem = (group: PackingCategory, item: PackingCategory["items"][number]) => {
+    setManageOpen(false);
+    setEditingTarget({ kind: "item", categoryId: group.id, itemId: item.id, ar: item.ar, de: item.de });
+  };
+  const addItem = (group: PackingCategory) => {
+    setManageOpen(false);
+    setEditingTarget({ kind: "new-item", categoryId: group.id, ar: "", de: "" });
+  };
+  const saveTarget = async (row: Record<string, unknown>) => {
+    if (!editingTarget) return;
+    const ar = String(row.ar ?? "");
+    const de = String(row.de ?? "");
+    if (editingTarget.kind === "category") {
+      await commit(categories.map((group) => group.id === editingTarget.categoryId ? { ...group, ar, de } : group));
+    } else if (editingTarget.kind === "item") {
+      await commit(categories.map((group) => group.id === editingTarget.categoryId
+        ? { ...group, items: group.items.map((item) => item.id === editingTarget.itemId ? { ...item, ar, de } : item) }
+        : group));
+    } else {
+      await commit(categories.map((group) => group.id === editingTarget.categoryId
+        ? { ...group, items: [...group.items, { id: "item-" + Date.now(), ar, de: de || ar }] }
+        : group));
+    }
+  };
+  const changeVisibility = async (group: PackingCategory, item?: PackingCategory["items"][number]) => {
+    if (item) {
+      await commit(categories.map((entry) => entry.id === group.id
+        ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, hidden: !old.hidden } : old) }
+        : entry));
+    } else {
+      await commit(categories.map((entry) => entry.id === group.id ? { ...entry, hidden: !entry.hidden } : entry));
+    }
+  };
+  const deleteTarget = async (group: PackingCategory, item?: PackingCategory["items"][number]) => {
+    const targetName = item ? (lang === "de" ? item.de : item.ar) : (lang === "de" ? group.de : group.ar);
+    if (!window.confirm(ui(`هل تريد حذف «${targetName}»؟`, `Möchtest du „${targetName}“ wirklich löschen?`, `Delete “${targetName}”?`))) return;
+    if (item) {
+      await commit(categories.map((entry) => entry.id === group.id
+        ? { ...entry, items: entry.items.filter((old) => old.id !== item.id) }
+        : entry));
+    } else {
+      await commit(categories.filter((entry) => entry.id !== group.id));
+    }
+  };
 
   return (
     <div className="screen-enter px-4 py-7">
@@ -326,6 +380,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
         {admin && (
           <SectionAdminBar
             languageAware
+            onEditClick={() => setManageOpen(true)}
             addLabel={{ ar: addCategoryLabel, de: addCategoryLabel }}
             addFields={categoryFields}
             addBlank={{ ar: "", de: "", items: [] }}
@@ -347,12 +402,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
         <section key={group.id} className={"mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm " + (group.hidden ? "opacity-55" : "")}>
           <div className="mb-2 flex items-center justify-between border-b border-border/50 pb-2">
             <h3 className="text-sm font-bold text-secondary"><P ar={group.ar} de={group.de} /></h3>
-            {admin && <ItemActions
-              fields={categoryFields} item={{ ar: group.ar, de: group.de }} hidden={group.hidden ?? false} languageAware
-              onVisibilityChange={async (hidden) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, hidden } : entry))}
-              onSave={async (row) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : entry))}
-              onDelete={async () => commit(categories.filter((entry) => entry.id !== group.id))}
-            />}
+
           </div>
           <ul className="space-y-1">
             {group.items.map((item) => (
@@ -361,23 +411,11 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
                   <input type="checkbox" checked={!!checked[item.id]} onChange={() => toggle(item.id)} className="h-5 w-5 accent-[var(--secondary)]" />
                   <span className={checked[item.id] ? "text-muted-foreground line-through" : "text-foreground"}><P ar={item.ar} de={item.de} /></span>
                 </label>
-                {admin && <ItemActions
-                  fields={itemFields} item={{ ar: item.ar, de: item.de }} hidden={item.hidden ?? false} languageAware
-                  onVisibilityChange={async (hidden) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, hidden } : old) } : entry))}
-                  onSave={async (row) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : old) } : entry))}
-                  onDelete={async () => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.filter((old) => old.id !== item.id) } : entry))}
-                />}
+
               </li>
             ))}
           </ul>
-          {admin && isEditing && <div className="mt-2 border-t border-dashed border-border/60 pt-2">
-            <Button variant="ghost" size="sm" className="w-full text-xs text-secondary" onClick={() => {
-              const arName = window.prompt(ui("اسم الغرض بالعربية:", "Gegenstandsname auf Arabisch:", "Item name in Arabic:"));
-              if (!arName?.trim()) return;
-              const deName = window.prompt(ui("اسم الغرض بالألمانية:", "Gegenstandsname auf Deutsch:", "Item name in German:"), arName) ?? "";
-              void commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: [...entry.items, { id: "item-" + Date.now(), ar: arName.trim(), de: deName.trim() || arName.trim() }] } : entry));
-            }}><Plus className="me-1 h-3.5 w-3.5" /><P ar="إضافة غرض إلى هذه الفئة" de="Gegenstand hinzufügen" en="Add item to this category" /></Button>
-          </div>}
+
         </section>
       ))}
 
@@ -406,6 +444,53 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
       <Button variant="outline" className="w-full text-destructive" onClick={() => {
         if (window.confirm(resetConfirm)) setChecked({});
       }}><RotateCcw className="me-1 h-4 w-4" /><P ar="إعادة ضبط الحقيبة" de="Liste zurücksetzen" en="Reset checklist" /></Button>
+
+      {admin && <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+        <DialogContent dir={lang === "ar" ? "rtl" : "ltr"} className="max-h-[88dvh] w-[calc(100%-20px)] max-w-[520px] overflow-y-auto">
+          <DialogHeader className={lang === "ar" ? "text-right" : "text-left"}>
+            <DialogTitle>{ui("إدارة حقيبة السفر", "Reise-Checkliste verwalten", "Manage packing list")}</DialogTitle>
+            <DialogDescription>{ui("اختاري الفئة أو الغرض الذي تريدين تعديله أو إخفاءه أو حذفه.", "Wähle eine Kategorie oder einen Gegenstand zum Bearbeiten, Ausblenden oder Löschen.", "Choose a category or item to edit, hide, or delete.")}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[62dvh] space-y-3 overflow-y-auto pe-1">
+            {categories.map((group) => (
+              <section key={group.id} className="rounded-lg border border-border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-bold text-primary"><P ar={group.ar} de={group.de} /></p>
+                    {group.hidden && <p className="text-xs text-muted-foreground">{ui("مخفية", "Ausgeblendet", "Hidden")}</p>}
+                  </div>
+                  <Button size="sm" variant="outline" aria-label={ui("تعديل الفئة", "Kategorie bearbeiten", "Edit category")} onClick={() => editCategory(group)}><Pencil className="me-1 h-3.5 w-3.5" />{ui("تعديل", "Bearbeiten", "Edit")}</Button>
+                  <Button size="sm" variant="outline" aria-label={group.hidden ? ui("إظهار الفئة", "Kategorie anzeigen", "Show category") : ui("إخفاء الفئة", "Kategorie ausblenden", "Hide category")} onClick={() => void changeVisibility(group)}>{group.hidden ? <Eye className="me-1 h-3.5 w-3.5" /> : <EyeOff className="me-1 h-3.5 w-3.5" />}{group.hidden ? ui("إظهار", "Anzeigen", "Show") : ui("إخفاء", "Ausblenden", "Hide")}</Button>
+                  <Button size="sm" variant="outline" className="text-destructive" aria-label={ui("حذف الفئة", "Kategorie löschen", "Delete category")} onClick={() => void deleteTarget(group)}><Trash2 className="me-1 h-3.5 w-3.5" />{ui("حذف", "Löschen", "Delete")}</Button>
+                </div>
+                <div className="mt-3 space-y-2 border-t border-border/60 pt-2">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm"><P ar={item.ar} de={item.de} /></p>
+                        {item.hidden && <p className="text-xs text-muted-foreground">{ui("مخفي", "Ausgeblendet", "Hidden")}</p>}
+                      </div>
+                      <Button size="sm" variant="outline" aria-label={ui("تعديل الغرض", "Gegenstand bearbeiten", "Edit item")} onClick={() => editItem(group, item)}><Pencil className="me-1 h-3.5 w-3.5" />{ui("تعديل", "Bearbeiten", "Edit")}</Button>
+                      <Button size="sm" variant="outline" aria-label={item.hidden ? ui("إظهار الغرض", "Gegenstand anzeigen", "Show item") : ui("إخفاء الغرض", "Gegenstand ausblenden", "Hide item")} onClick={() => void changeVisibility(group, item)}>{item.hidden ? <Eye className="me-1 h-3.5 w-3.5" /> : <EyeOff className="me-1 h-3.5 w-3.5" />}{item.hidden ? ui("إظهار", "Anzeigen", "Show") : ui("إخفاء", "Ausblenden", "Hide")}</Button>
+                      <Button size="sm" variant="outline" className="text-destructive" aria-label={ui("حذف الغرض", "Gegenstand löschen", "Delete item")} onClick={() => void deleteTarget(group, item)}><Trash2 className="me-1 h-3.5 w-3.5" />{ui("حذف", "Löschen", "Delete")}</Button>
+                    </div>
+                  ))}
+                  <Button size="sm" variant="ghost" className="w-full text-secondary" onClick={() => addItem(group)}><Plus className="me-1 h-4 w-4" />{ui("إضافة غرض لهذه الفئة", "Gegenstand hinzufügen", "Add item to category")}</Button>
+                </div>
+              </section>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>}
+      {admin && editingTarget && <EditDialog
+        open={Boolean(editingTarget)}
+        onOpenChange={(open) => { if (!open) setEditingTarget(null); }}
+        title={{ ar: editingTarget.kind === "category" ? "تعديل الفئة" : editingTarget.kind === "new-item" ? "إضافة غرض" : "تعديل الغرض", de: editingTarget.kind === "category" ? "Kategorie bearbeiten" : editingTarget.kind === "new-item" ? "Gegenstand hinzufügen" : "Gegenstand bearbeiten" }}
+        fields={editingTarget.kind === "category" ? categoryFields : itemFields}
+        initial={{ ar: editingTarget.ar, de: editingTarget.de }}
+        onSubmit={saveTarget}
+        languageAware
+      />}
     </div>
   );
 }
