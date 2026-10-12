@@ -30,6 +30,8 @@ export type DonationEntry = { id: string; ar: string; de: string; value: string;
 export type RoomEntry = { id: string; name: string; city: string; hotel: string; floor: string; room: string; hidden?: boolean };
 export type GuidelineEntry = { id: string; ar: string; de: string; destAr?: string; destDe?: string; pdf?: string; images?: string; hidden?: boolean };
 export type IraqItem = { id: string; kind: string; ar: string; de: string; bodyAr: string; bodyDe: string; hidden?: boolean };
+export type PackingItem = { id: string; ar: string; de: string; hidden?: boolean };
+export type PackingCategory = { id: string; ar: string; de: string; items: PackingItem[]; hidden?: boolean };
 export type LabelMap = Record<string, { ar: string; de: string; hidden?: boolean; target?: string }>;
 /** Returns an admin-renamed title or the given default. */
 export function labelOf(c: { labels?: LabelMap | undefined }, key: string, ar: string, de: string) { const l = c.labels?.[key]; return { ar: l?.ar || ar, de: l?.de || de }; }
@@ -66,6 +68,7 @@ export type SiteContent = {
   guidelines?: GuidelineEntry[];
   guidelinesPdf?: string | undefined;
   iraqItems?: IraqItem[];
+  packing?: PackingCategory[];
   labels?: LabelMap | undefined;
   reviewUrl?: string | undefined;
   trash?: TrashEntry[];
@@ -83,6 +86,21 @@ export const defaultContacts: ContactEntry[] = [
   { id: "yasser", ar: "الحاج ياسر الدر", de: "Hajj Yasser Aldor", roleAr: "المسؤول العام — خادم حملة عشاق الحسين - ألمانيا", roleDe: "Allgemeiner Verantwortlicher der Reisegruppe", phone: "+49 1577 3055365", whatsapp: "https://wa.me/49015773055365" },
   { id: "samia", ar: "الحجة سامية فقيه", de: "Hajje Samia Fakih", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", phone: "+49 1578 5616843", whatsapp: "https://wa.me/49015785616843" },
   { id: "khadije", ar: "الحجة خديجة إسماعيل", de: "Hajje Khadije Ismail", roleAr: "للأخوات فقط — عند الاستفسار", roleDe: "Nur für Schwestern – bei Rückfragen", phone: "+49 176 63409995", whatsapp: "https://wa.me/49017663409995" },
+];
+
+export const defaultPackingGroups: PackingCategory[] = [
+  { id: "docs", ar: "الوثائق والأوراق", de: "Dokumente", items: [
+    { id: "passport", ar: "جواز السفر", de: "Reisepass" }, { id: "visa", ar: "التأشيرة", de: "Visum" }, { id: "idcard", ar: "بطاقة الهوية", de: "Personalausweis" }, { id: "tickets", ar: "تذاكر الطيران", de: "Flugtickets" }, { id: "cash", ar: "النقود والبطاقة البنكية", de: "Bargeld & Bankkarte" }, { id: "insurance", ar: "التأمين الصحي", de: "Krankenversicherung" },
+  ] },
+  { id: "ibada", ar: "العبادات والمناسك", de: "Gottesdienst", items: [
+    { id: "ihram", ar: "ثوب الإحرام", de: "Ihram-Kleidung" }, { id: "sandals", ar: "نعل مريح", de: "Bequeme Sandalen" }, { id: "turba", ar: "التربة الحسينية", de: "Turba" }, { id: "misbaha", ar: "المسبحة", de: "Gebetskette" }, { id: "duabook", ar: "كتاب الأدعية", de: "Bittgebetsbuch" },
+  ] },
+  { id: "health", ar: "الصحة والأدوية", de: "Gesundheit", items: [
+    { id: "meds", ar: "الأدوية الشخصية", de: "Persönliche Medikamente" }, { id: "pain", ar: "مسكنات", de: "Schmerzmittel" }, { id: "plasters", ar: "لصقات جروح", de: "Pflaster" }, { id: "sanitizer", ar: "معقم ومستلزمات النظافة", de: "Desinfektion & Hygiene" }, { id: "mask", ar: "كمامات", de: "Masken" },
+  ] },
+  { id: "general", ar: "مستلزمات عامة", de: "Allgemeines", items: [
+    { id: "charger", ar: "الشاحن", de: "Ladegerät" }, { id: "powerbank", ar: "بنك الطاقة", de: "Powerbank" }, { id: "adapter", ar: "محول الكهرباء", de: "Reiseadapter" }, { id: "clothes", ar: "ملابس مريحة", de: "Bequeme Kleidung" }, { id: "bag", ar: "حقيبة ظهر صغيرة", de: "Kleiner Rucksack" },
+  ] },
 ];
 
 export const defaultContent: SiteContent = {
@@ -108,6 +126,7 @@ export const defaultContent: SiteContent = {
   emergency: [],
   donations: [],
   memories: [],
+  packing: defaultPackingGroups,
   modeLabels: { admin: "الإدارة", haj: "معاينة كحاج", leader: "مسؤول الحملة" },
   alert: { ar: "", de: "", active: false },
   duas: [
@@ -166,6 +185,7 @@ export function mergeContent(data: unknown): SiteContent {
     guidelines: Array.isArray(d.guidelines) ? d.guidelines : [],
     guidelinesPdf: d.guidelinesPdf,
     iraqItems: Array.isArray(d.iraqItems) ? d.iraqItems : defaultIraqItems,
+    packing: Array.isArray(d.packing) ? d.packing : defaultPackingGroups,
     labels: d.labels ?? {},
     modeLabels: { ...defaultContent.modeLabels, ...(d.modeLabels ?? {}) },
     trash: Array.isArray(d.trash) ? d.trash : [],
@@ -174,7 +194,7 @@ export function mergeContent(data: unknown): SiteContent {
 }
 
 /** Sections whose removed items go to the recycle bin. */
-export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories", "rooms", "guidelines", "iraqItems"] as const;
+export const trashSections = ["trips", "news", "duas", "contacts", "itinerary", "locations", "faqs", "occasions", "hadiths", "tripTypes", "shrines", "visaNotes", "emergency", "donations", "memories", "rooms", "guidelines", "iraqItems", "packing"] as const;
 const keyOf = (x: unknown) => (x && typeof x === "object" && "id" in x && typeof (x as { id: unknown }).id === "string" ? `id:${(x as { id: string }).id}` : `j:${JSON.stringify(x)}`);
 
 /** Moves any items removed between prev and next into next.trash (works for every current and future section). */
