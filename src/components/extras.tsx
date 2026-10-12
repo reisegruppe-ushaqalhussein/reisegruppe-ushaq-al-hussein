@@ -264,12 +264,12 @@ export function TawafView() {
 }
 
 const packingItemFields = (lang: ReturnType<typeof useLang>["lang"]): FieldDef[] => [
-  { key: "ar", ar: lang === "de" || lang === "en" ? "Gegenstand (AR)" : "اسم الغرض بالعربية", de: lang === "de" || lang === "en" ? "Gegenstand (AR)" : "اسم الغرض بالعربية" },
-  { key: "de", ar: lang === "ar" ? "اسم الغرض بالألمانية" : "Gegenstand (DE)", de: lang === "ar" ? "اسم الغرض بالألمانية" : "Gegenstand (DE)", ltr: true },
+  { key: "ar", ar: lang === "en" ? "Item name (Arabic)" : lang === "de" ? "Gegenstand (AR)" : "اسم الغرض بالعربية", de: lang === "en" ? "Item name (Arabic)" : lang === "de" ? "Gegenstand (AR)" : "اسم الغرض بالعربية" },
+  { key: "de", ar: lang === "ar" ? "اسم الغرض بالألمانية" : lang === "en" ? "Item name (German)" : "Gegenstand (DE)", de: lang === "ar" ? "اسم الغرض بالألمانية" : lang === "en" ? "Item name (German)" : "Gegenstand (DE)", ltr: true },
 ];
 const packingCategoryFields = (lang: ReturnType<typeof useLang>["lang"]): FieldDef[] => [
-  { key: "ar", ar: lang === "de" || lang === "en" ? "Kategorie (AR)" : "عنوان الفئة بالعربية", de: lang === "de" || lang === "en" ? "Kategorie (AR)" : "عنوان الفئة بالعربية" },
-  { key: "de", ar: lang === "ar" ? "عنوان الفئة بالألمانية" : "Kategorie (DE)", de: lang === "ar" ? "عنوان الفئة بالألمانية" : "Kategorie (DE)", ltr: true },
+  { key: "ar", ar: lang === "en" ? "Category name (Arabic)" : lang === "de" ? "Kategorie (AR)" : "عنوان الفئة بالعربية", de: lang === "en" ? "Category name (Arabic)" : lang === "de" ? "Kategorie (AR)" : "عنوان الفئة بالعربية" },
+  { key: "de", ar: lang === "ar" ? "عنوان الفئة بالألمانية" : lang === "en" ? "Category name (German)" : "Kategorie (DE)", de: lang === "ar" ? "عنوان الفئة بالألمانية" : lang === "en" ? "Category name (German)" : "Kategorie (DE)", ltr: true },
 ];
 
 export function PackingView({ content, admin }: { content?: SiteContent; admin?: Admin }) {
