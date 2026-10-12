@@ -123,7 +123,7 @@ const socialLinks = [
   { href: "https://www.tiktok.com/@reise_ushaq_alhussein", label: "تيك توك | TikTok", icon: Music2 },
 ];
 
-type View = "custom" | "triptype" | "iraqtypes" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "tawaf" | "packing" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId" | "rooms" | "bookings" | "roomCalc" | "luggage";
+type View = "custom" | "triptype" | "iraqtypes" | "iraqdetails" | "home" | "trips" | "registration" | "contacts" | "news" | "donations" | "duas" | "itinerary" | "guide" | "tasbeeh" | "tawaf" | "packing" | "qibla" | "occasions" | "hadiths" | "faqs" | "visa" | "favorites" | "memories" | "pilgrimId" | "rooms" | "bookings" | "roomCalc" | "luggage";
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 type PairProps = { ar: string; de: string; align?: "right" | "center"; inverse?: boolean };
 
@@ -209,6 +209,7 @@ const viewTitles: Record<View, { ar: string; de: string }> = {
   custom: { ar: "", de: "" },
   triptype: { ar: "نوع الزيارة", de: "Reiseart" },
   iraqtypes: { ar: "أنواع الزيارة ضمن هذه الرحلة", de: "Arten der Ziyara innerhalb dieser Reise" },
+  iraqdetails: { ar: "تفاصيل الرحلة", de: "Reisedetails" },
   home: { ar: "الرئيسية", de: "Start" },
   trips: { ar: "الرحلات", de: "Reisen" },
   registration: { ar: "التسجيل", de: "Anmeldung" },
@@ -394,7 +395,7 @@ function IraqItemsView({ content, admin, kind }: { content: SiteContent; admin: 
     {showHidden && <IconBtn label={(kind === "details" ? iraqHidden : typesHidden) ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleHidden(kind === "details" ? "iraq" : "iraqTypes", !(kind === "details" ? iraqHidden : typesHidden))}>{(kind === "details" ? iraqHidden : typesHidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
   return <section className={`mb-5 rounded-lg border border-border bg-card p-4 shadow-sm ${((kind === "details" && iraqHidden) || (kind === "types" && typesHidden)) ? "opacity-60" : ""}`}>
-    <div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-lg font-bold text-primary"><Pair ar={kind === "details" ? "تفاصيل الرحلة" : typesTitle.ar} de={kind === "details" ? "Reisedetails" : typesTitle.de} /></h2>{menu}</div>
+    <div className="relative mb-3 min-h-7"><h2 className="pl-9 text-lg font-bold text-primary"><Pair ar={kind === "details" ? "تفاصيل الرحلة" : typesTitle.ar} de={kind === "details" ? "Reisedetails" : typesTitle.de} /></h2><div className="absolute left-0 top-0">{menu}</div></div>
     {admin && kind === "details" && <SectionAdminBar onRestore={() => saveIraq(defaultIraqItems)} />}
     {((kind === "details" && (!iraqHidden || showHidden)) || (kind === "types" && (!typesHidden || showHidden))) && <>
       {kind === "details" && visible.filter((x) => x.kind === "intro").map((x) => <div key={x.id} className={`mb-4 ${x.hidden ? "opacity-55" : ""}`}>{iraqActions(x)}<div className="rounded-lg bg-accent p-4 pe-10 text-sm"><Pair ar={x.ar} de={x.de} /></div></div>)}
@@ -406,6 +407,10 @@ function IraqItemsView({ content, admin, kind }: { content: SiteContent; admin: 
 
 function IraqTypesPage({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   return <div className="screen-enter px-4 py-7"><IraqItemsView content={content} admin={admin} kind="types" /></div>;
+}
+
+function IraqDetailsPage({ content, admin }: { content: SiteContent; admin: AdminProps }) {
+  return <div className="screen-enter px-4 py-7"><IraqItemsView content={content} admin={admin} kind="details" /></div>;
 }
 
 function TripsView({ content, admin, open }: { content: SiteContent; admin: AdminProps; open: (id: string) => void }) {
@@ -435,7 +440,7 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
           const Icon = tripIcons[trip.id] ?? Landmark;
           const list = content.tripTypes;
           const actions = admin && <ItemActions fields={tripTypeFields} item={trip} hidden={trip.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, tripTypes: list.map((x) => (x.id === trip.id ? { ...(row as TripTypeEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, tripTypes: list.filter((x) => x.id !== trip.id) })} />;
-          const body = <><span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-secondary/50 bg-accent text-primary"><Icon className="h-8 w-8" aria-hidden="true" /></span><span className="flex min-h-12 w-full items-center justify-center text-sm"><Pair ar={trip.ar} de={trip.de} align="center" /></span>{trip.id !== "iraq" && <span className="mt-auto rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span>}</>;
+          const body = <><span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-secondary/50 bg-accent text-primary"><Icon className="h-8 w-8" aria-hidden="true" /></span><span className="flex min-h-12 w-full items-center justify-center text-sm"><Pair ar={trip.ar} de={trip.de} align="center" /></span>{trip.id === "iraq" ? <span aria-hidden="true" className="mt-auto h-[22px] w-24 rounded-full bg-muted" /> : <span className="mt-auto rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground"><Pair ar={trip.statusAr} de={trip.statusDe} align="center" /></span>}</>;
           return <div key={trip.id} className={`min-w-0 ${trip.hidden ? "opacity-55" : ""}`}>{actions}{(() => { const cls = "flex h-48 w-full flex-col items-center gap-2 whitespace-normal rounded-lg border border-border bg-card p-3 pt-4 text-center shadow-sm transition-colors"; return <button type="button" onClick={() => open(`triptype:${trip.id}`)} className={`${cls} hover:border-secondary`}>{body}</button>; })()}</div>;
         })}
       </div>
@@ -1628,6 +1633,10 @@ function CampaignApp({ content }: { content: SiteContent }) {
       window.history.pushState({ view: "iraqtypes" }, "");
       setView("iraqtypes");
       window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (id === "system:iraq-details") {
+      window.history.pushState({ view: "iraqdetails" }, "");
+      setView("iraqdetails");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (id.startsWith("triptype:")) {
       const tid = id.slice("triptype:".length);
       window.history.pushState({ view: "triptype", custom: tid }, "");
@@ -1644,7 +1653,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
   };
   const customSec = view === "custom" ? content.cms?.sections?.find((x) => x.id === customId) : undefined;
   const activeTripType = view === "triptype" ? content.tripTypes.find((x) => x.id === customId) : undefined;
-  const customTitle = customSec ? { ar: content.labels?.[`tile:c:${customSec.id}`]?.ar || customSec.ar, de: customSec.de } : activeTripType ? { ar: activeTripType.ar, de: activeTripType.de } : view === "iraqtypes" ? labelOf(content, "iraqTypes", "أنواع الزيارة ضمن هذه الرحلة", "Arten der Ziyara innerhalb dieser Reise") : undefined;
+  const customTitle = customSec ? { ar: content.labels?.[`tile:c:${customSec.id}`]?.ar || customSec.ar, de: customSec.de } : activeTripType ? { ar: activeTripType.ar, de: activeTripType.de } : view === "iraqtypes" ? labelOf(content, "iraqTypes", "أنواع الزيارة ضمن هذه الرحلة", "Arten der Ziyara innerhalb dieser Reise") : view === "iraqdetails" ? labelOf(content, "iraqDetails", "تفاصيل الرحلة", "Reisedetails") : undefined;
   // Phone back button / back gesture: close an open window first, otherwise return to the previous section.
   useEffect(() => {
     if (!window.history.state?.view) window.history.replaceState({ ...(window.history.state ?? {}), view: "home" }, "");
@@ -1674,13 +1683,14 @@ function CampaignApp({ content }: { content: SiteContent }) {
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
-        <AppHeader view={view} onHome={() => go("home")} title={customTitle} crumbs={view === "home" ? [] : pathOf(content, homeTiles, view === "custom" ? `c:${customId ?? ""}` : view === "triptype" ? `triptype:${customId ?? ""}` : view === "iraqtypes" ? "system:iraq-types" : view)} onCrumb={open} />
+        <AppHeader view={view} onHome={() => go("home")} title={customTitle} crumbs={view === "home" ? [] : pathOf(content, homeTiles, view === "custom" ? `c:${customId ?? ""}` : view === "triptype" ? `triptype:${customId ?? ""}` : view === "iraqtypes" ? "system:iraq-types" : view === "iraqdetails" ? "system:iraq-details" : view)} onCrumb={open} />
         {view !== "home" && view !== "custom" && view !== "triptype" && <div className="px-4"><TileGrid content={content} builtins={homeTiles} parentId={view} onOpen={open} /></div>}
-        {view === "triptype" && customId && <div className="px-4">{customId === "iraq" && <IraqItemsView content={content} admin={admin} kind="details" />}<TileGrid content={content} builtins={homeTiles} parentId={`triptype:${customId}`} onOpen={open} /></div>}
+        {view === "triptype" && customId && <div className="px-4"><TileGrid content={content} builtins={homeTiles} parentId={`triptype:${customId}`} onOpen={open} /></div>}
         {view === "home" && <AdminBar content={content} />}
         <AlertBanner alert={content.alert} />
         {view === "home" && <HomeView open={open} content={content} payment={content.payment ?? defaultContent.payment} />}
         {view === "iraqtypes" && <IraqTypesPage content={content} admin={admin} />}
+        {view === "iraqdetails" && <IraqDetailsPage content={content} admin={admin} />}
         {view === "custom" && customId && <CustomSectionView key={customId} content={content} id={customId} builtins={homeTiles} onOpen={open} />}
         {view === "trips" && <TripsView content={content} admin={admin} open={open} />}
         {view === "registration" && <RegistrationView content={content} admin={adminOnly} />}
