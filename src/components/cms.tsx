@@ -249,7 +249,7 @@ function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent
           <span className="min-w-0 truncate"><LangText ar={t.ar} de={t.de} /></span>
           {current === folder && <span className="shrink-0 text-xs">✓</span>}
         </Button>
-        {children.length > 0 && <Button type="button" variant="ghost" size="icon" className="h-10 w-9 shrink-0" aria-label={isOpen ? (lang === "de" ? "Ordner schließen" : "إغلاق المجلد") : (lang === "de" ? "Ordner öffnen" : "فتح المجلد")} onClick={() => toggle(t.id)}>{isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</Button>}
+        <Button type="button" variant="ghost" size="icon" className="h-10 w-9 shrink-0" aria-label={isOpen ? (lang === "de" ? "Ordner schließen" : "إغلاق المجلد") : (lang === "de" ? "Ordner öffnen" : "فتح المجلد")} onClick={() => toggle(t.id)}>{isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</Button>
       </div>
       {isOpen && children.length > 0 && <div className="mt-1 space-y-1">{renderTree(folder, depth + 1)}</div>}
     </div>;
