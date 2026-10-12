@@ -227,7 +227,7 @@ export function withTrash(prev: SiteContent | undefined, next: SiteContent): Sit
 }
 
 export const defaultIraqItems: IraqItem[] = [
-  { id: "i0", kind: "intro", ar: "زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة.", de: "Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf.", bodyAr: "", bodyDe: "" },
+  { id: "i0", kind: "intro", ar: "زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة.", de: "Ziyara zu den heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf.", bodyAr: "", bodyDe: "" },
   { id: "i1", kind: "type", ar: "زيارة الإمام الحسين (ع)", de: "Ziyara Imam Hussein (as)", bodyAr: "تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية).", bodyDe: "Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." },
   { id: "i2", kind: "type", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Ziyara Imam Hussein (as) Winterferien / Neujahr", bodyAr: "", bodyDe: "" },
   { id: "i3", kind: "type", ar: "زيارة عرفة", de: "Ziyara Arafa", bodyAr: "", bodyDe: "" },
