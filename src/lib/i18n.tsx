@@ -160,6 +160,7 @@ function translate(text: string, t: Target): string {
 function normalizeZiyaraTerms(value: string, target: "de" | "en"): string {
   return value
     // Canonical campaign terminology: never translate Ziyara into the generic word "Besuch".
+    .replace(/Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf\./gi, "Ziyara zu den heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf.")
     .replace(/\bIrak\s+(?:Besuch|Besuche|Reise)\b/gi, target === "en" ? "Iraq Ziyara" : "Irak Ziyara")
     .replace(/\bIraq\s+(?:visit|visits|trip|pilgrimage)\b/gi, "Iraq Ziyara")
     .replace(/\bUmrah\s+(?:Besuch|Besuche|visit|visits|trip|pilgrimage)\b/gi, "Umrah")
