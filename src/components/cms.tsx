@@ -261,7 +261,7 @@ function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent
     const sec: CmsSection = { id: newId(), ar: name.trim(), de: lang === "de" ? name.trim() : "", icon: "folder", items: [] };
     const parentTileId = expanded[expanded.length - 1];
     const parentTile = parentTileId ? tiles.find((t) => t.id === parentTileId) : undefined;
-    const parent = parentTile ? valueOf(parentTile) : "";
+    const parent = parentTile ? valueOf(parentTile) : parentOf(parents, tile);
     const next = { ...parents };
     if (parent) next[customTileId(sec.id)] = parent;
     next[tile.id] = sec.id;
