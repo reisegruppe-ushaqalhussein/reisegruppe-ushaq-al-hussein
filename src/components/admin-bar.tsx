@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { loginWithCode, logout, setMode, setToolsHidden, updatePassword, useStaffSession, useToolsHidden } from "@/lib/admin-session";
 import { saveOrQueue } from "@/lib/offline";
 import { changeAdminPassword, clearSecurityLog, getSecurityOverview } from "@/lib/site-content.functions";
-import type { SiteContent, TrashEntry } from "@/lib/site-content";
+import type { PackingCategory, PackingItem, SiteContent, TrashEntry } from "@/lib/site-content";
 
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 const openGatewayEvent = "open-access-gateway";
@@ -136,6 +136,13 @@ function TrashDialog({ open, onOpenChange, content, password }: { open: boolean;
   const trash = content.trash ?? [];
   const save = (next: SiteContent) => saveOrQueue(password, next, "سلة المحذوفات | Papierkorb", qc).catch((e) => window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`));
   const restore = (t: TrashEntry) => {
+    if (t.section === "packingItems" && t.parentId) {
+      const packing = (content.packing ?? []) as PackingCategory[];
+      const restoredItem = t.item as unknown as PackingItem;
+      const nextPacking = packing.map((group) => group.id === t.parentId && !group.items.some((item) => item.id === restoredItem.id) ? { ...group, items: [...group.items, restoredItem] } : group);
+      save({ ...content, packing: nextPacking, trash: trash.filter((x) => x.id !== t.id) });
+      return;
+    }
     const list = (content as unknown as Record<string, unknown[]>)[t.section] ?? [];
     save({ ...content, [t.section]: [...list, t.item], trash: trash.filter((x) => x.id !== t.id) } as SiteContent);
   };
