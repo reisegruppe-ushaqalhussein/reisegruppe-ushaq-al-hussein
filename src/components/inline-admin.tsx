@@ -49,9 +49,9 @@ export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmi
         <DialogHeader className="text-right"><DialogTitle>{languageAware ? (lang === "de" || lang === "en" ? title.de : title.ar) : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           {fields.map((f) => f.checkbox ? (
-            <label key={f.key} className="flex items-center gap-2 font-bold"><input type="checkbox" checked={Boolean(draft[f.key])} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-secondary" />{f.ar} | {f.de}</label>
+            <label key={f.key} className="flex items-center gap-2 font-bold"><input type="checkbox" checked={Boolean(draft[f.key])} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-secondary" />{languageAware ? (lang === "de" || lang === "en" ? f.de : f.ar) : <>{f.ar} | {f.de}</>}</label>
           ) : (
-            <label key={f.key} className="block font-bold">{f.ar} | {f.de}
+            <label key={f.key} className="block font-bold">{languageAware ? (lang === "de" || lang === "en" ? f.de : f.ar) : <>{f.ar} | {f.de}</>}
               {f.options
                 ? <select value={String(draft[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} className={inputCls}>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
                 : f.multiline
