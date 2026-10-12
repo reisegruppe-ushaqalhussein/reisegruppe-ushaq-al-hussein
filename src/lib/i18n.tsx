@@ -48,7 +48,6 @@ const en: Record<string, string> = {
   "Häufige Fragen (FAQ)": "Frequently asked questions",
   "Irak-Reise": "Iraq Ziyara",
   "Irak Ziyara": "Iraq Ziyara",
-  "Irak Ziyara": "Iraq Ziyara",
   "Iran Ziyara": "Iran Ziyara",
   "Iran — Ziyara Imam Rida (as)": "Iran — Ziyara Imam Rida (as)",
   "Iran — Zyarat Imam Rida (as)": "Iran — Ziyara Imam Rida (as)",
