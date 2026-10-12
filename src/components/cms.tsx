@@ -162,7 +162,8 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
     setBusy(true);
     const filled = await fillGerman({ ar: ar.trim(), de: de.trim() }, [["ar", "de"]]);
     if (tile?.builtin) {
-      await save(cms, { labels: { ...(content.labels ?? {}), [`tile:${tile.id}`]: { ar: filled.ar, de: filled.de } } });
+      const labelKey = tile.id === "system:iraq-types" ? "iraqTypes" : `tile:${tile.id}`;
+      await save(cms, { labels: { ...(content.labels ?? {}), [labelKey]: { ar: filled.ar, de: filled.de } } });
     } else if (sec) {
       await save({ ...cms, sections: (cms.sections ?? []).map((s) => s.id === sec.id ? { ...s, ...filled, icon } : s) });
     } else {
