@@ -61,7 +61,7 @@ export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmi
           ))}
           <Button disabled={busy} className="h-11 w-full" onClick={async () => {
             setBusy(true);
-            try { await onSubmit(draft); onOpenChange(false); } catch (e) { console.error(e); window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(false); }
+            try { await onSubmit(draft); onOpenChange(false); } catch (e) { console.error(e); window.alert(`${languageAware ? (lang === "en" ? "Save failed" : lang === "de" ? "Speichern fehlgeschlagen" : "تعذّر الحفظ") : "تعذّر الحفظ | Speichern fehlgeschlagen"}\n\n${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(false); }
           }}>{languageAware ? (lang === "en" ? "Save" : lang === "de" ? "Speichern" : "حفظ") : <>حفظ <span className="text-xs italic opacity-75">| Speichern</span></>}</Button>
         </div>
       </DialogContent>
@@ -78,7 +78,7 @@ export function IconBtn({ label, onClick, danger = false, children }: { label: s
 export function GearMenu({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const [open, setOpen] = useState(false);
   const { lang } = useLang();
-  const settingsLabel = lang === "ar" ? "الإعدادات" : lang === "de" || lang === "en" ? "Einstellungen" : "الإعدادات | Einstellungen";
+  const settingsLabel = lang === "ar" ? "الإعدادات" : lang === "de" ? "Einstellungen" : lang === "en" ? "Settings" : "الإعدادات | Einstellungen";
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -108,8 +108,8 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
     <div dir="ltr" className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-start p-1 animate-in fade-in duration-200">
       <GearMenu>
         <IconBtn label={languageAware ? (lang === "en" ? "Edit" : lang === "de" ? "Bearbeiten" : "تعديل") : "تعديل | Bearbeiten"} onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
-        {onVisibilityChange && showHidden && <IconBtn label={languageAware ? (lang === "en" ? (hidden ? "Show" : "Hide") : lang === "de" ? (hidden ? "Einblenden" : "Ausblenden") : (hidden ? "إظهار" : "إخفاء")) : (hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen")} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
-        <IconBtn label={languageAware ? (lang === "en" ? "Delete" : lang === "de" ? "Löschen" : "حذف") : "حذف | Löschen"} danger onClick={async () => { if (!window.confirm(languageAware ? (lang === "en" ? "Delete this item?" : lang === "de" ? "Diesen Eintrag wirklich löschen?" : "هل أنت متأكد من الحذف؟") : "هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+        {onVisibilityChange && showHidden && <IconBtn label={languageAware ? (lang === "en" ? (hidden ? "Show" : "Hide") : lang === "de" ? (hidden ? "Einblenden" : "Ausblenden") : (hidden ? "إظهار" : "إخفاء")) : (hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen")} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert(languageAware ? (lang === "en" ? "Could not change visibility" : lang === "de" ? "Sichtbarkeit konnte nicht geändert werden" : "تعذّر تغيير الظهور") : "تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+        <IconBtn label={languageAware ? (lang === "en" ? "Delete" : lang === "de" ? "Löschen" : "حذف") : "حذف | Löschen"} danger onClick={async () => { if (!window.confirm(languageAware ? (lang === "en" ? "Delete this item?" : lang === "de" ? "Diesen Eintrag wirklich löschen?" : "هل أنت متأكد من الحذف؟") : "هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert(languageAware ? (lang === "en" ? "Delete failed" : lang === "de" ? "Löschen fehlgeschlagen" : "تعذّر الحذف") : "تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={{ ar: "تعديل", de: lang === "en" ? "Edit" : "Bearbeiten" }} fields={fields} initial={item} onSubmit={onSave} languageAware={languageAware} />}
     </div>
@@ -138,7 +138,7 @@ export function AddButton({ label, fields, blank, onAdd, inline = false, languag
   const { lang } = useLang();
   return (
     <div className={inline ? "contents" : "mb-2 flex justify-end"}>
-      <button type="button" onClick={() => setOpen(true)} aria-label={languageAware ? (lang === "en" ? label.de : lang === "de" ? label.de : label.ar) : `${label.ar} | ${label.de}`} title={languageAware ? (lang === "de" || lang === "en" ? label.de : label.ar) : `${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
+      <button type="button" onClick={() => setOpen(true)} aria-label={languageAware ? (lang === "en" ? label.de : lang === "de" ? label.de : label.ar) : `${label.ar} | ${label.de}`} title={languageAware ? (lang === "en" ? label.de : lang === "de" ? label.de : label.ar) : `${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} languageAware={languageAware} />}
     </div>
   );
@@ -158,13 +158,13 @@ export function RestoreButton({ onRestore, label = "استرجاع البيان�
         try {
           await onRestore();
         } catch {
-          window.alert("تعذّر الاسترجاع | Wiederherstellung fehlgeschlagen");
+          window.alert(languageAware ? (lang === "en" ? "Restore failed" : lang === "de" ? "Wiederherstellung fehlgeschlagen" : "تعذّر الاسترجاع") : "تعذّر الاسترجاع | Wiederherstellung fehlgeschlagen");
         } finally {
           setBusy(false);
         }
       }}
       aria-label={languageAware ? (lang === "en" ? "Restore original" : lang === "de" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
-      title={languageAware ? (lang === "de" || lang === "en" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
+      title={languageAware ? (lang === "en" ? "Restore original" : lang === "de" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
       className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"
     >
       <RotateCcw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
