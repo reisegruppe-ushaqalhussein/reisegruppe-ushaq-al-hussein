@@ -454,28 +454,30 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
           <div className="max-h-[62dvh] space-y-3 overflow-y-auto pe-1">
             {categories.map((group) => (
               <section key={group.id} className="rounded-lg border border-border p-3">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="break-words text-sm font-bold text-primary"><P ar={group.ar} de={group.de} /></p>
+                    <p className="whitespace-normal text-sm font-bold leading-5 text-primary"><P ar={group.ar} de={group.de} /></p>
                     {group.hidden && <p className="text-xs text-muted-foreground">{ui("مخفية", "Ausgeblendet", "Hidden")}</p>}
                   </div>
-                  <Button size="sm" variant="outline" aria-label={ui("تعديل الفئة", "Kategorie bearbeiten", "Edit category")} onClick={() => editCategory(group)}><Pencil className="me-1 h-3.5 w-3.5" />{ui("تعديل", "Bearbeiten", "Edit")}</Button>
-                  <Button size="sm" variant="outline" aria-label={group.hidden ? ui("إظهار الفئة", "Kategorie anzeigen", "Show category") : ui("إخفاء الفئة", "Kategorie ausblenden", "Hide category")} onClick={() => void changeVisibility(group)}>{group.hidden ? <Eye className="me-1 h-3.5 w-3.5" /> : <EyeOff className="me-1 h-3.5 w-3.5" />}{group.hidden ? ui("إظهار", "Anzeigen", "Show") : ui("إخفاء", "Ausblenden", "Hide")}</Button>
-                  <Button size="sm" variant="outline" className="text-destructive" aria-label={ui("حذف الفئة", "Kategorie löschen", "Delete category")} onClick={() => void deleteTarget(group)}><Trash2 className="me-1 h-3.5 w-3.5" />{ui("حذف", "Löschen", "Delete")}</Button>
+                  <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 p-0" aria-label={ui("تعديل الفئة", "Kategorie bearbeiten", "Edit category")} title={ui("تعديل الفئة", "Kategorie bearbeiten", "Edit category")} onClick={() => editCategory(group)}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 p-0" aria-label={group.hidden ? ui("إظهار الفئة", "Kategorie anzeigen", "Show category") : ui("إخفاء الفئة", "Kategorie ausblenden", "Hide category")} title={group.hidden ? ui("إظهار الفئة", "Kategorie anzeigen", "Show category") : ui("إخفاء الفئة", "Kategorie ausblenden", "Hide category")} onClick={() => void changeVisibility(group)}>{group.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</Button>
+                  <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 p-0 text-destructive" aria-label={ui("حذف الفئة", "Kategorie löschen", "Delete category")} title={ui("حذف الفئة", "Kategorie löschen", "Delete category")} onClick={() => void deleteTarget(group)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
                 <div className="mt-3 space-y-2 border-t border-border/60 pt-2">
                   {group.items.map((item) => (
-                    <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2">
+                    <div key={item.id} className="flex items-center gap-2 rounded-md bg-muted/40 p-2">
                       <div className="min-w-0 flex-1">
-                        <p className="break-words text-sm"><P ar={item.ar} de={item.de} /></p>
+                        <p className="whitespace-normal text-sm leading-5"><P ar={item.ar} de={item.de} /></p>
                         {item.hidden && <p className="text-xs text-muted-foreground">{ui("مخفي", "Ausgeblendet", "Hidden")}</p>}
                       </div>
-                      <Button size="sm" variant="outline" aria-label={ui("تعديل الغرض", "Gegenstand bearbeiten", "Edit item")} onClick={() => editItem(group, item)}><Pencil className="me-1 h-3.5 w-3.5" />{ui("تعديل", "Bearbeiten", "Edit")}</Button>
-                      <Button size="sm" variant="outline" aria-label={item.hidden ? ui("إظهار الغرض", "Gegenstand anzeigen", "Show item") : ui("إخفاء الغرض", "Gegenstand ausblenden", "Hide item")} onClick={() => void changeVisibility(group, item)}>{item.hidden ? <Eye className="me-1 h-3.5 w-3.5" /> : <EyeOff className="me-1 h-3.5 w-3.5" />}{item.hidden ? ui("إظهار", "Anzeigen", "Show") : ui("إخفاء", "Ausblenden", "Hide")}</Button>
-                      <Button size="sm" variant="outline" className="text-destructive" aria-label={ui("حذف الغرض", "Gegenstand löschen", "Delete item")} onClick={() => void deleteTarget(group, item)}><Trash2 className="me-1 h-3.5 w-3.5" />{ui("حذف", "Löschen", "Delete")}</Button>
+                      <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 p-0" aria-label={ui("تعديل الغرض", "Gegenstand bearbeiten", "Edit item")} title={ui("تعديل الغرض", "Gegenstand bearbeiten", "Edit item")} onClick={() => editItem(group, item)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 p-0" aria-label={item.hidden ? ui("إظهار الغرض", "Gegenstand anzeigen", "Show item") : ui("إخفاء الغرض", "Gegenstand ausblenden", "Hide item")} title={item.hidden ? ui("إظهار الغرض", "Gegenstand anzeigen", "Show item") : ui("إخفاء الغرض", "Gegenstand ausblenden", "Hide item")} onClick={() => void changeVisibility(group, item)}>{item.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</Button>
+                      <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 p-0 text-destructive" aria-label={ui("حذف الغرض", "Gegenstand löschen", "Delete item")} title={ui("حذف الغرض", "Gegenstand löschen", "Delete item")} onClick={() => void deleteTarget(group, item)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   ))}
-                  <Button size="sm" variant="ghost" className="w-full text-secondary" onClick={() => addItem(group)}><Plus className="me-1 h-4 w-4" />{ui("إضافة غرض لهذه الفئة", "Gegenstand hinzufügen", "Add item to category")}</Button>
+                  <div className="flex justify-end">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-secondary" aria-label={ui("إضافة غرض لهذه الفئة", "Gegenstand hinzufügen", "Add item to category")} title={ui("إضافة غرض لهذه الفئة", "Gegenstand hinzufügen", "Add item to category")} onClick={() => addItem(group)}><Plus className="h-4 w-4" /></Button>
+                  </div>
                 </div>
               </section>
             ))}
