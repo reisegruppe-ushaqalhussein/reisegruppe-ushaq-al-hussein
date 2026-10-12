@@ -62,7 +62,7 @@ export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmi
           <Button disabled={busy} className="h-11 w-full" onClick={async () => {
             setBusy(true);
             try { await onSubmit(draft); onOpenChange(false); } catch (e) { console.error(e); window.alert(`${languageAware ? (lang === "en" ? "Save failed" : lang === "de" ? "Speichern fehlgeschlagen" : "تعذّر الحفظ") : "تعذّر الحفظ | Speichern fehlgeschlagen"}\n\n${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(false); }
-          }}>{languageAware ? (lang === "en" ? "Save" : lang === "de" ? "Speichern" : "حفظ") : <>حفظ <span className="text-xs italic opacity-75">| Speichern</span></>}</Button>
+          }}>{languageAware ? (lang === "en" ? "Save" : lang === "de" ? "Speichern" : lang === "ar" ? "حفظ" : <>حفظ <span className="text-xs italic opacity-75">| Speichern</span></>) : <>حفظ <span className="text-xs italic opacity-75">| Speichern</span></>}</Button>
         </div>
       </DialogContent>
     </Dialog>
