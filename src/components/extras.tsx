@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, ItemActions, ManageRow, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
-import { defaultContent } from "@/lib/site-content";
+import { defaultContent, defaultPackingGroups, type PackingCategory } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
 import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
@@ -263,60 +263,151 @@ export function TawafView() {
   );
 }
 
-const packingGroups: { ar: string; de: string; items: { id: string; ar: string; de: string }[] }[] = [
-  { ar: "الوثائق والأوراق", de: "Dokumente", items: [
-    { id: "passport", ar: "جواز السفر", de: "Reisepass" }, { id: "visa", ar: "التأشيرة", de: "Visum" }, { id: "idcard", ar: "بطاقة الهوية", de: "Personalausweis" }, { id: "tickets", ar: "تذاكر الطيران", de: "Flugtickets" }, { id: "cash", ar: "النقود والبطاقة البنكية", de: "Bargeld & Bankkarte" }, { id: "insurance", ar: "التأمين الصحي", de: "Krankenversicherung" } ] },
-  { ar: "العبادات والمناسك", de: "Gottesdienst", items: [
-    { id: "ihram", ar: "ثوب الإحرام", de: "Ihram-Kleidung" }, { id: "sandals", ar: "نعل مريح", de: "Bequeme Sandalen" }, { id: "turba", ar: "التربة الحسينية", de: "Turba" }, { id: "misbaha", ar: "المسبحة", de: "Gebetskette" }, { id: "duabook", ar: "كتاب الأدعية", de: "Bittgebetsbuch" } ] },
-  { ar: "الصحة والأدوية", de: "Gesundheit", items: [
-    { id: "meds", ar: "الأدوية الشخصية", de: "Persönliche Medikamente" }, { id: "pain", ar: "مسكنات", de: "Schmerzmittel" }, { id: "plasters", ar: "لصقات جروح", de: "Pflaster" }, { id: "sanitizer", ar: "معقم ومستلزمات النظافة", de: "Desinfektion & Hygiene" }, { id: "mask", ar: "كمامات", de: "Masken" } ] },
-  { ar: "مستلزمات عامة", de: "Allgemeines", items: [
-    { id: "charger", ar: "الشاحن", de: "Ladegerät" }, { id: "powerbank", ar: "بنك الطاقة", de: "Powerbank" }, { id: "adapter", ar: "محول الكهرباء", de: "Reiseadapter" }, { id: "clothes", ar: "ملابس مريحة", de: "Bequeme Kleidung" }, { id: "bag", ar: "حقيبة ظهر صغيرة", de: "Kleiner Rucksack" } ] },
+const packingItemFields = (lang: ReturnType<typeof useLang>["lang"]): FieldDef[] => [
+  { key: "ar", ar: lang === "de" || lang === "en" ? "Gegenstand (AR)" : "اسم الغرض بالعربية", de: lang === "de" || lang === "en" ? "Gegenstand (AR)" : "اسم الغرض بالعربية" },
+  { key: "de", ar: lang === "ar" ? "اسم الغرض بالألمانية" : "Gegenstand (DE)", de: lang === "ar" ? "اسم الغرض بالألمانية" : "Gegenstand (DE)", ltr: true },
+];
+const packingCategoryFields = (lang: ReturnType<typeof useLang>["lang"]): FieldDef[] => [
+  { key: "ar", ar: lang === "de" || lang === "en" ? "Kategorie (AR)" : "عنوان الفئة بالعربية", de: lang === "de" || lang === "en" ? "Kategorie (AR)" : "عنوان الفئة بالعربية" },
+  { key: "de", ar: lang === "ar" ? "عنوان الفئة بالألمانية" : "Kategorie (DE)", de: lang === "ar" ? "عنوان الفئة بالألمانية" : "Kategorie (DE)", ltr: true },
 ];
 
-export function PackingView() {
+export function PackingView({ content, admin }: { content?: SiteContent; admin?: Admin }) {
+  const { lang } = useLang();
+  const showHidden = useShowHidden();
+  const isEditing = useSectionEditMode();
+  const save = useSaveContent(admin?.password ?? "");
+  const categories: PackingCategory[] = content?.packing ?? defaultPackingGroups;
+  const commit = async (next: PackingCategory[]) => {
+    if (!content) return;
+    await save({ ...content, packing: next });
+  };
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [custom, setCustom] = useState<{ id: string; text: string }[]>([]);
   const [text, setText] = useState("");
   const [ready, setReady] = useState(false);
-  useEffect(() => { try { const s = JSON.parse(localStorage.getItem("packing-list") ?? "{}"); if (s.checked) setChecked(s.checked); if (s.custom) setCustom(s.custom); } catch { /* ignore */ } setReady(true); }, []);
-  useEffect(() => { if (ready) localStorage.setItem("packing-list", JSON.stringify({ checked, custom })); }, [checked, custom, ready]);
-  const allIds = [...packingGroups.flatMap((g) => g.items.map((i) => i.id)), ...custom.map((c) => c.id)];
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("packing-list") ?? "{}");
+      if (stored.checked && typeof stored.checked === "object") setChecked(stored.checked);
+      if (Array.isArray(stored.custom)) setCustom(stored.custom);
+    } catch { /* ignore malformed local checklist */ }
+    setReady(true);
+  }, []);
+  useEffect(() => {
+    if (ready) localStorage.setItem("packing-list", JSON.stringify({ checked, custom }));
+  }, [checked, custom, ready]);
+
+  const visibleCategories = categories
+    .filter((group) => showHidden || !group.hidden)
+    .map((group) => ({ ...group, items: group.items.filter((item) => showHidden || !item.hidden) }));
+  const allIds = [...visibleCategories.flatMap((group) => group.items.map((item) => item.id)), ...custom.map((item) => item.id)];
   const done = allIds.filter((id) => checked[id]).length;
   const pct = allIds.length ? Math.round((done / allIds.length) * 100) : 0;
-  const toggle = (id: string) => { setChecked((c) => ({ ...c, [id]: !c[id] })); navigator.vibrate?.(15); };
-  const row = (id: string, label: React.ReactNode, onDelete?: () => void) => (
-    <li key={id} className="flex items-center gap-3 border-b border-border py-2.5 last:border-0">
-      <label className="flex flex-1 cursor-pointer items-center gap-3">
-        <input type="checkbox" checked={!!checked[id]} onChange={() => toggle(id)} className="h-5 w-5 accent-[var(--secondary)]" />
-        <span className={checked[id] ? "text-muted-foreground line-through" : "text-foreground"}>{label}</span>
-      </label>
-      {onDelete && <button onClick={onDelete} aria-label="حذف | Löschen" className="text-xs text-destructive">✕</button>}
-    </li>
-  );
+  const toggle = (id: string) => {
+    setChecked((current) => ({ ...current, [id]: !current[id] }));
+    if (typeof navigator !== "undefined") navigator.vibrate?.(15);
+  };
+  const ui = (ar: string, de: string, en: string) => lang === "ar" ? ar : lang === "de" ? de : lang === "en" ? en : ar + " | " + de;
+  const addCategoryLabel = ui("إضافة فئة جديدة", "Kategorie hinzufügen", "Add category");
+  const resetConfirm = ui("هل تريد تفريغ الإشارات لرحلة جديدة؟", "Möchten Sie die Liste für eine neue Reise zurücksetzen?", "Reset the checklist for a new trip?");
+  const addPlaceholder = ui("أضف غرضاً خاصاً...", "Eigenen Gegenstand hinzufügen...", "Add personal item...");
+  const categoryFields = packingCategoryFields(lang);
+  const itemFields = packingItemFields(lang);
+
   return (
     <div className="screen-enter px-4 py-7">
-      <Title icon={Landmark} ar="حقيبة السفر" de="Reise-Checkliste" />
-      <div className="mb-5 rounded-lg border border-border bg-card p-4">
-        <div className="mb-2 flex justify-between text-sm font-bold text-primary"><P ar="جاهزية الحقيبة" de="Koffer bereit" /><span dir="ltr">{pct}%</span></div>
-        <div className="h-3 overflow-hidden rounded-full bg-muted"><div className="h-full bg-secondary transition-all" style={{ width: `${pct}%` }} /></div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="mb-5 flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Landmark className="h-5 w-5" /></span>
+          <h2 className="text-xl font-bold text-primary"><P ar="حقيبة السفر" de="Reise-Checkliste" en="Packing checklist" /></h2>
+        </div>
+        {admin && (
+          <SectionAdminBar
+            addLabel={{ ar: addCategoryLabel, de: addCategoryLabel }}
+            addFields={categoryFields}
+            addBlank={{ ar: "", de: "", items: [] }}
+            onAdd={async (row) => commit([...categories, { id: "cat-" + Date.now(), ar: String(row.ar ?? ""), de: String(row.de ?? ""), items: [] }])}
+            onRestore={async () => {
+              if (!window.confirm(ui("استرجاع القائمة الأصلية؟ ستُستبدل الفئات الحالية.", "Originale Liste wiederherstellen? Die aktuellen Kategorien werden ersetzt.", "Restore the original list? Current categories will be replaced."))) return;
+              await commit(defaultPackingGroups);
+            }}
+          />
+        )}
+      </div>
+
+      <div className="mb-5 rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="mb-2 flex justify-between text-sm font-bold text-primary">
+          <span><P ar="جاهزية الحقيبة" de="Koffer bereit" en="Packing progress" /></span><span dir="ltr">{pct}%</span>
+        </div>
+        <div className="h-3 overflow-hidden rounded-full bg-muted"><div className="h-full bg-secondary transition-all" style={{ width: pct + "%" }} /></div>
         <p dir="ltr" className="mt-1 text-center text-xs text-muted-foreground">{done} / {allIds.length}</p>
       </div>
-      {packingGroups.map((g) => (
-        <section key={g.de} className="mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-          <h3 className="mb-1 text-sm font-bold text-secondary"><P ar={g.ar} de={g.de} /></h3>
-          <ul>{g.items.map((i) => row(i.id, <P ar={i.ar} de={i.de} />))}</ul>
+
+      {visibleCategories.map((group) => (
+        <section key={group.id} className={"mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm " + (group.hidden ? "opacity-55" : "")}>
+          <div className="mb-2 flex items-center justify-between border-b border-border/50 pb-2">
+            <h3 className="text-sm font-bold text-secondary"><P ar={group.ar} de={group.de} /></h3>
+            {admin && <ItemActions
+              fields={categoryFields} item={{ ar: group.ar, de: group.de }} hidden={group.hidden ?? false}
+              onVisibilityChange={async (hidden) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, hidden } : entry))}
+              onSave={async (row) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : entry))}
+              onDelete={async () => commit(categories.filter((entry) => entry.id !== group.id))}
+            />}
+          </div>
+          <ul className="space-y-1">
+            {group.items.map((item) => (
+              <li key={item.id} className={"flex items-center justify-between gap-2 border-b border-border/40 py-2 last:border-0 " + (item.hidden ? "opacity-55" : "")}>
+                <label className="flex flex-1 cursor-pointer items-center gap-3">
+                  <input type="checkbox" checked={!!checked[item.id]} onChange={() => toggle(item.id)} className="h-5 w-5 accent-[var(--secondary)]" />
+                  <span className={checked[item.id] ? "text-muted-foreground line-through" : "text-foreground"}><P ar={item.ar} de={item.de} /></span>
+                </label>
+                {admin && <ItemActions
+                  fields={itemFields} item={{ ar: item.ar, de: item.de }} hidden={item.hidden ?? false}
+                  onVisibilityChange={async (hidden) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, hidden } : old) } : entry))}
+                  onSave={async (row) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : old) } : entry))}
+                  onDelete={async () => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.filter((old) => old.id !== item.id) } : entry))}
+                />}
+              </li>
+            ))}
+          </ul>
+          {admin && isEditing && <div className="mt-2 border-t border-dashed border-border/60 pt-2">
+            <Button variant="ghost" size="sm" className="w-full text-xs text-secondary" onClick={() => {
+              const arName = window.prompt(ui("اسم الغرض بالعربية:", "Gegenstandsname auf Arabisch:", "Item name in Arabic:"));
+              if (!arName?.trim()) return;
+              const deName = window.prompt(ui("اسم الغرض بالألمانية:", "Gegenstandsname auf Deutsch:", "Item name in German:"), arName) ?? "";
+              void commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: [...entry.items, { id: "item-" + Date.now(), ar: arName.trim(), de: deName.trim() || arName.trim() }] } : entry));
+            }}><Plus className="me-1 h-3.5 w-3.5" /><P ar="إضافة غرض إلى هذه الفئة" de="Gegenstand hinzufügen" en="Add item to this category" /></Button>
+          </div>}
         </section>
       ))}
+
       <section className="mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-        <h3 className="mb-1 text-sm font-bold text-secondary"><P ar="أغراضي الخاصة" de="Eigene Gegenstände" /></h3>
-        <ul>{custom.map((c) => row(c.id, c.text, () => setCustom((l) => l.filter((x) => x.id !== c.id))))}</ul>
-        <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); const t = text.trim(); if (!t) return; setCustom((l) => [...l, { id: `c-${Date.now()}`, text: t }]); setText(""); }}>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="أضف غرضاً | Hinzufügen" className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
-          <Button type="submit">+</Button>
+        <h3 className="mb-1 text-sm font-bold text-secondary"><P ar="أغراضي الخاصة" de="Eigene Gegenstände" en="My own items" /></h3>
+        <ul>{custom.map((item) => (
+          <li key={item.id} className="flex items-center gap-3 border-b border-border py-2.5 last:border-0">
+            <label className="flex flex-1 cursor-pointer items-center gap-3">
+              <input type="checkbox" checked={!!checked[item.id]} onChange={() => toggle(item.id)} className="h-5 w-5 accent-[var(--secondary)]" />
+              <span className={checked[item.id] ? "text-muted-foreground line-through" : "text-foreground"}>{item.text}</span>
+            </label>
+            <button type="button" onClick={() => setCustom((list) => list.filter((entry) => entry.id !== item.id))} aria-label={ui("حذف", "Löschen", "Delete")} className="text-xs text-destructive">✕</button>
+          </li>
+        ))}</ul>
+        <form className="mt-2 flex gap-2" onSubmit={(event) => {
+          event.preventDefault();
+          const value = text.trim();
+          if (!value) return;
+          setCustom((list) => [...list, { id: "c-" + Date.now(), text: value }]);
+          setText("");
+        }}>
+          <input value={text} onChange={(event) => setText(event.target.value)} placeholder={addPlaceholder} aria-label={addPlaceholder} className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          <Button type="submit" aria-label={ui("إضافة", "Hinzufügen", "Add")}>+</Button>
         </form>
       </section>
-      <Button variant="outline" className="w-full text-destructive" onClick={() => { if (window.confirm("تفريغ الإشارات لرحلة جديدة؟ | Liste zurücksetzen?")) setChecked({}); }}><RotateCcw />إعادة ضبط <span className="text-xs italic">| Zurücksetzen</span></Button>
+      <Button variant="outline" className="w-full text-destructive" onClick={() => {
+        if (window.confirm(resetConfirm)) setChecked({});
+      }}><RotateCcw className="me-1 h-4 w-4" /><P ar="إعادة ضبط الحقيبة" de="Liste zurücksetzen" en="Reset checklist" /></Button>
     </div>
   );
 }
