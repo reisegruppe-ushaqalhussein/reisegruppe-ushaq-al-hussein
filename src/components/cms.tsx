@@ -68,7 +68,8 @@ function arrange(tiles: Tile[], cms: CmsConfig) {
 export function allTiles(content: SiteContent, builtins: Tile[]): Tile[] {
   const custom = (content.cms?.sections ?? []).map((s) => ({ id: customTileId(s.id), ar: s.ar, de: s.de, icon: cmsIcons[s.icon] ?? Folder, builtin: false }));
   const tripTypes: Tile[] = (content.tripTypes ?? []).map((t) => ({ id: `triptype:${t.id}`, ar: t.ar, de: t.de, icon: Folder, builtin: false, tripType: true, defaultParent: "trips" }));
-  return [...builtins.map((b) => ({ ...b, ...labelOf(content, `tile:${b.id}`, b.ar, b.de) })), ...custom, ...tripTypes];
+  const iraqTypesFolder: Tile = { id: "system:iraq-types", ...labelOf(content, "iraqTypes", "أنواع الزيارة ضمن هذه الرحلة", "Arten der Ziyara innerhalb dieser Reise"), icon: Folder, builtin: true, defaultParent: "triptype:iraq" };
+  return [...builtins.map((b) => ({ ...b, ...labelOf(content, `tile:${b.id}`, b.ar, b.de) })), ...custom, ...tripTypes, iraqTypesFolder];
 }
 
 /** The luxury tile grid used on home and inside every folder, so new sections look exactly like the existing ones. */
@@ -183,7 +184,7 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
 }
 
 /** Converts a stored parent value (built-in id or raw section id) to its tile id. */
-const parentTile = (v: string, builtins: Tile[]) => (builtins.some((b) => b.id === v) || v.startsWith("triptype:") ? v : customTileId(v));
+const parentTile = (v: string, builtins: Tile[]) => (builtins.some((b) => b.id === v) || v.startsWith("triptype:") || v.startsWith("system:") ? v : customTileId(v));
 const parentValue = (tile: Tile) => tile.builtin ? tile.id : tile.id.startsWith("c:") ? tile.id.slice(2) : tile.id;
 
 /** Chain of ancestors (outermost first) for a tile, used for breadcrumbs. */
