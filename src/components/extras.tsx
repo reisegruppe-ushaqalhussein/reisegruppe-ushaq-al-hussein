@@ -325,14 +325,12 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
         </div>
         {admin && (
           <SectionAdminBar
+            languageAware
             addLabel={{ ar: addCategoryLabel, de: addCategoryLabel }}
             addFields={categoryFields}
             addBlank={{ ar: "", de: "", items: [] }}
             onAdd={async (row) => commit([...categories, { id: "cat-" + Date.now(), ar: String(row.ar ?? ""), de: String(row.de ?? ""), items: [] }])}
-            onRestore={async () => {
-              if (!window.confirm(ui("استرجاع القائمة الأصلية؟ ستُستبدل الفئات الحالية.", "Originale Liste wiederherstellen? Die aktuellen Kategorien werden ersetzt.", "Restore the original list? Current categories will be replaced."))) return;
-              await commit(defaultPackingGroups);
-            }}
+            onRestore={async () => commit(defaultPackingGroups)}
           />
         )}
       </div>
@@ -350,7 +348,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
           <div className="mb-2 flex items-center justify-between border-b border-border/50 pb-2">
             <h3 className="text-sm font-bold text-secondary"><P ar={group.ar} de={group.de} /></h3>
             {admin && <ItemActions
-              fields={categoryFields} item={{ ar: group.ar, de: group.de }} hidden={group.hidden ?? false}
+              fields={categoryFields} item={{ ar: group.ar, de: group.de }} hidden={group.hidden ?? false} languageAware
               onVisibilityChange={async (hidden) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, hidden } : entry))}
               onSave={async (row) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : entry))}
               onDelete={async () => commit(categories.filter((entry) => entry.id !== group.id))}
@@ -364,7 +362,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
                   <span className={checked[item.id] ? "text-muted-foreground line-through" : "text-foreground"}><P ar={item.ar} de={item.de} /></span>
                 </label>
                 {admin && <ItemActions
-                  fields={itemFields} item={{ ar: item.ar, de: item.de }} hidden={item.hidden ?? false}
+                  fields={itemFields} item={{ ar: item.ar, de: item.de }} hidden={item.hidden ?? false} languageAware
                   onVisibilityChange={async (hidden) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, hidden } : old) } : entry))}
                   onSave={async (row) => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.map((old) => old.id === item.id ? { ...old, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : old) } : entry))}
                   onDelete={async () => commit(categories.map((entry) => entry.id === group.id ? { ...entry, items: entry.items.filter((old) => old.id !== item.id) } : entry))}
