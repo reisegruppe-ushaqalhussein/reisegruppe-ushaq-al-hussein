@@ -116,9 +116,9 @@ export const defaultContent: SiteContent = {
   occasions: [],
   hadiths: [],
   tripTypes: [
-    { id: "iraq", ar: "زيارة العراق", de: "Irak-Reise", statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
+    { id: "iraq", ar: "زيارة العراق", de: "Irak Ziyara", statusAr: "عرض التفاصيل", statusDe: "Details anzeigen" },
     { id: "umrah", ar: "العمرة", de: "Umrah", statusAr: "زيارة عامة", statusDe: "Allgemeine Reiseart" },
-    { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Zyarat Imam Rida (as)", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
+    { id: "iran", ar: "إيران — زيارة الإمام الرضا (ع)", de: "Iran — Ziyara Imam Rida (as)", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
     { id: "hajj", ar: "الحج", de: "Hadsch", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" },
   ],
   shrines: duaCategories.filter((c) => c.id !== "general").map((c) => ({ id: c.id, ar: c.ar, de: c.de })),
@@ -228,10 +228,10 @@ export function withTrash(prev: SiteContent | undefined, next: SiteContent): Sit
 
 export const defaultIraqItems: IraqItem[] = [
   { id: "i0", kind: "intro", ar: "زيارة العتبات المقدسة في العراق، ضمن عدة مناسبات على مدار السنة.", de: "Besuch der heiligen Stätten im Irak, zu verschiedenen Anlässen im Jahresverlauf.", bodyAr: "", bodyDe: "" },
-  { id: "i1", kind: "type", ar: "زيارة الإمام الحسين (ع)", de: "Zyarat Imam Hussein (as)", bodyAr: "تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية).", bodyDe: "Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." },
-  { id: "i2", kind: "type", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Zyarat Imam Hussein (as) Winterferien / Neujahr", bodyAr: "", bodyDe: "" },
-  { id: "i3", kind: "type", ar: "زيارة عرفة", de: "Zyarat Arafa", bodyAr: "", bodyDe: "" },
-  { id: "i4", kind: "type", ar: "زيارة الأربعين", de: "Zyarat Arbaeen", bodyAr: "", bodyDe: "" },
+  { id: "i1", kind: "type", ar: "زيارة الإمام الحسين (ع)", de: "Ziyara Imam Hussein (as)", bodyAr: "تُقام على مدار السنة في أوقات مختلفة تتناسب مع العطل المدرسية (كعطلة الشتاء، رأس السنة، عطلة الفصح، والعطلة الصيفية).", bodyDe: "Findet ganzjährig zu unterschiedlichen Terminen statt, passend zu den Schulferien (Winterferien, Neujahr, Osterferien und Sommerferien)." },
+  { id: "i2", kind: "type", ar: "زيارة الإمام الحسين (ع) عطلة الشتاء / رأس السنة", de: "Ziyara Imam Hussein (as) Winterferien / Neujahr", bodyAr: "", bodyDe: "" },
+  { id: "i3", kind: "type", ar: "زيارة عرفة", de: "Ziyara Arafa", bodyAr: "", bodyDe: "" },
+  { id: "i4", kind: "type", ar: "زيارة الأربعين", de: "Ziyara Arbaeen", bodyAr: "", bodyDe: "" },
   { id: "i5", kind: "type", ar: "زيارة 15 شعبان", de: "Zyarat 15 Shaaban", bodyAr: "", bodyDe: "" },
   { id: "flight", kind: "detail", ar: "الطيران", de: "Flug", bodyAr: "الوصول عبر مطار بغداد.", bodyDe: "Ankunft über den Flughafen Bagdad." },
   { id: "hotel", kind: "detail", ar: "السكن", de: "Unterkunft", bodyAr: "ليلة في الكاظمية، وفندق في كربلاء، وفندق في النجف.", bodyDe: "Eine Nacht in al-Kazimiyya, ein Hotel in Kerbela und ein Hotel in Nadschaf." },
