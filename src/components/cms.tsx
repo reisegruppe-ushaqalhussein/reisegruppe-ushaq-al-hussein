@@ -1,7 +1,8 @@
-import { useState, type ComponentType } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
+import { useLang } from "@/lib/i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowDown, ArrowUp, BookOpen, Briefcase, CalendarDays, Camera, Compass, Eye, EyeOff, Feather, FileText, Folder, FolderInput, Gift, Globe, HandHeart, Heart, Image as ImageIcon,
+  ArrowDown, ArrowUp, BookOpen, Briefcase, CalendarDays, Camera, ChevronDown, ChevronRight, Compass, Eye, EyeOff, Feather, FileText, Folder, FolderInput, Gift, Globe, HandHeart, Heart, Image as ImageIcon,
   Info, Landmark, Link2, Loader2, Luggage, Map as MapIcon, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, RotateCcw, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Upload, Users, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { translateToEnglish } from "@/lib/site-content.functions";
 import { uploadImage } from "@/lib/upload-image";
 
 type IconType = ComponentType<{ className?: string }>;
-export type Tile = { id: string; ar: string; de: string; icon: IconType; builtin: boolean; staffOnly?: boolean; defaultParent?: string };
+export type Tile = { id: string; ar: string; de: string; icon: IconType; builtin: boolean; staffOnly?: boolean; defaultParent?: string; tripType?: boolean };
 /** Parent of a tile: admin choice first, then the built-in default ("" = home). */
 const parentOf = (parents: Record<string, string>, t: Tile) => parents[t.id] ?? t.defaultParent ?? "";
 
@@ -66,7 +67,8 @@ function arrange(tiles: Tile[], cms: CmsConfig) {
 
 export function allTiles(content: SiteContent, builtins: Tile[]): Tile[] {
   const custom = (content.cms?.sections ?? []).map((s) => ({ id: customTileId(s.id), ar: s.ar, de: s.de, icon: cmsIcons[s.icon] ?? Folder, builtin: false }));
-  return [...builtins.map((b) => ({ ...b, ...labelOf(content, `tile:${b.id}`, b.ar, b.de) })), ...custom];
+  const tripTypes: Tile[] = (content.tripTypes ?? []).map((t) => ({ id: `triptype:${t.id}`, ar: t.ar, de: t.de, icon: Folder, builtin: false, tripType: true, defaultParent: "trips" }));
+  return [...builtins.map((b) => ({ ...b, ...labelOf(content, `tile:${b.id}`, b.ar, b.de) })), ...custom, ...tripTypes];
 }
 
 /** The luxury tile grid used on home and inside every folder, so new sections look exactly like the existing ones. */
@@ -82,7 +84,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const parents = cms.parents ?? {};
   const hiddenTiles = new Set(cms.hiddenTiles ?? []);
   const everything = arrange(allTiles(content, builtins), cms);
-  const level = everything.filter((t) => parentOf(parents, t) === (parentId ?? "") && (!t.staffOnly || !!staff));
+  const level = everything.filter((t) => parentOf(parents, t) === (parentId ?? "") && (!t.staffOnly || !!staff) && !(t.tripType && parentId === "trips"));
   const shown = level.filter((t) => showHidden || !hiddenTiles.has(t.id));
   const cols = cms.columns === 3 ? "grid-cols-3" : "grid-cols-2";
 
@@ -134,8 +136,8 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
               {shown.length > 1 && <IconBtn label="بعد | Danach" onClick={() => void move(t, 1)}><ArrowDown className="h-3.5 w-3.5" /></IconBtn>}
               <IconBtn label="إخفاء/إظهار | Sichtbarkeit" onClick={() => toggleHidden(t)}>{off ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
               <IconBtn label="نقل إلى مجلد | Verschieben" onClick={() => setMoving(t)}><FolderInput className="h-3.5 w-3.5" /></IconBtn>
-              <IconBtn label="تعديل | Bearbeiten" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
-              {!t.builtin && <IconBtn label="حذف | Löschen" danger onClick={() => remove(t)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
+              {!t.tripType && <IconBtn label="تعديل | Bearbeiten" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
+              {!t.builtin && !t.tripType && <IconBtn label="حذف | Löschen" danger onClick={() => remove(t)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
             </div>}
           </div>;
         })}
@@ -181,7 +183,8 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
 }
 
 /** Converts a stored parent value (built-in id or raw section id) to its tile id. */
-const parentTile = (v: string, builtins: Tile[]) => (builtins.some((b) => b.id === v) ? v : customTileId(v));
+const parentTile = (v: string, builtins: Tile[]) => (builtins.some((b) => b.id === v) || v.startsWith("triptype:") ? v : customTileId(v));
+const parentValue = (tile: Tile) => tile.builtin ? tile.id : tile.id.startsWith("c:") ? tile.id.slice(2) : tile.id;
 
 /** Chain of ancestors (outermost first) for a tile, used for breadcrumbs. */
 export function pathOf(content: SiteContent, builtins: Tile[], tileId: string): Tile[] {
@@ -205,33 +208,80 @@ export function pathOf(content: SiteContent, builtins: Tile[], tileId: string): 
 
 function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent; tile: Tile; builtins: Tile[]; onClose: () => void }) {
   const { cms, save } = useCms(content);
+  const { lang } = useLang();
   const parents = cms.parents ?? {};
-  // A tile may not move into itself or into anything nested inside it.
-  const isInside = (destTileId: string) => { let cur: string | undefined = destTileId; const seen = new Set<string>(); while (cur && !seen.has(cur)) { if (cur === tile.id) return true; seen.add(cur); const p: string | undefined = parents[cur]; cur = p ? parentTile(p, builtins) : undefined; } return false; };
-  // Destinations: every section (built-in or created) as { value stored in parents, tile }.
-  const dests = allTiles(content, builtins).map((t) => ({ value: t.builtin ? t.id : t.id.slice(2), t })).filter((d) => !isInside(d.t.id));
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const tiles = allTiles(content, builtins);
+  const valueOf = (t: Tile) => parentValue(t);
+  const isInside = (destTileId: string) => {
+    let cur: string | undefined = destTileId;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      if (cur === tile.id) return true;
+      seen.add(cur);
+      const currentTile = tiles.find((candidate) => candidate.id === cur);
+      const p = currentTile ? parentOf(parents, currentTile) : parents[cur];
+      cur = p ? parentTile(p, builtins) : undefined;
+    }
+    return false;
+  };
+  const destinations = tiles.filter((t) => !isInside(t.id));
+  const current = parentOf(parents, tile);
   const pick = (folder: string) => {
     const next = { ...parents };
-    if (folder) next[tile.id] = folder; else if (tile.defaultParent) next[tile.id] = ""; else delete next[tile.id];
+    if (folder) next[tile.id] = folder;
+    else if (tile.defaultParent) next[tile.id] = "";
+    else delete next[tile.id];
     void save({ ...cms, parents: next });
     onClose();
   };
-  const current = parentOf(parents, tile);
-  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir="rtl">
-    <DialogHeader className="text-right"><DialogTitle>نقل إلى <span className="text-sm italic text-muted-foreground">| Verschieben nach</span></DialogTitle><DialogDescription>«{tile.ar || tile.de}» ينتقل مع كل ما بداخله. | Mit allem Inhalt.</DialogDescription></DialogHeader>
-    <div className="space-y-2">
-      <Button variant={current === "" ? "default" : "outline"} className="h-11 w-full justify-start" onClick={() => pick("")}>🏠 الرئيسية | Startseite</Button>
-      {dests.map(({ value, t }) => { const I = t.icon; return <Button key={t.id} variant={current === value ? "default" : "outline"} className="h-11 w-full justify-start gap-2" onClick={() => pick(value)}><I className="h-4 w-4" /><span className="truncate">{t.ar}{t.de && <span className="text-xs italic opacity-70"> | {t.de}</span>}</span></Button>; })}
-      <Button variant="outline" className="h-11 w-full justify-start gap-2 border-dashed" onClick={() => {
-        const name = window.prompt("اسم المجلد الجديد | Name des neuen Ordners");
-        if (!name?.trim()) return;
-        const sec: CmsSection = { id: newId(), ar: name.trim(), de: "", icon: "folder", items: [] };
-        const next = { ...parents, [tile.id]: sec.id };
-        const cur = parents[tile.id];
-        if (cur) next[customTileId(sec.id)] = cur;
-        void save({ ...cms, sections: [...(cms.sections ?? []), sec], parents: next });
-        onClose();
-      }}><Plus className="h-4 w-4" />مجلد جديد ونقل إليه | Neuer Ordner</Button>
+  const childrenOf = (parent: string) => destinations.filter((t) => parentOf(parents, t) === parent && t.id !== tile.id);
+  const toggle = (id: string) => setExpanded((old) => old.includes(id) ? old.filter((x) => x !== id) : [...old, id]);
+  const renderTree = (parent: string, depth = 0): ReactNode => childrenOf(parent).map((t) => {
+    const I = t.icon;
+    const folder = valueOf(t);
+    const children = childrenOf(folder);
+    const isOpen = expanded.includes(t.id);
+    return <div key={t.id} className="min-w-0">
+      <div className="flex min-w-0 items-center gap-1" style={{ paddingInlineStart: Math.min(depth, 8) * 12 }}>
+        <Button type="button" variant={current === folder ? "default" : "outline"} className="h-11 min-w-0 flex-1 justify-start gap-2 px-2" onClick={() => pick(folder)}>
+          <I className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 truncate"><LangText ar={t.ar} de={t.de} /></span>
+          {current === folder && <span className="shrink-0 text-xs">✓</span>}
+        </Button>
+        {children.length > 0 && <Button type="button" variant="ghost" size="icon" className="h-10 w-9 shrink-0" aria-label={isOpen ? (lang === "de" ? "Ordner schließen" : "إغلاق المجلد") : (lang === "de" ? "Ordner öffnen" : "فتح المجلد")} onClick={() => toggle(t.id)}>{isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</Button>}
+      </div>
+      {isOpen && children.length > 0 && <div className="mt-1 space-y-1">{renderTree(folder, depth + 1)}</div>}
+    </div>;
+  });
+  const promptLabel = lang === "de" ? "Name des neuen Unterordners" : lang === "en" ? "Name of the new subfolder" : "اسم المجلد الفرعي الجديد";
+  const createFolder = () => {
+    const name = window.prompt(promptLabel);
+    if (!name?.trim()) return;
+    const sec: CmsSection = { id: newId(), ar: name.trim(), de: lang === "de" ? name.trim() : "", icon: "folder", items: [] };
+    const parentTileId = expanded[expanded.length - 1];
+    const parentTile = parentTileId ? tiles.find((t) => t.id === parentTileId) : undefined;
+    const parent = parentTile ? valueOf(parentTile) : "";
+    const next = { ...parents };
+    if (parent) next[customTileId(sec.id)] = parent;
+    next[tile.id] = sec.id;
+    void save({ ...cms, sections: [...(cms.sections ?? []), sec], parents: next });
+    onClose();
+  };
+  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[85dvh] w-[calc(100%-20px)] max-w-[380px] overflow-hidden p-0" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
+    <div className="flex max-h-[85dvh] flex-col">
+      <DialogHeader className="shrink-0 border-b border-border px-4 py-3 text-start">
+        <DialogTitle><LangText ar="نقل إلى مجلد" de="In Ordner verschieben" /></DialogTitle>
+        <DialogDescription><LangText ar={`«${tile.ar || tile.de}» ينتقل مع كل ما بداخله.`} de={`„${tile.de || tile.ar}“ wird mit seinem gesamten Inhalt verschoben.`} /></DialogDescription>
+      </DialogHeader>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">
+        <Button type="button" variant={current === "" ? "default" : "outline"} className="h-11 w-full justify-start gap-2" onClick={() => pick("")}>🏠 <LangText ar="الرئيسية" de="Startseite" /></Button>
+        <div className="space-y-1">{renderTree("")}</div>
+      </div>
+      <div className="shrink-0 border-t border-border p-3">
+        <Button type="button" variant="outline" className="h-11 w-full justify-start gap-2 border-dashed" onClick={createFolder}><Plus className="h-4 w-4" /><LangText ar="مجلد فرعي جديد ونقل إليه" de="Neuer Unterordner und dorthin verschieben" /></Button>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground"><LangText ar="افتح المجلد بالسهم، أو اضغط اسمه لنقل القسم إليه." de="Mit dem Pfeil Ordner öffnen oder auf den Namen tippen, um den Bereich dorthin zu verschieben." /></p>
+      </div>
     </div>
   </DialogContent></Dialog>;
 }
