@@ -207,9 +207,9 @@ export function withTrash(prev: SiteContent | undefined, next: SiteContent): Sit
     if (section === "packing") {
       const oldGroups = before as PackingCategory[];
       const newGroups = after as PackingCategory[];
-      const newById = new Map(newGroups.map((group) => [group.id, group]));
+
       for (const oldGroup of oldGroups) {
-        const newGroup = newById.get(oldGroup.id);
+        const newGroup = newGroups.find((group) => group.id === oldGroup.id);
         if (!newGroup) {
           trash.unshift({ id: `packing-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section: "packing", item: oldGroup as unknown as TrashEntry["item"], deletedAt: Date.now() });
           continue;
