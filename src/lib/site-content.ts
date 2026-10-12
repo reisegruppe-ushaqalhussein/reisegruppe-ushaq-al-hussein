@@ -80,7 +80,7 @@ export type CmsSection = { id: string; ar: string; de: string; icon: string; ite
 export type BannerConfig = { image?: string; opacity?: number; blur?: number; titleAr?: string; titleDe?: string; lineAr?: string; lineDe?: string; textAr?: string; textDe?: string };
 export type RoomCalcHotel = { id: string; tripKey: string; city: string; name: string; d: number; t: number; q: number; s: number; hidden?: boolean };
 export type CmsConfig = { order?: string[]; hiddenTiles?: string[]; parents?: Record<string, string>; sections?: CmsSection[]; hajToolsEnabled?: boolean; columns?: 2 | 3; theme?: string; banner?: BannerConfig; roomCalc?: { ar?: string; de?: string; subAr?: string; subDe?: string; hidden?: boolean; hajToolsEnabled?: boolean; labels?: Record<string, { ar?: string; de?: string }>; hotels?: RoomCalcHotel[] } };
-export type TrashEntry = { id: string; section: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
+export type TrashEntry = { id: string; section: string; parentId?: string; item: Record<string, string | number | boolean | null | undefined | Array<{ name: string; url: string }>>; deletedAt: number };
 
 export const defaultContacts: ContactEntry[] = [
   { id: "yasser", ar: "الحاج ياسر الدر", de: "Hajj Yasser Aldor", roleAr: "المسؤول العام — خادم حملة عشاق الحسين - ألمانيا", roleDe: "Allgemeiner Verantwortlicher der Reisegruppe", phone: "+49 1577 3055365", whatsapp: "https://wa.me/49015773055365" },
@@ -204,6 +204,21 @@ export function withTrash(prev: SiteContent | undefined, next: SiteContent): Sit
   for (const section of trashSections) {
     const before = (prev[section] ?? []) as unknown[];
     const after = (next[section] ?? []) as unknown[];
+    if (section === "packing") {
+      const oldGroups = before as PackingCategory[];
+      const newGroups = after as PackingCategory[];
+      const newById = new Map(newGroups.map((group) => [group.id, group]));
+      for (const oldGroup of oldGroups) {
+        const newGroup = newById.get(oldGroup.id);
+        if (!newGroup) {
+          trash.unshift({ id: `packing-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section: "packing", item: oldGroup as unknown as TrashEntry["item"], deletedAt: Date.now() });
+          continue;
+        }
+        const keptItems = new Set(newGroup.items.map(keyOf));
+        for (const oldItem of oldGroup.items) if (!keptItems.has(keyOf(oldItem))) trash.unshift({ id: `packingItems-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section: "packingItems", parentId: oldGroup.id, item: oldItem as unknown as TrashEntry["item"], deletedAt: Date.now() });
+      }
+      continue;
+    }
     if (after.length >= before.length) continue;
     const keep = new Set(after.map(keyOf));
     for (const item of before) if (!keep.has(keyOf(item))) trash.unshift({ id: `${section}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, section, item: item as TrashEntry["item"], deletedAt: Date.now() });
