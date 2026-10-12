@@ -175,15 +175,18 @@ export function PilgrimIdView({ content, openRequestsOnLoad = false }: { content
   useEffect(() => {
     if (!p.reqId || p.status === "unsent") return;
     let alive = true;
+    let missingChecks = 0;
     const check = () => getIdStatus({ data: { id: p.reqId! } }).then((r) => {
-      if (!alive) return;
+      if (!alive || !r.ok) return; // A connection/server error is not evidence that the request was deleted.
       if (r.status === null && p.status !== "unsent") {
-        // A deleted visit request revokes the online identity; clear its local copy as soon as this device reconnects.
+        missingChecks += 1;
+        if (missingChecks < 3) return; // Require repeated successful checks before removing a saved identity.
         localStorage.removeItem(KEY);
         save(empty);
         setEditing(true);
         return;
       }
+      missingChecks = 0;
       if (r.status && r.status !== p.status) {
         // Merge into the latest locally saved record so polling never overwrites a newer hotel selection or edit.
         let latest = p;
