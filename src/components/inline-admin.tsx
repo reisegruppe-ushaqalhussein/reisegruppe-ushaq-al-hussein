@@ -38,14 +38,15 @@ export function useSaveContent(password: string) {
 }
 
 /** نافذة التعديل لجميع الحقول والكلمات دون استثناء */
-export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void> }) {
+export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit, languageAware = false }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void>; languageAware?: boolean }) {
+  const { lang } = useLang();
   const [draft, setDraft] = useState<Row>(initial);
   const [busy, setBusy] = useState(false);
   const set = (k: string, v: unknown) => setDraft((d) => ({ ...d, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={(o) => { if (o) setDraft(initial); onOpenChange(o); }}>
       <DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-        <DialogHeader className="text-right"><DialogTitle>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></DialogTitle></DialogHeader>
+        <DialogHeader className="text-right"><DialogTitle>{languageAware ? (lang === "de" || lang === "en" ? title.de : title.ar) : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           {fields.map((f) => f.checkbox ? (
             <label key={f.key} className="flex items-center gap-2 font-bold"><input type="checkbox" checked={Boolean(draft[f.key])} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-secondary" />{f.ar} | {f.de}</label>
@@ -61,7 +62,7 @@ export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmi
           <Button disabled={busy} className="h-11 w-full" onClick={async () => {
             setBusy(true);
             try { await onSubmit(draft); onOpenChange(false); } catch (e) { console.error(e); window.alert(`تعذّر الحفظ | Speichern fehlgeschlagen\n\n${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(false); }
-          }}>حفظ <span className="text-xs italic opacity-75">| Speichern</span></Button>
+          }}>{languageAware ? (lang === "de" || lang === "en" ? "Speichern" : "حفظ") : <>حفظ <span className="text-xs italic opacity-75">| Speichern</span></>}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -94,8 +95,9 @@ export function GearMenu({ children, className = "" }: { children: React.ReactNo
 }
 
 /** أزرار تحكم كل بطاقة (تختفي تماماً وتظهر فقط عند تفعيل زر القلم ✏️) */
-export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void> }) {
+export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange, languageAware = false }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void>; languageAware?: boolean }) {
   const [open, setOpen] = useState(false);
+  const { lang } = useLang();
   const showHidden = useShowHidden();
   const isEditing = useSectionEditMode();
 
@@ -105,11 +107,11 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
   return (
     <div dir="ltr" className="pointer-events-none relative z-10 -mb-8 flex h-8 justify-start p-1 animate-in fade-in duration-200">
       <GearMenu>
-        <IconBtn label="تعديل | Bearbeiten" onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
-        {onVisibilityChange && showHidden && <IconBtn label={hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
-        <IconBtn label="حذف | Löschen" danger onClick={async () => { if (!window.confirm("هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label={languageAware ? (lang === "de" || lang === "en" ? "Bearbeiten" : "تعديل") : "تعديل | Bearbeiten"} onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+        {onVisibilityChange && showHidden && <IconBtn label={languageAware ? (lang === "de" || lang === "en" ? (hidden ? "Einblenden" : "Ausblenden") : (hidden ? "إظهار" : "إخفاء")) : (hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen")} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert("تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+        <IconBtn label={languageAware ? (lang === "de" || lang === "en" ? "Löschen" : "حذف") : "حذف | Löschen"} danger onClick={async () => { if (!window.confirm(languageAware ? (lang === "de" || lang === "en" ? "Diesen Eintrag wirklich löschen?" : "هل أنت متأكد من الحذف؟") : "هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert("تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>
-      {open && <EditDialog open={open} onOpenChange={setOpen} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={fields} initial={item} onSubmit={onSave} />}
+      {open && <EditDialog open={open} onOpenChange={setOpen} title={{ ar: "تعديل", de: "Bearbeiten" }} fields={fields} initial={item} onSubmit={onSave} languageAware={languageAware} />}
     </div>
   );
 }
@@ -131,25 +133,27 @@ export function ManageRow({ title, subtitle, fields, item, onSave, onDelete, hid
 }
 
 /** زر إضافة عنصر جديد ➕ */
-export function AddButton({ label, fields, blank, onAdd, inline = false }: { label: { ar: string; de: string }; fields: FieldDef[]; blank: Row; onAdd: (row: Row) => Promise<void>; inline?: boolean }) {
+export function AddButton({ label, fields, blank, onAdd, inline = false, languageAware = false }: { label: { ar: string; de: string }; fields: FieldDef[]; blank: Row; onAdd: (row: Row) => Promise<void>; inline?: boolean; languageAware?: boolean }) {
   const [open, setOpen] = useState(false);
+  const { lang } = useLang();
   return (
     <div className={inline ? "contents" : "mb-2 flex justify-end"}>
-      <button type="button" onClick={() => setOpen(true)} aria-label={`${label.ar} | ${label.de}`} title={`${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
-      {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} />}
+      <button type="button" onClick={() => setOpen(true)} aria-label={languageAware ? (lang === "de" || lang === "en" ? label.de : label.ar) : `${label.ar} | ${label.de}`} title={languageAware ? (lang === "de" || lang === "en" ? label.de : label.ar) : `${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
+      {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} languageAware={languageAware} />}
     </div>
   );
 }
 
 /** زر استرجاع البيانات الأصلية للقسم 🔄 */
-export function RestoreButton({ onRestore, label = "استرجاع البيانات الأصلية لهذا القسم | Standard wiederherstellen" }: { onRestore: () => Promise<void> | void; label?: string }) {
+export function RestoreButton({ onRestore, label = "استرجاع البيانات الأصلية لهذا القسم | Standard wiederherstellen", languageAware = false }: { onRestore: () => Promise<void> | void; label?: string; languageAware?: boolean }) {
   const [busy, setBusy] = useState(false);
+  const { lang } = useLang();
   return (
     <button
       type="button"
       disabled={busy}
       onClick={async () => {
-        if (!window.confirm("هل أنتِ متأكدة من استرجاع البيانات الأصلية لهذا القسم؟\nMöchten Sie die Originaldaten dieses Bereichs wirklich wiederherstellen?")) return;
+        if (!window.confirm(languageAware ? (lang === "de" || lang === "en" ? "Originaldaten dieses Bereichs wiederherstellen?" : "استرجاع البيانات الأصلية لهذا القسم؟") : "هل أنتِ متأكدة من استرجاع البيانات الأصلية لهذا القسم؟\nMöchten Sie die Originaldaten dieses Bereichs wirklich wiederherstellen?")) return;
         setBusy(true);
         try {
           await onRestore();
@@ -159,8 +163,8 @@ export function RestoreButton({ onRestore, label = "استرجاع البيان�
           setBusy(false);
         }
       }}
-      aria-label={label}
-      title={label}
+      aria-label={languageAware ? (lang === "de" || lang === "en" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
+      title={languageAware ? (lang === "de" || lang === "en" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
       className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"
     >
       <RotateCcw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
@@ -176,6 +180,7 @@ export function SectionAdminBar({
   onAdd,
   onRestore,
   children,
+  languageAware = false,
 }: {
   addLabel?: { ar: string; de: string };
   addFields?: FieldDef[];
@@ -183,8 +188,10 @@ export function SectionAdminBar({
   onAdd?: (row: Row) => Promise<void>;
   onRestore?: () => Promise<void> | void;
   children?: React.ReactNode;
+  languageAware?: boolean;
 }) {
   const isEditing = useSectionEditMode();
+  const { lang } = useLang();
   return (
     <div dir="ltr" className="mb-3 flex items-center justify-start gap-1.5">
       {children}
@@ -192,8 +199,8 @@ export function SectionAdminBar({
         type="button"
         onClick={toggleSectionEditMode}
         aria-pressed={isEditing}
-        aria-label={isEditing ? "إنهاء وضع التعديل | Fertig" : "تعديل عناصر القسم | Elemente bearbeiten"}
-        title={isEditing ? "إنهاء التعديل وإخفاء أزرار البطاقات | Fertig" : "إظهار أزرار تعديل البطاقات | Karten bearbeiten"}
+        aria-label={languageAware ? (lang === "de" || lang === "en" ? (isEditing ? "Fertig" : "Elemente bearbeiten") : (isEditing ? "إنهاء التعديل" : "تعديل العناصر")) : (isEditing ? "إنهاء وضع التعديل | Fertig" : "تعديل عناصر القسم | Elemente bearbeiten")}
+        title={languageAware ? (lang === "de" || lang === "en" ? (isEditing ? "Bearbeitung beenden" : "Bearbeitung aktivieren") : (isEditing ? "إنهاء التعديل وإخفاء الأزرار" : "إظهار أزرار تعديل العناصر")) : (isEditing ? "إنهاء التعديل وإخفاء أزرار البطاقات | Fertig" : "إظهار أزرار تعديل البطاقات | Karten bearbeiten")}
         className={`grid h-7 w-7 place-items-center rounded-full border shadow-sm transition-colors ${
           isEditing
             ? "border-secondary bg-secondary text-secondary-foreground font-bold"
@@ -202,9 +209,9 @@ export function SectionAdminBar({
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
-      {onRestore && <RestoreButton onRestore={onRestore} />}
+      {onRestore && <RestoreButton onRestore={onRestore} languageAware={languageAware} />}
       {addLabel && addFields && addBlank && onAdd && (
-        <AddButton label={addLabel} fields={addFields} blank={addBlank} onAdd={onAdd} inline />
+        <AddButton label={addLabel} fields={addFields} blank={addBlank} onAdd={onAdd} inline languageAware={languageAware} />
       )}
     </div>
   );
