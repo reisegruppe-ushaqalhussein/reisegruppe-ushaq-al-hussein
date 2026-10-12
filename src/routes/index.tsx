@@ -1672,7 +1672,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "guide" && <GuideView content={content} admin={admin} />}
         {view === "tasbeeh" && <TasbeehView />}
         {view === "tawaf" && <TawafView />}
-        {view === "packing" && <PackingView />}
+        {view === "packing" && <PackingView content={content} admin={admin} />}
         {view === "qibla" && <QiblaView />}
         {view === "occasions" && <ResourcesView content={content} admin={admin} kind="occasions" />}
         {view === "hadiths" && <ResourcesView content={content} admin={admin} kind="hadiths" />}
