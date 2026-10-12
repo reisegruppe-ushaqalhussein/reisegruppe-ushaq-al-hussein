@@ -181,6 +181,7 @@ export function SectionAdminBar({
   onRestore,
   children,
   languageAware = false,
+  onEditClick,
 }: {
   addLabel?: { ar: string; de: string };
   addFields?: FieldDef[];
@@ -189,6 +190,7 @@ export function SectionAdminBar({
   onRestore?: () => Promise<void> | void;
   children?: React.ReactNode;
   languageAware?: boolean;
+  onEditClick?: () => void;
 }) {
   const isEditing = useSectionEditMode();
   const { lang } = useLang();
@@ -197,8 +199,8 @@ export function SectionAdminBar({
       {children}
       <button
         type="button"
-        onClick={toggleSectionEditMode}
-        aria-pressed={isEditing}
+        onClick={onEditClick ?? toggleSectionEditMode}
+        aria-pressed={onEditClick ? undefined : isEditing}
         aria-label={languageAware ? (lang === "en" ? (isEditing ? "Done" : "Edit items") : lang === "de" ? (isEditing ? "Fertig" : "Elemente bearbeiten") : (isEditing ? "إنهاء التعديل" : "تعديل العناصر")) : (isEditing ? "إنهاء وضع التعديل | Fertig" : "تعديل عناصر القسم | Elemente bearbeiten")}
         title={languageAware ? (lang === "en" ? (isEditing ? "Finish editing" : "Enable editing") : lang === "de" ? (isEditing ? "Bearbeitung beenden" : "Bearbeitung aktivieren") : (isEditing ? "إنهاء التعديل وإخفاء الأزرار" : "إظهار أزرار تعديل العناصر")) : (isEditing ? "إنهاء التعديل وإخفاء أزرار البطاقات | Fertig" : "إظهار أزرار تعديل البطاقات | Karten bearbeiten")}
         className={`grid h-7 w-7 place-items-center rounded-full border shadow-sm transition-colors ${
