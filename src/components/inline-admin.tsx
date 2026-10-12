@@ -40,11 +40,11 @@ export function useSaveContent(password: string) {
 /** نافذة التعديل لجميع الحقول والكلمات دون استثناء */
 export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit, languageAware = false }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void>; languageAware?: boolean }) {
   const { lang } = useLang();
-  const [draft, setDraft] = useState<Row>(initial);
+  const [draft, setDraft] = useState<Row>(initial ?? {});
   const [busy, setBusy] = useState(false);
-  const set = (k: string, v: unknown) => setDraft((d) => ({ ...d, [k]: v }));
+  const set = (k: string, v: unknown) => setDraft((d) => ({ ...d, [k]: v == null ? "" : v }));
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (o) setDraft(initial); onOpenChange(o); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (o) setDraft(initial ?? {}); onOpenChange(o); }}>
       <DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right"><DialogTitle>{languageAware ? (lang === "de" || lang === "en" ? title.de : lang === "ar" ? title.ar : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>) : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
