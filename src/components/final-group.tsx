@@ -30,7 +30,7 @@ export function FolderCard({ icon: Icon, ar, de, count, onOpen, menu }: { icon: 
 
 function ManageDialog({ open, onOpenChange, ar, de, children, languageAware = true }: { open: boolean; onOpenChange: (o: boolean) => void; ar: string; de: string; children: React.ReactNode; languageAware?: boolean }) {
   const { lang } = useLang();
-  const title = languageAware ? (lang === "de" ? de : lang === "en" ? (de === "Umbenennen" ? "Rename" : de) : ar) : `${ar} | ${de}`;
+  const title = languageAware ? (lang === "de" ? de : lang === "en" ? (de === "Umbenennen" ? "Rename" : de) : lang === "ar" ? ar : `${ar} | ${de}`) : `${ar} | ${de}`;
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir={languageAware && lang !== "ar" && lang !== "both" ? "ltr" : "rtl"}>
       <DialogHeader className={languageAware && lang !== "ar" && lang !== "both" ? "text-left" : "text-right"}><DialogTitle>{title}</DialogTitle><DialogDescription className="sr-only">{languageAware && lang === "de" ? de : ar}</DialogDescription></DialogHeader>
