@@ -45,8 +45,8 @@ export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmi
   const set = (k: string, v: unknown) => setDraft((d) => ({ ...d, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={(o) => { if (o) setDraft(initial); onOpenChange(o); }}>
-      <DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-        <DialogHeader className="text-right"><DialogTitle>{languageAware ? (lang === "de" || lang === "en" ? title.de : lang === "ar" ? title.ar : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>) : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>}</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir={languageAware && (lang === "de" || lang === "en") ? "ltr" : "rtl"}>
+        <DialogHeader className={languageAware && (lang === "de" || lang === "en") ? "text-left" : "text-right"}><DialogTitle>{languageAware ? (lang === "de" || lang === "en" ? title.de : lang === "ar" ? title.ar : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>) : <>{title.ar} <span className="text-sm italic text-muted-foreground">| {title.de}</span></>}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           {fields.map((f) => f.checkbox ? (
             <label key={f.key} className="flex items-center gap-2 font-bold"><input type="checkbox" checked={Boolean(draft[f.key])} onChange={(e) => set(f.key, e.target.checked)} className="h-4 w-4 accent-secondary" />{languageAware ? (lang === "de" || lang === "en" ? f.de : lang === "ar" ? f.ar : <>{f.ar} | {f.de}</>) : <>{f.ar} | {f.de}</>}</label>
@@ -134,7 +134,7 @@ export function ManageRow({ title, subtitle, fields, item, onSave, onDelete, hid
 }
 
 /** زر إضافة عنصر جديد ➕ */
-export function AddButton({ label, fields, blank, onAdd, inline = false, languageAware = false }: { label: { ar: string; de: string }; fields: FieldDef[]; blank: Row; onAdd: (row: Row) => Promise<void>; inline?: boolean; languageAware?: boolean }) {
+export function AddButton({ label, fields, blank, onAdd, inline = false, languageAware = true }: { label: { ar: string; de: string }; fields: FieldDef[]; blank: Row; onAdd: (row: Row) => Promise<void>; inline?: boolean; languageAware?: boolean }) {
   const [open, setOpen] = useState(false);
   const { lang } = useLang();
   return (
@@ -146,7 +146,7 @@ export function AddButton({ label, fields, blank, onAdd, inline = false, languag
 }
 
 /** زر استرجاع البيانات الأصلية للقسم 🔄 */
-export function RestoreButton({ onRestore, label = "استرجاع البيانات الأصلية لهذا القسم | Standard wiederherstellen", languageAware = false }: { onRestore: () => Promise<void> | void; label?: string; languageAware?: boolean }) {
+export function RestoreButton({ onRestore, label = "استرجاع البيانات الأصلية لهذا القسم | Standard wiederherstellen", languageAware = true }: { onRestore: () => Promise<void> | void; label?: string; languageAware?: boolean }) {
   const [busy, setBusy] = useState(false);
   const { lang } = useLang();
   return (
@@ -183,7 +183,7 @@ export function SectionAdminBar({
   onAdd,
   onRestore,
   children,
-  languageAware = false,
+  languageAware = true,
   onEditClick,
 }: {
   editMode?: boolean;
