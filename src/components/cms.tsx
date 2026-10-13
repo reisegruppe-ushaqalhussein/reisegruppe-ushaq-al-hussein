@@ -224,7 +224,7 @@ function MoveDialog({ content, tile, builtins, onClose }: { content: SiteContent
       if (cur === tile.id) return true;
       seen.add(cur);
       const currentTile = tiles.find((candidate) => candidate.id === cur);
-      const p = currentTile ? parentOf(parents, currentTile) : parents[cur];
+      const p: string | undefined = currentTile ? parentOf(parents, currentTile) : parents[cur];
       cur = p ? parentTile(p, builtins) : undefined;
     }
     return false;
