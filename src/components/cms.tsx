@@ -26,6 +26,7 @@ export const cmsIcons: Record<string, IconType> = {
   camera: Camera, image: ImageIcon, video: Video, music: Music2, file: FileText, info: Info, gift: Gift, shield: Shield, briefcase: Briefcase, link: Link2,
 };
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+const adminText = (lang: string, ar: string, de: string, en?: string) => lang === "ar" ? ar : lang === "de" ? de : lang === "en" ? (en ?? de) : `${ar} | ${de}`;
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 export const customTileId = (id: string) => `c:${id}`;
 
@@ -76,6 +77,8 @@ export function allTiles(content: SiteContent, builtins: Tile[]): Tile[] {
 /** The luxury tile grid used on home and inside every folder, so new sections look exactly like the existing ones. */
 export function TileGrid({ content, builtins, parentId, onOpen }: { content: SiteContent; builtins: Tile[]; parentId?: string; onOpen: (id: string) => void }) {
   const { cms, save } = useCms(content);
+  const { lang } = useLang();
+  const tr = (ar: string, de: string, en?: string) => adminText(lang, ar, de, en);
   const canManage = useCanManage(content);
   const showHidden = useShowHidden() || canManage;
   const staff = useStaffSession();
@@ -106,13 +109,31 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
     if (next.has(t.id)) next.delete(t.id); else next.add(t.id);
     save({ ...cms, hiddenTiles: [...next] });
   };
-  const remove = (t: Tile) => {
-    if (t.builtin) return;
-    const id = t.id.slice(2);
-    const sec = (cms.sections ?? []).find((s) => s.id === id);
-    if (!window.confirm(`حذف «${sec?.ar || sec?.de}» مع محتواه؟ الأقسام داخله تعود لهذا المستوى.\nLöschen?`)) return;
-    const nextParents = Object.fromEntries(Object.entries(parents).filter(([k]) => k !== t.id).map(([k, v]) => [k, v === id ? (parentId ?? "") : v]).filter(([, v]) => v));
-    save({ ...cms, sections: (cms.sections ?? []).filter((s) => s.id !== id), parents: nextParents, order: (cms.order ?? []).filter((x) => x !== t.id) });
+  const remove = (tile: Tile) => {
+    if (tile.builtin || tile.tripType || !tile.id.startsWith("c:")) return;
+    const id = tile.id.slice(2);
+    const root = (cms.sections ?? []).find((section) => section.id === id);
+    if (!root) return;
+    if (!window.confirm(tr(`نقل المجلد «${root.ar || root.de}» وكل مجلداته الفرعية إلى سلة المحذوفات؟`, `„${root.de || root.ar}“ und alle Unterordner in den Papierkorb verschieben?`))) return;
+    const sections = cms.sections ?? [];
+    const descendants = new Set<string>([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const section of sections) {
+        const parent = parents[customTileId(section.id)];
+        if (parent && descendants.has(parent) && !descendants.has(section.id)) { descendants.add(section.id); changed = true; }
+      }
+    }
+    const removedSections = sections.filter((section) => descendants.has(section.id));
+    const removedTileIds = new Set(removedSections.map((section) => customTileId(section.id)));
+    const savedParents = Object.fromEntries(Object.entries(parents).filter(([key, value]) => removedTileIds.has(key) || (typeof value === "string" && descendants.has(value))));
+    const trashEntry = { id: `cms-section-${Date.now()}`, section: "cms.sections", item: { ...(root as unknown as Record<string, unknown>), __subtree: removedSections, __parents: savedParents } as unknown as import("@/lib/site-content").TrashEntry["item"], deletedAt: Date.now() };
+    const nextParents = Object.fromEntries(Object.entries(parents).filter(([key, value]) => !removedTileIds.has(key) && !(typeof value === "string" && descendants.has(value))));
+    const nextModes = { ...(cms.viewModes ?? {}) };
+    descendants.forEach((sectionId) => delete nextModes[sectionId]);
+    const nextOrder = (cms.order ?? []).filter((tileId) => !removedTileIds.has(tileId));
+    void save({ ...cms, sections: sections.filter((section) => !descendants.has(section.id)), parents: nextParents, order: nextOrder, viewModes: nextModes }, { trash: [trashEntry, ...(content.trash ?? [])].slice(0, 300) });
   };
 
   if (parentId && !canManage && shown.length === 0) return null;
@@ -121,10 +142,11 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
       {canManage && (!parentId || hasSubfolders) && <div className="mb-2 flex items-center justify-end gap-2">
         {arranging && <button type="button" onClick={() => setArranging(false)} className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold text-secondary-foreground">✓</button>}
         <GearMenu>
-          <IconBtn label={parentId ? "إضافة مجلد فرعي هنا | Unterordner hier hinzufügen" : "قسم جديد | Neuer Bereich"} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn>
-          {shown.length > 2 && <IconBtn label="ترتيب ونقل | Anordnen" onClick={() => setArranging((v) => !v)}><Move className="h-3.5 w-3.5" /></IconBtn>}
-          <IconBtn label={parentId ? "تصميم هذا القسم | Bereichsdesign" : "التصميم | Design"} onClick={() => setDesign(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-          <IconBtn label="استرجاع الترتيب والتصميم الأصلي | Standard wiederherstellen" onClick={() => {
+          <IconBtn label={tr(parentId ? "إضافة مجلد فرعي هنا" : "قسم جديد", parentId ? "Unterordner hier hinzufügen" : "Neuer Bereich")} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn>
+          {shown.length > 1 && <IconBtn label={tr("ترتيب ونقل", "Anordnen")} onClick={() => setArranging((v) => !v)}><Move className="h-3.5 w-3.5" /></IconBtn>}
+          <IconBtn label={tr(parentId ? "تصميم هذا القسم" : "التصميم", parentId ? "Bereichsdesign" : "Design")} onClick={() => setDesign(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
+          {shown.some((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")) && <IconBtn label={tr("حذف مجلد", "Ordner löschen")} danger onClick={() => { const candidate = shown.find((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")); if (candidate) remove(candidate); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
+          <IconBtn label={tr("استرجاع الترتيب والتصميم الأصلي", "Standard wiederherstellen")} onClick={() => {
             if (!window.confirm("هل تريد استرجاع الترتيب والتصميم الأصلي لهذا القسم؟\\nStandard-Design für diesen Bereich wiederherstellen?")) return;
             const currentIds = new Set(shown.map((t) => t.id));
             const nextOrder = (cms.order ?? []).filter((id) => !currentIds.has(id));
@@ -134,8 +156,8 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
           }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>
         </GearMenu>
       </div>}
-      {canManage && parentId && !hasSubfolders && <div className="mb-2 flex justify-end"><IconBtn label="إضافة مجلد فرعي هنا | Unterordner hier hinzufügen" onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn></div>}
-      <div className={`grid ${viewMode === "horizontal" ? "grid-cols-1" : viewMode === "grid" && !parentId ? cols : "grid-cols-2"} gap-3`}>
+      {canManage && parentId && !hasSubfolders && <div className="mb-2 flex justify-end"><IconBtn label={tr("إضافة مجلد فرعي هنا", "Unterordner hier hinzufügen")} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn></div>}
+      <div className={`grid ${viewMode === "horizontal" ? "grid-cols-1" : viewMode === "grid3" ? "grid-cols-3" : viewMode === "grid" && !parentId ? cols : "grid-cols-2"} gap-2.5`}>
         {shown.map((t) => {
           const Icon = t.icon;
           const off = hiddenTiles.has(t.id);
@@ -143,9 +165,9 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
           const tileSection = t.id.startsWith("c:") ? (cms.sections ?? []).find((section) => customTileId(section.id) === t.id) : undefined;
           const tileImage = viewMode === "image" ? tileSection?.items.find((item) => item.imageUrl)?.imageUrl : undefined;
           return <div key={t.id} className={`relative min-w-0 ${off ? "opacity-45" : ""}`}>
-            <Button variant="outline" onClick={() => !arranging && onOpen(t.id)} className={`${viewMode === "horizontal" ? "h-16 flex-row justify-start gap-3 px-3 text-start" : viewMode === "compact" ? "h-[105px] gap-2 px-2 text-xs" : viewMode === "image" ? "h-36 gap-2 px-2 text-xs" : cms.columns === 3 ? "h-28 gap-2 px-1.5 text-xs" : "h-32 gap-3 px-3"} w-full whitespace-normal shadow-sm hover:border-secondary ${viewMode === "horizontal" ? "" : "flex-col"} ${tileImage ? "bg-cover bg-center text-white" : "bg-card hover:bg-card"} ${iraqFolder ? "justify-start pt-3" : ""}`} style={tileImage ? { backgroundImage: `linear-gradient(rgba(15,23,42,.55),rgba(15,23,42,.55)),url("${tileImage}")` } : undefined}>
-              <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-md ${tileImage ? "bg-white/15 text-white" : "bg-accent text-primary"}`}><Icon className="h-5 w-5" /></span>
-              <span className={`w-full ${iraqFolder ? "min-h-10 flex items-start justify-center" : ""}`}><LangText ar={t.ar} de={t.de} center /></span>
+            <Button variant="outline" onClick={() => !arranging && onOpen(t.id)} className={`${viewMode === "horizontal" ? "h-[46px] flex-row justify-start gap-3 px-3 text-start" : viewMode === "compact" ? "h-[50px] flex-row justify-start gap-2 px-2.5 text-xs" : viewMode === "grid3" ? "h-20 flex-col justify-center gap-1.5 px-1 text-[11px]" : viewMode === "image" ? "h-36 gap-2 px-2 text-xs" : cms.columns === 3 ? "h-28 gap-2 px-1.5 text-xs" : "h-32 gap-3 px-3"} w-full whitespace-normal shadow-sm hover:border-secondary ${viewMode === "horizontal" || viewMode === "compact" ? "" : "flex-col"} ${tileImage ? "bg-cover bg-center text-white" : "bg-card hover:bg-card"} ${iraqFolder ? "justify-start pt-3" : ""}`} style={tileImage ? { backgroundImage: `linear-gradient(rgba(15,23,42,.55),rgba(15,23,42,.55)),url("${tileImage}")` } : undefined}>
+              <span className={`grid shrink-0 place-items-center rounded-md ${viewMode === "compact" ? "h-7 w-7" : viewMode === "grid3" ? "h-9 w-9" : "h-11 w-11"} ${tileImage ? "bg-white/15 text-white" : "bg-accent text-primary"}`}><Icon className={viewMode === "compact" ? "h-3.5 w-3.5" : viewMode === "grid3" ? "h-4 w-4" : "h-5 w-5"} /></span>
+              <span className={`${viewMode === "compact" || viewMode === "horizontal" ? "min-w-0 flex-1 text-start" : "w-full"} ${iraqFolder ? "min-h-10 flex items-start justify-center" : ""}`}><LangText ar={t.ar} de={t.de} center={viewMode !== "compact" && viewMode !== "horizontal"} /></span>
             </Button>
             {arranging && <div className="absolute inset-x-1 bottom-1 flex flex-wrap justify-center gap-1">
               {shown.length > 1 && <IconBtn label="قبل | Davor" onClick={() => void move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>}
@@ -167,6 +189,8 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
 
 function SectionDialog({ content, tile, parentId, onClose }: { content: SiteContent; tile: Tile | null; parentId?: string | undefined; onClose: () => void }) {
   const { cms, save } = useCms(content);
+  const { lang } = useLang();
+  const tr = (ar: string, de: string, en?: string) => adminText(lang, ar, de, en);
   const sec = tile && !tile.builtin ? (cms.sections ?? []).find((s) => customTileId(s.id) === tile.id) : undefined;
   const [ar, setAr] = useState(tile?.ar ?? "");
   const [de, setDe] = useState(sec ? sec.de : tile?.de ?? "");
@@ -175,7 +199,8 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
   const submit = async () => {
     if (!ar.trim() && !de.trim()) return;
     setBusy(true);
-    const filled = await fillGerman({ ar: ar.trim(), de: de.trim() }, [["ar", "de"]]);
+    const entered = { ar: ar.trim(), de: de.trim() };
+    const filled = tile ? entered : await fillGerman(entered, [["ar", "de"]]);
     if (tile?.builtin) {
       const labelKey = tile.id === "system:iraq-types" ? "iraqTypes" : tile.id === "system:iraq-details" ? "iraqDetails" : `tile:${tile.id}`;
       await save(cms, { labels: { ...(content.labels ?? {}), [labelKey]: { ar: filled.ar, de: filled.de } } });
@@ -189,12 +214,13 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
     onClose();
   };
   return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-    <DialogHeader className="text-right"><DialogTitle>{tile ? "تعديل القسم" : "قسم جديد"} <span className="text-sm italic text-muted-foreground">| {tile ? "Bereich bearbeiten" : "Neuer Bereich"}</span></DialogTitle><DialogDescription>اكتبي بالعربية فقط إن شئتِ — الألمانية تُترجم تلقائياً. | Deutsch wird automatisch ergänzt.</DialogDescription></DialogHeader>
+    <DialogHeader className="text-right"><DialogTitle>{tr(tile ? "تعديل القسم" : "قسم جديد", tile ? "Bereich bearbeiten" : "Neuer Bereich")}</DialogTitle><DialogDescription>{tr("اكتبي بالعربية فقط إن شئتِ — الألمانية تُترجم تلقائياً.", "Du kannst nur Arabisch eingeben — Deutsch wird automatisch ergänzt.")}</DialogDescription></DialogHeader>
+    {!tile && parentId && <p className="rounded-md bg-accent p-2 text-sm">{tr("سيُنشأ المجلد داخل:", "Der Ordner wird erstellt unter:")} <strong>{(cms.sections ?? []).find((item) => item.id === parentId)?.ar || (cms.sections ?? []).find((item) => item.id === parentId)?.de || allTiles(content, []).find((item) => item.id === parentId)?.ar || parentId}</strong></p>
     <div className="space-y-3 text-sm">
-      <label className="block font-bold">الاسم بالعربية<input value={ar} onChange={(e) => setAr(e.target.value)} className={inputCls} /></label>
-      <label className="block font-bold">Name (DE)<input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="تلقائي | automatisch" className={inputCls} /></label>
-      {!tile?.builtin && <div><p className="mb-1 font-bold">الأيقونة | Symbol</p><div className="grid grid-cols-6 gap-1.5">{Object.entries(cmsIcons).map(([k, I]) => <button key={k} type="button" aria-label={k} aria-pressed={icon === k} onClick={() => setIcon(k)} className={`grid h-10 place-items-center rounded-md border ${icon === k ? "border-secondary bg-accent text-primary" : "border-border bg-card text-muted-foreground"}`}><I className="h-4 w-4" /></button>)}</div></div>}
-      <Button disabled={busy} className="h-11 w-full" onClick={submit}>{busy ? <Loader2 className="animate-spin" /> : "حفظ"} <span className="text-xs italic opacity-75">| Speichern</span></Button>
+      <label className="block font-bold">{tr("الاسم بالعربية", "Name (AR)")}<input value={ar} onChange={(e) => setAr(e.target.value)} className={inputCls} /></label>
+      <label className="block font-bold">{tr("الاسم بالألمانية", "Name (DE)")}<input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="تلقائي | automatisch" className={inputCls} /></label>
+      {!tile?.builtin && <div><p className="mb-1 font-bold">{tr("الأيقونة", "Symbol")}</p><div className="grid grid-cols-6 gap-1.5">{Object.entries(cmsIcons).map(([k, I]) => <button key={k} type="button" aria-label={k} aria-pressed={icon === k} onClick={() => setIcon(k)} className={`grid h-10 place-items-center rounded-md border ${icon === k ? "border-secondary bg-accent text-primary" : "border-border bg-card text-muted-foreground"}`}><I className="h-4 w-4" /></button>)}</div></div>}
+      <Button disabled={busy} className="h-11 w-full" onClick={submit}>{busy ? <Loader2 className="animate-spin" /> : tr("حفظ", "Speichern")}</Button>
     </div>
   </DialogContent></Dialog>;
 }
@@ -393,13 +419,13 @@ function cleanArabic(x: unknown, key = ""): unknown {
   return x;
 }
 
-function DesignDialog({ content, parentId, onClose }: { content: SiteContent; parentId?: string; onClose: () => void }) {
+function DesignDialog({ content, parentId, onClose }: { content: SiteContent; parentId?: string | undefined; onClose: () => void }) {
   const { cms } = useCms(content);
   const s = useAdminSession();
   const canManage = useCanManage(content);
   const qc = useQueryClient();
   const [draft, setDraft] = useState<CmsConfig>(cms);
-  const [viewMode, setViewMode] = useState<"grid" | "compact" | "horizontal" | "image">(parentId ? cms.viewModes?.[parentId] ?? "grid" : "grid");
+  const [viewMode, setViewMode] = useState<"grid" | "compact" | "grid3" | "horizontal" | "image">(parentId ? cms.viewModes?.[parentId] ?? "grid" : "grid");
   const [busy, setBusy] = useState(false);
   const persist = async (next: SiteContent) => {
     if (!s || !canManage) return;
@@ -419,7 +445,7 @@ function DesignDialog({ content, parentId, onClose }: { content: SiteContent; pa
     <div className="space-y-4 text-sm">
       {!parentId && (<div><p className="mb-2 font-bold">اللون الأساسي | Hauptfarbe</p><div className="grid grid-cols-5 gap-2">{themes.map((t) => <button key={t.id} type="button" aria-label={t.de} aria-pressed={(draft.theme ?? "") === t.id} onClick={() => setDraft({ ...draft, theme: t.id })} className={`flex flex-col items-center gap-1 rounded-md border p-1.5 text-[9px] ${(draft.theme ?? "") === t.id ? "border-secondary ring-2 ring-secondary" : "border-border"}`}><span className="h-7 w-7 rounded-full border-2 border-secondary" style={{ background: t.swatch }} />{t.ar}</button>)}</div></div>)}
       {!parentId && (<div><p className="mb-2 font-bold">عدد المربعات في الصف | Kacheln pro Reihe</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(draft.columns ?? 2) === n ? "default" : "outline"} onClick={() => setDraft({ ...draft, columns: n })}>{n}</Button>)}</div></div>)}
-      {parentId ? <div><p className="mb-2 font-bold">نمط عرض هذا القسم | Darstellungsart</p><div className="grid grid-cols-2 gap-2">{([{id:"grid",label:"شبكة عادية | Raster"},{id:"compact",label:"شبكة مصغّرة | Kompakt"},{id:"horizontal",label:"أشرطة أفقية | Horizontal"},{id:"image",label:"بطاقات بصورة | Bildkarten"}] as const).map((mode) => <Button key={mode.id} variant={viewMode === mode.id ? "default" : "outline"} onClick={() => setViewMode(mode.id)}>{mode.label}</Button>)}</div></div> : null}
+      {parentId ? <div><p className="mb-2 font-bold">نمط عرض هذا القسم | Darstellungsart</p><div className="grid grid-cols-2 gap-2">{([{id:"grid",label:"شبكة عادية | Raster"},{id:"compact",label:"مصغّرة جداً (عمودان) | Mini (2 Spalten)"},{id:"grid3",label:"شبكة فاخرة (3 أعمدة) | 3-Spalten-Raster"},{id:"horizontal",label:"أشرطة أفقية | Horizontal"},{id:"image",label:"بطاقات بصورة | Bildkarten"}] as const).map((mode) => <Button key={mode.id} variant={viewMode === mode.id ? "default" : "outline"} onClick={() => setViewMode(mode.id)}>{mode.label}</Button>)}</div></div> : null}
       {!parentId && s?.role === "admin" && <label className="flex items-center gap-2 rounded-md border border-border p-3 font-bold"><input type="checkbox" checked={!!draft.hajToolsEnabled} onChange={(e) => setDraft({ ...draft, hajToolsEnabled: e.target.checked })} className="h-4 w-4 accent-secondary" />السماح للحاج بأدوات التحكم الكاملة <span className="text-xs italic text-muted-foreground">| Volle Kontrolle für Hajj</span></label>}
       <Button disabled={busy} className="h-11 w-full" onClick={() => void persist({ ...content, cms: parentId ? { ...draft, viewModes: { ...(draft.viewModes ?? {}), [parentId]: viewMode } } : draft })}>{busy ? <Loader2 className="animate-spin" /> : "حفظ التصميم"} <span className="text-xs italic opacity-75">| Speichern</span></Button>
       {!parentId && s?.role === "admin" && <Button disabled={busy} variant="outline" className="h-auto w-full whitespace-normal py-2 text-xs" onClick={clean}>🧹 حذف الألماني من خانات العربية بضغطة واحدة | Deutsch aus arabischen Feldern entfernen</Button>}
