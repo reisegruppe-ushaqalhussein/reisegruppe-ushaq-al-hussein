@@ -139,7 +139,7 @@ export function AddButton({ label, fields, blank, onAdd, inline = false, languag
   const { lang } = useLang();
   return (
     <div className={inline ? "contents" : "mb-2 flex justify-end"}>
-      <button type="button" onClick={() => setOpen(true)} aria-label={languageAware ? (lang === "en" ? label.de : lang === "de" ? label.de : label.ar) : `${label.ar} | ${label.de}`} title={languageAware ? (lang === "en" ? label.de : lang === "de" ? label.de : label.ar) : `${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
+      <button type="button" onClick={() => setOpen(true)} aria-label={languageAware ? ((lang === "en" || lang === "de") ? label.de : lang === "ar" ? label.ar : `${label.ar} | ${label.de}`) : `${label.ar} | ${label.de}`} title={languageAware ? (lang === "en" ? label.de : lang === "de" ? label.de : label.ar) : `${label.ar} | ${label.de}`} className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={label} fields={fields} initial={blank} onSubmit={onAdd} languageAware={languageAware} />}
     </div>
   );
@@ -154,7 +154,7 @@ export function RestoreButton({ onRestore, label = "استرجاع البيان�
       type="button"
       disabled={busy}
       onClick={async () => {
-        if (!window.confirm(languageAware ? (lang === "en" ? "Restore original items in this section?" : lang === "de" ? "Originaldaten dieses Bereichs wiederherstellen?" : "استرجاع البيانات الأصلية لهذا القسم؟") : "هل أنتِ متأكدة من استرجاع البيانات الأصلية لهذا القسم؟\nMöchten Sie die Originaldaten dieses Bereichs wirklich wiederherstellen?")) return;
+        if (!window.confirm(languageAware ? (lang === "en" ? "Restore original items in this section?" : lang === "de" ? "Originaldaten dieses Bereichs wiederherstellen?" : lang === "ar" ? "استرجاع البيانات الأصلية لهذا القسم؟" : "استرجاع البيانات الأصلية لهذا القسم؟ | Originaldaten dieses Bereichs wiederherstellen?") : "هل أنتِ متأكدة من استرجاع البيانات الأصلية لهذا القسم؟\nMöchten Sie die Originaldaten dieses Bereichs wirklich wiederherstellen?")) return;
         setBusy(true);
         try {
           await onRestore();
@@ -164,7 +164,7 @@ export function RestoreButton({ onRestore, label = "استرجاع البيان�
           setBusy(false);
         }
       }}
-      aria-label={languageAware ? (lang === "en" ? "Restore original" : lang === "de" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
+      aria-label={languageAware ? (lang === "en" ? "Restore original" : lang === "de" ? "Original wiederherstellen" : lang === "ar" ? "استرجاع الأصلي" : "استرجاع الأصلي | Original wiederherstellen") : label}
       title={languageAware ? (lang === "en" ? "Restore original" : lang === "de" ? "Original wiederherstellen" : "استرجاع الأصلي") : label}
       className="grid h-7 w-7 place-items-center rounded-full border border-secondary/60 bg-background/80 text-primary shadow-sm hover:bg-muted"
     >
@@ -207,8 +207,8 @@ export function SectionAdminBar({
         type="button"
         onClick={onEditClick ?? toggleSectionEditMode}
         aria-pressed={onEditClick ? undefined : isEditing}
-        aria-label={languageAware ? (lang === "en" ? (isEditing ? "Done" : "Edit items") : lang === "de" ? (isEditing ? "Fertig" : "Elemente bearbeiten") : (isEditing ? "إنهاء التعديل" : "تعديل العناصر")) : (isEditing ? "إنهاء وضع التعديل | Fertig" : "تعديل عناصر القسم | Elemente bearbeiten")}
-        title={languageAware ? (lang === "en" ? (isEditing ? "Finish editing" : "Enable editing") : lang === "de" ? (isEditing ? "Bearbeitung beenden" : "Bearbeitung aktivieren") : (isEditing ? "إنهاء التعديل وإخفاء الأزرار" : "إظهار أزرار تعديل العناصر")) : (isEditing ? "إنهاء التعديل وإخفاء أزرار البطاقات | Fertig" : "إظهار أزرار تعديل البطاقات | Karten bearbeiten")}
+        aria-label={languageAware ? (lang === "en" ? (isEditing ? "Done" : "Edit items") : lang === "de" ? (isEditing ? "Fertig" : "Elemente bearbeiten") : lang === "ar" ? (isEditing ? "إنهاء التعديل" : "تعديل العناصر") : (isEditing ? "إنهاء التعديل | Fertig" : "تعديل العناصر | Elemente bearbeiten")) : (isEditing ? "إنهاء وضع التعديل | Fertig" : "تعديل عناصر القسم | Elemente bearbeiten")}
+        title={languageAware ? (lang === "en" ? (isEditing ? "Finish editing" : "Enable editing") : lang === "de" ? (isEditing ? "Bearbeitung beenden" : "Bearbeitung aktivieren") : lang === "ar" ? (isEditing ? "إنهاء التعديل وإخفاء الأزرار" : "إظهار أزرار تعديل العناصر") : (isEditing ? "إنهاء التعديل وإخفاء الأزرار | Bearbeitung beenden" : "إظهار أزرار تعديل العناصر | Elemente bearbeiten")) : (isEditing ? "إنهاء التعديل وإخفاء أزرار البطاقات | Fertig" : "إظهار أزرار تعديل البطاقات | Karten bearbeiten")}
         className={`grid h-7 w-7 place-items-center rounded-full border shadow-sm transition-colors ${
           isEditing
             ? "border-secondary bg-secondary text-secondary-foreground font-bold"
