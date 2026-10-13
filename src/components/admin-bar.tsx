@@ -138,15 +138,15 @@ function TrashDialog({ open, onOpenChange, content, password }: { open: boolean;
   const restore = (t: TrashEntry) => {
     if (t.section === "cms.sections") {
       const item = t.item as unknown as Record<string, unknown>;
-      const subtree = Array.isArray(item.__subtree) ? item.__subtree as Array<Record<string, unknown>> : [item];
-      const restoredSections = subtree.filter((section) => typeof section.id === "string").map((section) => {
+      const subtree = Array.isArray(item["__subtree"]) ? item["__subtree"] as Array<Record<string, unknown>> : [item];
+      const restoredSections = subtree.filter((section) => typeof section["id"] === "string").map((section) => {
         const { __subtree: _subtree, __parents: _parents, ...clean } = section;
         return clean;
       });
       const cms = content.cms ?? {};
-      const existing = new Set((cms.sections ?? []).map((section) => section.id));
-      const add = restoredSections.filter((section) => !existing.has(String(section.id)));
-      const savedParents = item.__parents && typeof item.__parents === "object" ? item.__parents as Record<string, string> : {};
+      const existing = new Set((cms.sections ?? []).map((section) => section["id"]));
+      const add = restoredSections.filter((section) => !existing.has(String(section["id"])));
+      const savedParents = item["__parents"] && typeof item["__parents"] === "object" ? item["__parents"] as Record<string, string> : {};
       save({ ...content, cms: { ...cms, sections: [...(cms.sections ?? []), ...add] as NonNullable<typeof cms.sections>, parents: { ...(cms.parents ?? {}), ...savedParents } }, trash: trash.filter((x) => x.id !== t.id) });
       return;
     }
