@@ -85,7 +85,7 @@ export function QiblaView() {
 
   return (
     <div className="screen-enter px-4 py-7">
-      <Title icon={Compass} ar="اتجاه القبلة" de="Qibla-Richtung" />
+      <div className="flex items-center gap-3"><div className="min-w-0 flex-1"><Title icon={Compass} ar="اتجاه القبلة" de="Qibla-Richtung" /></div><FavStar id="tool:qibla" /></div>
       <section className="rounded-lg bg-card p-6 text-center shadow-sm">
         <div className={`relative mx-auto grid h-64 w-64 place-items-center rounded-full border-4 ${aligned ? "border-success" : "border-secondary"} bg-muted`}>
           <span className="absolute top-2 text-xs font-bold text-muted-foreground">N</span>
