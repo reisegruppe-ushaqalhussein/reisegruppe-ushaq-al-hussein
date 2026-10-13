@@ -335,8 +335,8 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
   };
   const saveTarget = async (row: Record<string, unknown>) => {
     if (!editingTarget) return;
-    const ar = String(row.ar ?? "");
-    const de = String(row.de ?? "");
+    const ar = String(row["ar"] ?? "");
+    const de = String(row["de"] ?? "");
     if (editingTarget.kind === "category") {
       await commit(categories.map((group) => group.id === editingTarget.categoryId ? { ...group, ar, de } : group));
     } else if (editingTarget.kind === "item") {
@@ -384,7 +384,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
             addLabel={{ ar: addCategoryLabel, de: addCategoryLabel }}
             addFields={categoryFields}
             addBlank={{ ar: "", de: "", items: [] }}
-            onAdd={async (row) => commit([...categories, { id: "cat-" + Date.now(), ar: String(row.ar ?? ""), de: String(row.de ?? ""), items: [] }])}
+            onAdd={async (row) => commit([...categories, { id: "cat-" + Date.now(), ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), items: [] }])}
             onRestore={async () => commit(defaultPackingGroups)}
           />
         )}
