@@ -286,6 +286,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
   const [text, setText] = useState("");
   const [ready, setReady] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [tripFilter, setTripFilter] = useState<"all" | "umrah" | "iraq" | "winter">("all");
   const [editingTarget, setEditingTarget] = useState<
     | { kind: "category"; categoryId: string; ar: string; de: string }
     | { kind: "item"; categoryId: string; itemId: string; ar: string; de: string }
@@ -301,13 +302,36 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
     } catch { /* ignore malformed local checklist */ }
     setReady(true);
   }, []);
+
   useEffect(() => {
     if (ready) localStorage.setItem("packing-list", JSON.stringify({ checked, custom }));
   }, [checked, custom, ready]);
 
+  // تصنيف الأغراض حسب الكلمات المفتاحية لنوع الرحلة المختار
+  const matchesTrip = (nameAr: string, nameDe: string) => {
+    if (tripFilter === "all") return true;
+    const combined = (nameAr + " " + nameDe).toLowerCase();
+    if (tripFilter === "umrah") {
+      return combined.includes("إحرام") || combined.includes("طواف") || combined.includes("عمرة") || combined.includes("ihram") || combined.includes("umrah") || !combined.includes("مشي");
+    }
+    if (tripFilter === "iraq") {
+      return combined.includes("مشاية") || combined.includes("أربعين") || combined.includes("زيارة") || combined.includes("عراق") || combined.includes("iraq") || !combined.includes("إحرام");
+    }
+    if (tripFilter === "winter") {
+      return combined.includes("دافئ") || combined.includes("شتاء") || combined.includes("مطر") || combined.includes("معطف") || combined.includes("winter") || combined.includes("warm");
+    }
+    return true;
+  };
+
   const visibleCategories = categories
     .filter((group) => showHidden || !group.hidden)
-    .map((group) => ({ ...group, items: group.items.filter((item) => showHidden || !item.hidden) }));
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => (showHidden || !item.hidden) && matchesTrip(item.ar, item.de)),
+    }))
+    .filter((group) => group.items.length > 0 || showHidden);
+
   const allIds = [...visibleCategories.flatMap((group) => group.items.map((item) => item.id)), ...custom.map((item) => item.id)];
   const done = allIds.filter((id) => checked[id]).length;
   const pct = allIds.length ? Math.round((done / allIds.length) * 100) : 0;
@@ -315,12 +339,14 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
     setChecked((current) => ({ ...current, [id]: !current[id] }));
     if (typeof navigator !== "undefined") navigator.vibrate?.(15);
   };
+
   const ui = (ar: string, de: string, en: string) => lang === "ar" ? ar : lang === "de" ? de : lang === "en" ? en : ar + " | " + de;
   const addCategoryLabel = ui("إضافة فئة جديدة", "Kategorie hinzufügen", "Add category");
   const resetConfirm = ui("هل تريد تفريغ الإشارات لرحلة جديدة؟", "Möchten Sie die Liste für eine neue Reise zurücksetzen?", "Reset the checklist for a new trip?");
   const addPlaceholder = ui("أضف غرضاً خاصاً...", "Eigenen Gegenstand hinzufügen...", "Add personal item...");
   const categoryFields = packingCategoryFields(lang);
   const itemFields = packingItemFields(lang);
+
   const editCategory = (group: PackingCategory) => {
     setManageOpen(false);
     setEditingTarget({ kind: "category", categoryId: group.id, ar: group.ar, de: group.de });
@@ -333,6 +359,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
     setManageOpen(false);
     setEditingTarget({ kind: "new-item", categoryId: group.id, ar: "", de: "" });
   };
+
   const saveTarget = async (row: Record<string, unknown>) => {
     if (!editingTarget) return;
     const ar = String(row["ar"] ?? "");
@@ -349,6 +376,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
         : group));
     }
   };
+
   const changeVisibility = async (group: PackingCategory, item?: PackingCategory["items"][number]) => {
     if (item) {
       await commit(categories.map((entry) => entry.id === group.id
@@ -358,6 +386,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
       await commit(categories.map((entry) => entry.id === group.id ? { ...entry, hidden: !entry.hidden } : entry));
     }
   };
+
   const deleteTarget = async (group: PackingCategory, item?: PackingCategory["items"][number]) => {
     const targetName = item ? (lang === "de" ? item.de : item.ar) : (lang === "de" ? group.de : group.ar);
     if (!window.confirm(ui(`هل تريد حذف «${targetName}»؟`, `Möchtest du „${targetName}“ wirklich löschen?`, `Delete “${targetName}”?`))) return;
@@ -390,6 +419,29 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
         )}
       </div>
 
+      {/* شريط تصنيف الرحلات التفاعلي */}
+      <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1 text-xs">
+        {[
+          { id: "all", ar: "الكل", de: "Alle" },
+          { id: "umrah", ar: "عمرة 🕋", de: "Umrah 🕋" },
+          { id: "iraq", ar: "زيارة العراق 🕌", de: "Irak 🕌" },
+          { id: "winter", ar: "رحلة شتوية ❄️", de: "Winter ❄️" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setTripFilter(tab.id as typeof tripFilter)}
+            className={`shrink-0 rounded-full border px-3 py-1 font-bold transition-colors ${
+              tripFilter === tab.id
+                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <P ar={tab.ar} de={tab.de} />
+          </button>
+        ))}
+      </div>
+
       <div className="mb-5 rounded-lg border border-border bg-card p-4 shadow-sm">
         <div className="mb-2 flex justify-between text-sm font-bold text-primary">
           <span><P ar="جاهزية الحقيبة" de="Koffer bereit" en="Packing progress" /></span><span dir="ltr">{pct}%</span>
@@ -402,7 +454,6 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
         <section key={group.id} className={"mb-4 rounded-lg border border-border bg-card px-4 py-3 shadow-sm " + (group.hidden ? "opacity-55" : "")}>
           <div className="mb-2 flex items-center justify-between border-b border-border/50 pb-2">
             <h3 className="text-sm font-bold text-secondary"><P ar={group.ar} de={group.de} /></h3>
-
           </div>
           <ul className="space-y-1">
             {group.items.map((item) => (
@@ -411,11 +462,9 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
                   <input type="checkbox" checked={!!checked[item.id]} onChange={() => toggle(item.id)} className="h-5 w-5 accent-[var(--secondary)]" />
                   <span className={checked[item.id] ? "text-muted-foreground line-through" : "text-foreground"}><P ar={item.ar} de={item.de} /></span>
                 </label>
-
               </li>
             ))}
           </ul>
-
         </section>
       ))}
 
@@ -441,6 +490,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
           <Button type="submit" aria-label={ui("إضافة", "Hinzufügen", "Add")}>+</Button>
         </form>
       </section>
+
       <Button variant="outline" className="w-full text-destructive" onClick={() => {
         if (window.confirm(resetConfirm)) setChecked({});
       }}><RotateCcw className="me-1 h-4 w-4" /><P ar="إعادة ضبط الحقيبة" de="Liste zurücksetzen" en="Reset checklist" /></Button>
@@ -496,3 +546,4 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
     </div>
   );
 }
+
