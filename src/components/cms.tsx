@@ -215,7 +215,7 @@ function SectionDialog({ content, tile, parentId, onClose }: { content: SiteCont
   };
   return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
     <DialogHeader className="text-right"><DialogTitle>{tr(tile ? "تعديل القسم" : "قسم جديد", tile ? "Bereich bearbeiten" : "Neuer Bereich")}</DialogTitle><DialogDescription>{tr("اكتبي بالعربية فقط إن شئتِ — الألمانية تُترجم تلقائياً.", "Du kannst nur Arabisch eingeben — Deutsch wird automatisch ergänzt.")}</DialogDescription></DialogHeader>
-    {!tile && parentId && <p className="rounded-md bg-accent p-2 text-sm">{tr("سيُنشأ المجلد داخل:", "Der Ordner wird erstellt unter:")} <strong>{(cms.sections ?? []).find((item) => item.id === parentId)?.ar || (cms.sections ?? []).find((item) => item.id === parentId)?.de || allTiles(content, []).find((item) => item.id === parentId)?.ar || parentId}</strong></p>
+    {!tile && parentId && <p className="rounded-md bg-accent p-2 text-sm">{tr("سيُنشأ المجلد داخل:", "Der Ordner wird erstellt unter:")} <strong>{(cms.sections ?? []).find((item) => item.id === parentId)?.ar || (cms.sections ?? []).find((item) => item.id === parentId)?.de || allTiles(content, []).find((item) => item.id === parentId)?.ar || parentId}</strong></p>}
     <div className="space-y-3 text-sm">
       <label className="block font-bold">{tr("الاسم بالعربية", "Name (AR)")}<input value={ar} onChange={(e) => setAr(e.target.value)} className={inputCls} /></label>
       <label className="block font-bold">{tr("الاسم بالألمانية", "Name (DE)")}<input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} placeholder="تلقائي | automatisch" className={inputCls} /></label>
@@ -421,6 +421,8 @@ function cleanArabic(x: unknown, key = ""): unknown {
 
 function DesignDialog({ content, parentId, onClose }: { content: SiteContent; parentId?: string | undefined; onClose: () => void }) {
   const { cms } = useCms(content);
+  const { lang } = useLang();
+  const tr = (ar: string, de: string, en?: string) => adminText(lang, ar, de, en);
   const s = useAdminSession();
   const canManage = useCanManage(content);
   const qc = useQueryClient();
@@ -431,24 +433,31 @@ function DesignDialog({ content, parentId, onClose }: { content: SiteContent; pa
     if (!s || !canManage) return;
     setBusy(true);
     try {
-      const { queued } = await saveOrQueue(s.password, next, "التصميم | Design", qc);
-      if (queued) window.alert("محفوظ محلياً | Lokal gespeichert");
+      const { queued } = await saveOrQueue(s.password, next, tr("التصميم", "Design"), qc);
+      if (queued) window.alert(tr("محفوظ محلياً", "Lokal gespeichert"));
       onClose();
-    } catch (e) { window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`); } finally { setBusy(false); }
+    } catch (e) { window.alert(`${tr("تعذّر الحفظ", "Fehler")}\n${e instanceof Error ? e.message : e}`); } finally { setBusy(false); }
   };
   const clean = () => {
-    if (!window.confirm("سيُحذف كل نص ألماني/لاتيني مكتوب داخل خانات العربية في كل التطبيق، ويبقى العربي فقط. خانات الألمانية لا تُمس. متابعة؟\nDeutsche Texte in arabischen Feldern entfernen?")) return;
+    if (!window.confirm(tr("سيُحذف كل نص ألماني/لاتيني مكتوب داخل خانات العربية في كل التطبيق، ويبقى العربي فقط. متابعة؟", "Deutsche Texte aus arabischen Feldern entfernen?"))) return;
     void persist({ ...(cleanArabic(content) as SiteContent), cms: draft });
   };
-  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir="rtl">
-    <DialogHeader className="text-right"><DialogTitle>التصميم <span className="text-sm italic text-muted-foreground">| Design</span></DialogTitle><DialogDescription>يُطبّق على كل الأجهزة | Gilt auf allen Geräten</DialogDescription></DialogHeader>
+  const viewOptions = [
+    { id: "grid", label: tr("شبكة عادية", "Standard-Raster") },
+    { id: "compact", label: tr("كبسولات مصغّرة (عمودان)", "Kompakt (2 Spalten)") },
+    { id: "grid3", label: tr("شبكة فاخرة (3 أعمدة)", "Luxus (3 Spalten)") },
+    { id: "horizontal", label: tr("أشرطة أفقية رشيقة", "Horizontale Leisten") },
+    { id: "image", label: tr("بطاقات مصورة", "Bildkarten") }
+  ] as const;
+  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
+    <DialogHeader className={lang === "de" || lang === "en" ? "text-left" : "text-right"}><DialogTitle>{tr("التصميم", "Design")}</DialogTitle><DialogDescription>{tr("يُطبّق على كل الأجهزة", "Gilt auf allen Geräten")}</DialogDescription></DialogHeader>
     <div className="space-y-4 text-sm">
-      {!parentId && (<div><p className="mb-2 font-bold">اللون الأساسي | Hauptfarbe</p><div className="grid grid-cols-5 gap-2">{themes.map((t) => <button key={t.id} type="button" aria-label={t.de} aria-pressed={(draft.theme ?? "") === t.id} onClick={() => setDraft({ ...draft, theme: t.id })} className={`flex flex-col items-center gap-1 rounded-md border p-1.5 text-[9px] ${(draft.theme ?? "") === t.id ? "border-secondary ring-2 ring-secondary" : "border-border"}`}><span className="h-7 w-7 rounded-full border-2 border-secondary" style={{ background: t.swatch }} />{t.ar}</button>)}</div></div>)}
-      {!parentId && (<div><p className="mb-2 font-bold">عدد المربعات في الصف | Kacheln pro Reihe</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(draft.columns ?? 2) === n ? "default" : "outline"} onClick={() => setDraft({ ...draft, columns: n })}>{n}</Button>)}</div></div>)}
-      {parentId ? <div><p className="mb-2 font-bold">نمط عرض هذا القسم | Darstellungsart</p><div className="grid grid-cols-2 gap-2">{([{id:"grid",label:"شبكة عادية | Raster"},{id:"compact",label:"مصغّرة جداً (عمودان) | Mini (2 Spalten)"},{id:"grid3",label:"شبكة فاخرة (3 أعمدة) | 3-Spalten-Raster"},{id:"horizontal",label:"أشرطة أفقية | Horizontal"},{id:"image",label:"بطاقات بصورة | Bildkarten"}] as const).map((mode) => <Button key={mode.id} variant={viewMode === mode.id ? "default" : "outline"} onClick={() => setViewMode(mode.id)}>{mode.label}</Button>)}</div></div> : null}
-      {!parentId && s?.role === "admin" && <label className="flex items-center gap-2 rounded-md border border-border p-3 font-bold"><input type="checkbox" checked={!!draft.hajToolsEnabled} onChange={(e) => setDraft({ ...draft, hajToolsEnabled: e.target.checked })} className="h-4 w-4 accent-secondary" />السماح للحاج بأدوات التحكم الكاملة <span className="text-xs italic text-muted-foreground">| Volle Kontrolle für Hajj</span></label>}
-      <Button disabled={busy} className="h-11 w-full" onClick={() => void persist({ ...content, cms: parentId ? { ...draft, viewModes: { ...(draft.viewModes ?? {}), [parentId]: viewMode } } : draft })}>{busy ? <Loader2 className="animate-spin" /> : "حفظ التصميم"} <span className="text-xs italic opacity-75">| Speichern</span></Button>
-      {!parentId && s?.role === "admin" && <Button disabled={busy} variant="outline" className="h-auto w-full whitespace-normal py-2 text-xs" onClick={clean}>🧹 حذف الألماني من خانات العربية بضغطة واحدة | Deutsch aus arabischen Feldern entfernen</Button>}
+      {!parentId && (<div><p className="mb-2 font-bold">{tr("اللون الأساسي", "Hauptfarbe")}</p><div className="grid grid-cols-5 gap-2">{themes.map((t) => <button key={t.id} type="button" aria-label={t.de} aria-pressed={(draft.theme ?? "") === t.id} onClick={() => setDraft({ ...draft, theme: t.id })} className={`flex flex-col items-center gap-1 rounded-md border p-1.5 text-[9px] ${(draft.theme ?? "") === t.id ? "border-secondary ring-2 ring-secondary" : "border-border"}`}><span className="h-7 w-7 rounded-full border-2 border-secondary" style={{ background: t.swatch }} />{lang === "de" || lang === "en" ? t.de : t.ar}</button>)}</div></div>)}
+      {!parentId && (<div><p className="mb-2 font-bold">{tr("عدد المربعات في الصف", "Kacheln pro Reihe")}</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(draft.columns ?? 2) === n ? "default" : "outline"} onClick={() => setDraft({ ...draft, columns: n })}>{n}</Button>)}</div></div>)}
+      {parentId ? <div><p className="mb-2 font-bold">{tr("نمط عرض هذا القسم", "Darstellungsart dieses Bereichs")}</p><div className="grid grid-cols-2 gap-2">{viewOptions.map((mode) => <Button key={mode.id} variant={viewMode === mode.id ? "default" : "outline"} onClick={() => setViewMode(mode.id)}>{mode.label}</Button>)}</div></div> : null}
+      {!parentId && s?.role === "admin" && <label className="flex items-center gap-2 rounded-md border border-border p-3 font-bold"><input type="checkbox" checked={!!draft.hajToolsEnabled} onChange={(e) => setDraft({ ...draft, hajToolsEnabled: e.target.checked })} className="h-4 w-4 accent-secondary" />{tr("السماح للحاج بأدوات التحكم الكاملة", "Volle Kontrolle für Hajj")}</label>}
+      <Button disabled={busy} className="h-11 w-full" onClick={() => void persist({ ...content, cms: parentId ? { ...draft, viewModes: { ...(draft.viewModes ?? {}), [parentId]: viewMode } } : draft })}>{busy ? <Loader2 className="animate-spin" /> : tr("حفظ التصميم", "Design speichern")}</Button>
+      {!parentId && s?.role === "admin" && <Button disabled={busy} variant="outline" className="h-auto w-full whitespace-normal py-2 text-xs" onClick={clean}>{tr("🧹 حذف الألماني من خانات العربية بضغطة واحدة", "🧹 Deutsche Texte aus arabischen Feldern entfernen")}</Button>}
     </div>
   </DialogContent></Dialog>;
 }
