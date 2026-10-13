@@ -118,7 +118,7 @@ export function AdminBar({ content }: { content: SiteContent }) {
   );
 }
 
-const sectionNames: Record<string, string> = { trips: "الرحلات | Reisen", news: "الأخبار | News", duas: "الأدعية والزيارات | Ziyarat", contacts: "التواصل | Kontakte", itinerary: "جدول الرحلة | Programm", locations: "المواقع | Orte", faqs: "الأسئلة | FAQ", occasions: "المناسبات | Anlässe", hadiths: "الأحاديث | Hadithe", rooms: "تسكين الزوار | Zimmer", guidelines: "الإرشادات | Hinweise", iraqItems: "زيارة العراق | Irak", emergency: "الطوارئ | Notfall", tripTypes: "أنواع الزيارة | Reisearten", shrines: "المراقد | Schreine", visaNotes: "الفيزا | Visum", donations: "التبرعات | Spenden", memories: "الذكريات | Erinnerungen" };
+const sectionNames: Record<string, string> = { "cms.sections": "المجلدات | Ordner", trips: "الرحلات | Reisen", news: "الأخبار | News", duas: "الأدعية والزيارات | Ziyarat", contacts: "التواصل | Kontakte", itinerary: "جدول الرحلة | Programm", locations: "المواقع | Orte", faqs: "الأسئلة | FAQ", occasions: "المناسبات | Anlässe", hadiths: "الأحاديث | Hadithe", rooms: "تسكين الزوار | Zimmer", guidelines: "الإرشادات | Hinweise", iraqItems: "زيارة العراق | Irak", emergency: "الطوارئ | Notfall", tripTypes: "أنواع الزيارة | Reisearten", shrines: "المراقد | Schreine", visaNotes: "الفيزا | Visum", donations: "التبرعات | Spenden", memories: "الذكريات | Erinnerungen" };
 const titleKeys = ["name", "nameAr", "titleAr", "ar", "destAr", "qAr", "labelAr", "title", "label", "dateAr", "de", "nameDe", "titleDe", "destDe", "qDe", "phone", "number", "url"];
 function labelOf(item: unknown) {
   const o = (item ?? {}) as Record<string, unknown>;
@@ -136,6 +136,20 @@ function TrashDialog({ open, onOpenChange, content, password }: { open: boolean;
   const trash = content.trash ?? [];
   const save = (next: SiteContent) => saveOrQueue(password, next, "سلة المحذوفات | Papierkorb", qc).catch((e) => window.alert(`تعذّر الحفظ | Fehler\n${e instanceof Error ? e.message : e}`));
   const restore = (t: TrashEntry) => {
+    if (t.section === "cms.sections") {
+      const item = t.item as unknown as Record<string, unknown>;
+      const subtree = Array.isArray(item.__subtree) ? item.__subtree as Array<Record<string, unknown>> : [item];
+      const restoredSections = subtree.filter((section) => typeof section.id === "string").map((section) => {
+        const { __subtree: _subtree, __parents: _parents, ...clean } = section;
+        return clean;
+      });
+      const cms = content.cms ?? {};
+      const existing = new Set((cms.sections ?? []).map((section) => section.id));
+      const add = restoredSections.filter((section) => !existing.has(String(section.id)));
+      const savedParents = item.__parents && typeof item.__parents === "object" ? item.__parents as Record<string, string> : {};
+      save({ ...content, cms: { ...cms, sections: [...(cms.sections ?? []), ...add] as NonNullable<typeof cms.sections>, parents: { ...(cms.parents ?? {}), ...savedParents } }, trash: trash.filter((x) => x.id !== t.id) });
+      return;
+    }
     if (t.section === "packingItems" && t.parentId) {
       const packing = (content.packing ?? []) as PackingCategory[];
       const restoredItem = t.item as unknown as PackingItem;
