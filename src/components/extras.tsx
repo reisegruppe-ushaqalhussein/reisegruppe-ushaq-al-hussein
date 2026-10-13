@@ -13,8 +13,8 @@ type Admin = { password: string; content: SiteContent } | null;
 
 const P = LangText;
 
-function Title({ icon: Icon, ar, de }: { icon: typeof MapPin; ar: string; de: string }) {
-  return <div className="mb-5 flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Icon className="h-5 w-5" /></span><h2 className="text-xl text-primary"><P ar={ar} de={de} /></h2></div>;
+function Title({ icon: Icon, ar, de, favoriteId }: { icon: typeof MapPin; ar: string; de: string; favoriteId?: string }) {
+  return <div className="mb-5 flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Icon className="h-5 w-5" /></span><h2 className="min-w-0 flex-1 text-xl text-primary"><P ar={ar} de={de} /></h2>{favoriteId && <FavStar id={favoriteId} />}</div>;
 }
 
 const telHref = (p: string) => `tel:${p.replace(/[^+\d]/g, "")}`;
@@ -107,7 +107,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   return (
         <div className="screen-enter px-4 py-7">
       <div className="flex items-start justify-between gap-2">
-        <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" />
+        <Title icon={MapPin} ar="دليل الإقامة والمواقع" de="Unterkunft & Orte" favoriteId="tool:guide" />
         {admin && (
           <SectionAdminBar
             addLabel={{ ar: "إضافة موقع جديد", de: "Ort hinzufügen" }}
@@ -193,7 +193,7 @@ export function TasbeehView() {
   const pct = ((count % d.target) / d.target) * 100;
   return (
     <div className="screen-enter px-4 py-7">
-      <Title icon={Vibrate} ar="السبحة الإلكترونية" de="Digitale Tasbih" />
+      <Title icon={Vibrate} ar="السبحة الإلكترونية" de="Digitale Tasbih" favoriteId="tool:tasbeeh" />
       <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1">
         {dhikrs.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${x.id === sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{x.ar}</button>)}
       </div>
@@ -238,7 +238,7 @@ export function TawafView() {
   const route = mode === "sai" ? (cur % 2 === 1 ? { ar: "من الصفا إلى المروة", de: "Von Safa nach Marwa" } : { ar: "من المروة إلى الصفا", de: "Von Marwa nach Safa" }) : { ar: "من الحجر الأسود إلى الحجر الأسود", de: "Vom Schwarzen Stein zum Schwarzen Stein" };
   return (
     <div className="screen-enter px-4 py-7">
-      <Title icon={RotateCcw} ar="عداد الطواف والسعي" de="Tawaf- & Sa‘i-Zähler" />
+      <Title icon={RotateCcw} ar="عداد الطواف والسعي" de="Tawaf- & Sa‘i-Zähler" favoriteId="tool:tawaf" />
       <div className="mb-5 grid grid-cols-2 gap-2">
         {(["tawaf", "sai"] as const).map((m) => <Button key={m} variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>{m === "tawaf" ? "الطواف | Tawaf" : "السعي | Sa‘i"}</Button>)}
       </div>
@@ -375,7 +375,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
       <div className="flex items-start justify-between gap-2">
         <div className="mb-5 flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Landmark className="h-5 w-5" /></span>
-          <h2 className="text-xl font-bold text-primary"><P ar="حقيبة السفر" de="Reise-Checkliste" en="Packing checklist" /></h2>
+          <h2 className="min-w-0 flex-1 text-xl font-bold text-primary"><P ar="حقيبة السفر" de="Reise-Checkliste" en="Packing checklist" /></h2><FavStar id="tool:packing" />
         </div>
         {admin && (
           <SectionAdminBar
