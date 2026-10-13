@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LangText } from "@/lib/i18n";
+import { LangText, useLang } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/lang-switcher";
 import { createPortal } from "react-dom";
 import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft } from "lucide-react";
@@ -28,10 +28,12 @@ export function FolderCard({ icon: Icon, ar, de, count, onOpen, menu }: { icon: 
   </div>;
 }
 
-function ManageDialog({ open, onOpenChange, ar, de, children }: { open: boolean; onOpenChange: (o: boolean) => void; ar: string; de: string; children: React.ReactNode }) {
+function ManageDialog({ open, onOpenChange, ar, de, children, languageAware = false }: { open: boolean; onOpenChange: (o: boolean) => void; ar: string; de: string; children: React.ReactNode; languageAware?: boolean }) {
+  const { lang } = useLang();
+  const title = languageAware ? (lang === "de" ? de : lang === "en" ? (de === "Umbenennen" ? "Rename" : de) : ar) : `${ar} | ${de}`;
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
-      <DialogHeader className="text-right"><DialogTitle>{ar} <span className="text-sm italic text-muted-foreground">| {de}</span></DialogTitle><DialogDescription className="sr-only">{de}</DialogDescription></DialogHeader>
+    <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir={lang === "de" && languageAware ? "ltr" : "rtl"}>
+      <DialogHeader className={languageAware && lang === "de" ? "text-left" : "text-right"}><DialogTitle>{title}</DialogTitle><DialogDescription className="sr-only">{languageAware && lang === "de" ? de : ar}</DialogDescription></DialogHeader>
       {children}
     </DialogContent>
   </Dialog>;
@@ -181,21 +183,25 @@ const guideFields: FieldDef[] = [
 const titleFields: FieldDef[] = [{ key: "ar", ar: "العنوان بالعربية", de: "Titel (AR)" }, { key: "de", ar: "العنوان بالألمانية", de: "Titel (DE)", ltr: true }];
 
 /** Admin-only pencil to rename a section title stored in content.labels. */
-export function RenameTitle({ content, labelKey, ar, de }: { content: SiteContent; labelKey: string; ar: string; de: string }) {
+export function RenameTitle({ content, labelKey, ar, de, languageAware = false }: { content: SiteContent; labelKey: string; ar: string; de: string; languageAware?: boolean }) {
   const staff = useAdminSession();
   const save = useSaveContent(staff?.password ?? "");
+  const { lang } = useLang();
   const [open, setOpen] = useState(false);
   if (staff?.role !== "admin") return null;
+  const label = languageAware ? (lang === "de" ? "Umbenennen" : lang === "en" ? "Rename" : "إعادة تسمية") : "إعادة تسمية | Umbenennen";
   return <>
-    <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
-    {open && <TitleDialog open={open} onOpenChange={setOpen} initial={{ ar, de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [labelKey]: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } } })} />}
+    <IconBtn label={label} onClick={() => setOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
+    {open && <TitleDialog open={open} onOpenChange={setOpen} initial={{ ar, de }} languageAware={languageAware} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [labelKey]: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } } })} />}
   </>;
 }
-function TitleDialog({ open, onOpenChange, initial, onSubmit }: { open: boolean; onOpenChange: (o: boolean) => void; initial: { ar: string; de: string }; onSubmit: (r: Record<string, unknown>) => Promise<void> }) {
+function TitleDialog({ open, onOpenChange, initial, onSubmit, languageAware = false }: { open: boolean; onOpenChange: (o: boolean) => void; initial: { ar: string; de: string }; onSubmit: (r: Record<string, unknown>) => Promise<void>; languageAware?: boolean }) {
   const [d, setD] = useState(initial);
-  return <ManageDialog open={open} onOpenChange={onOpenChange} ar="إعادة تسمية" de="Umbenennen">
-    {titleFields.map((f) => <label key={f.key} className="block text-xs font-bold text-primary">{f.ar} | {f.de}<input dir={f.ltr ? "ltr" : "rtl"} value={d[f.key as "ar" | "de"]} onChange={(e) => setD({ ...d, [f.key]: e.target.value })} className={`${inputCls} mt-1`} /></label>)}
-    <Button type="button" className="h-10 w-full" onClick={async () => { await onSubmit(d); onOpenChange(false); }}>حفظ | Speichern</Button>
+  const { lang } = useLang();
+  const saveLabel = languageAware ? (lang === "de" ? "Speichern" : lang === "en" ? "Save" : "حفظ") : "حفظ | Speichern";
+  return <ManageDialog open={open} onOpenChange={onOpenChange} ar="إعادة تسمية" de="Umbenennen" languageAware={languageAware}>
+    {titleFields.map((f) => <label key={f.key} className="block text-xs font-bold text-primary">{languageAware ? (lang === "de" || lang === "en" ? f.de : f.ar) : `${f.ar} | ${f.de}`}<input dir={f.ltr ? "ltr" : "rtl"} value={d[f.key as "ar" | "de"]} onChange={(e) => setD({ ...d, [f.key]: e.target.value })} className={`${inputCls} mt-1`} /></label>)}
+    <Button type="button" className="h-10 w-full" onClick={async () => { await onSubmit(d); onOpenChange(false); }}>{saveLabel}</Button>
   </ManageDialog>;
 }
 
