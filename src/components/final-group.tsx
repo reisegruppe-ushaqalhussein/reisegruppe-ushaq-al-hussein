@@ -32,8 +32,8 @@ function ManageDialog({ open, onOpenChange, ar, de, children, languageAware = fa
   const { lang } = useLang();
   const title = languageAware ? (lang === "de" ? de : lang === "en" ? (de === "Umbenennen" ? "Rename" : de) : ar) : `${ar} | ${de}`;
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir={lang === "de" && languageAware ? "ltr" : "rtl"}>
-      <DialogHeader className={languageAware && lang === "de" ? "text-left" : "text-right"}><DialogTitle>{title}</DialogTitle><DialogDescription className="sr-only">{languageAware && lang === "de" ? de : ar}</DialogDescription></DialogHeader>
+    <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir={languageAware && lang !== "ar" && lang !== "both" ? "ltr" : "rtl"}>
+      <DialogHeader className={languageAware && lang !== "ar" && lang !== "both" ? "text-left" : "text-right"}><DialogTitle>{title}</DialogTitle><DialogDescription className="sr-only">{languageAware && lang === "de" ? de : ar}</DialogDescription></DialogHeader>
       {children}
     </DialogContent>
   </Dialog>;
@@ -183,7 +183,7 @@ const guideFields: FieldDef[] = [
 const titleFields: FieldDef[] = [{ key: "ar", ar: "العنوان بالعربية", de: "Titel (AR)" }, { key: "de", ar: "العنوان بالألمانية", de: "Titel (DE)", ltr: true }];
 
 /** Admin-only pencil to rename a section title stored in content.labels. */
-export function RenameTitle({ content, labelKey, ar, de, languageAware = false }: { content: SiteContent; labelKey: string; ar: string; de: string; languageAware?: boolean }) {
+export function RenameTitle({ content, labelKey, ar, de, languageAware = true }: { content: SiteContent; labelKey: string; ar: string; de: string; languageAware?: boolean }) {
   const staff = useAdminSession();
   const save = useSaveContent(staff?.password ?? "");
   const { lang } = useLang();
@@ -195,7 +195,7 @@ export function RenameTitle({ content, labelKey, ar, de, languageAware = false }
     {open && <TitleDialog open={open} onOpenChange={setOpen} initial={{ ar, de }} languageAware={languageAware} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [labelKey]: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } } })} />}
   </>;
 }
-function TitleDialog({ open, onOpenChange, initial, onSubmit, languageAware = false }: { open: boolean; onOpenChange: (o: boolean) => void; initial: { ar: string; de: string }; onSubmit: (r: Record<string, unknown>) => Promise<void>; languageAware?: boolean }) {
+function TitleDialog({ open, onOpenChange, initial, onSubmit, languageAware = true }: { open: boolean; onOpenChange: (o: boolean) => void; initial: { ar: string; de: string }; onSubmit: (r: Record<string, unknown>) => Promise<void>; languageAware?: boolean }) {
   const [d, setD] = useState(initial);
   const { lang } = useLang();
   const saveLabel = languageAware ? (lang === "de" ? "Speichern" : lang === "en" ? "Save" : "حفظ") : "حفظ | Speichern";
