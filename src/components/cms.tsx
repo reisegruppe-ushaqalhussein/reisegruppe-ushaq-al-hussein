@@ -86,6 +86,8 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const [editing, setEditing] = useState<Tile | "new" | null>(null);
   const [moving, setMoving] = useState<Tile | null>(null);
   const [design, setDesign] = useState(false);
+  const [deletePickerOpen, setDeletePickerOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState("");
   const parents = cms.parents ?? {};
   const hiddenTiles = new Set(cms.hiddenTiles ?? []);
   const everything = arrange(allTiles(content, builtins), cms);
@@ -145,7 +147,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
           <IconBtn label={tr(parentId ? "إضافة مجلد فرعي هنا" : "قسم جديد", parentId ? "Unterordner hier hinzufügen" : "Neuer Bereich")} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn>
           {shown.length > 1 && <IconBtn label={tr("ترتيب ونقل", "Anordnen")} onClick={() => setArranging((v) => !v)}><Move className="h-3.5 w-3.5" /></IconBtn>}
           <IconBtn label={tr(parentId ? "تصميم هذا القسم" : "التصميم", parentId ? "Bereichsdesign" : "Design")} onClick={() => setDesign(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-          {shown.some((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")) && <IconBtn label={tr("حذف مجلد", "Ordner löschen")} danger onClick={() => { const candidate = shown.find((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")); if (candidate) remove(candidate); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
+          {shown.some((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")) && <IconBtn label={tr("حذف مجلد", "Ordner löschen")} danger onClick={() => { setDeleteTargetId(""); setDeletePickerOpen(true); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
           <IconBtn label={tr("استرجاع الترتيب والتصميم الأصلي", "Standard wiederherstellen")} onClick={() => {
             if (!window.confirm("هل تريد استرجاع الترتيب والتصميم الأصلي لهذا القسم؟\\nStandard-Design für diesen Bereich wiederherstellen?")) return;
             const currentIds = new Set(shown.map((t) => t.id));
@@ -183,6 +185,24 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
       {editing && <SectionDialog content={content} tile={editing === "new" ? null : editing} parentId={parentId} onClose={() => setEditing(null)} />}
       {moving && <MoveDialog content={content} tile={moving} builtins={builtins} onClose={() => setMoving(null)} />}
       {design && <DesignDialog content={content} parentId={parentId} onClose={() => setDesign(false)} />}
+      <Dialog open={deletePickerOpen} onOpenChange={setDeletePickerOpen}>
+        <DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle>{tr("اختيار المجلد المراد حذفه", "Ordner zum Löschen auswählen")}</DialogTitle>
+            <DialogDescription>{tr("اختر المجلد بالاسم. ستظهر رسالة تأكيد قبل نقله مع مجلداته الفرعية إلى سلة المحذوفات.", "Wähle den Ordner aus. Vor dem Verschieben mit allen Unterordnern in den Papierkorb erscheint eine Bestätigung.")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <select value={deleteTargetId} onChange={(e) => setDeleteTargetId(e.target.value)} className={inputCls}>
+              <option value="">{tr("— اختر مجلداً —", "— Ordner auswählen —")}</option>
+              {shown.filter((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")).map((item) => <option key={item.id} value={item.id}>{item.ar || item.de}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setDeletePickerOpen(false)}>{tr("إلغاء", "Abbrechen")}</Button>
+              <Button variant="destructive" className="flex-1" disabled={!deleteTargetId} onClick={() => { const candidate = shown.find((item) => item.id === deleteTargetId && !item.builtin && !item.tripType && item.id.startsWith("c:")); setDeletePickerOpen(false); if (candidate) remove(candidate); }}>{tr("متابعة الحذف", "Löschen fortsetzen")}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
