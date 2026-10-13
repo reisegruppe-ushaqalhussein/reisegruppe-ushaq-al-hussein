@@ -176,6 +176,7 @@ export function RestoreButton({ onRestore, label = "استرجاع البيان�
 /** شريط الإدارة الموحد في رأس القسم: يجمع (تفعيل التعديل ✏️، الاسترجاع 🔄، والإضافة ➕) */
 export function SectionAdminBar({
   editMode,
+  inline = false,
   addLabel,
   addFields,
   addBlank,
@@ -186,6 +187,7 @@ export function SectionAdminBar({
   onEditClick,
 }: {
   editMode?: boolean;
+  inline?: boolean;
   addLabel?: { ar: string; de: string };
   addFields?: FieldDef[];
   addBlank?: Row;
@@ -199,7 +201,7 @@ export function SectionAdminBar({
   const isEditing = editMode ?? globalIsEditing;
   const { lang } = useLang();
   return (
-    <div dir="ltr" className="mb-3 flex items-center justify-start gap-1.5">
+    <div dir="ltr" className={`flex items-center justify-start gap-1.5 ${inline ? "contents" : "mb-3"}`}>
       {children}
       <button
         type="button"
