@@ -38,7 +38,7 @@ export function useSaveContent(password: string) {
 }
 
 /** نافذة التعديل لجميع الحقول والكلمات دون استثناء */
-export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit, languageAware = false }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void>; languageAware?: boolean }) {
+export function EditDialog({ open, onOpenChange, title, fields, initial, onSubmit, languageAware = true }: { open: boolean; onOpenChange: (o: boolean) => void; title: { ar: string; de: string }; fields: FieldDef[]; initial: Row; onSubmit: (row: Row) => Promise<void>; languageAware?: boolean }) {
   const { lang } = useLang();
   const [draft, setDraft] = useState<Row>(initial);
   const [busy, setBusy] = useState(false);
@@ -95,7 +95,7 @@ export function GearMenu({ children, className = "" }: { children: React.ReactNo
 }
 
 /** أزرار تحكم كل بطاقة (تختفي تماماً وتظهر فقط عند تفعيل زر القلم ✏️) */
-export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange, languageAware = false, editMode }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void>; languageAware?: boolean; editMode?: boolean }) {
+export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange, languageAware = true, editMode }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void>; languageAware?: boolean; editMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const { lang } = useLang();
   const showHidden = useShowHidden();
