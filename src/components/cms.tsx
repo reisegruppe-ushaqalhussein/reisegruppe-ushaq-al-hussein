@@ -131,7 +131,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
     const removedTileIds = new Set(removedSections.map((section) => customTileId(section.id)));
     const savedParents = Object.fromEntries(Object.entries(parents).filter(([key, value]) => removedTileIds.has(key) || (typeof value === "string" && descendants.has(value))));
     const savedModes = Object.fromEntries(Object.entries(cms.viewModes ?? {}).filter(([key]) => descendants.has(key)));
-    const savedOrder = (cms.order ?? []).filter((tileId) => removedTileIds.has(tileId));
+    const savedOrder = [...(cms.order ?? [])];
     const trashEntry = { id: `cms-section-${Date.now()}`, section: "cms.sections", item: { ...(root as unknown as Record<string, unknown>), __subtree: removedSections, __parents: savedParents, __viewModes: savedModes, __order: savedOrder } as unknown as import("@/lib/site-content").TrashEntry["item"], deletedAt: Date.now() };
     const nextParents = Object.fromEntries(Object.entries(parents).filter(([key, value]) => !removedTileIds.has(key) && !(typeof value === "string" && descendants.has(value))));
     const nextModes = { ...(cms.viewModes ?? {}) };
