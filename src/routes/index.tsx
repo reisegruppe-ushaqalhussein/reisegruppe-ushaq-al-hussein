@@ -14,6 +14,8 @@ import { FolderCard, FullPage, GuidelinesFolders, RenameTitle } from "@/componen
 import misbahaCard from "@/assets/misbaha-card.jpg.asset.json";
 import { GuideView, ItineraryView, TasbeehView, TawafView, PackingView } from "@/components/extras";
 import { WelcomeScreen } from "@/components/welcome-screen";
+import welcomeBackgroundAsset from "@/assets/celestial-shrines-splash.jpg.asset.json";
+import welcomeLogoAsset from "@/assets/ushaq-original-logo.png.asset.json";
 import { CustomSectionView, HomeBanner, TileGrid, pathOf, type Tile } from "@/components/cms";
 import { LanguageSwitcher } from "@/components/lang-switcher";
 import { LangText } from "@/lib/i18n";
@@ -1792,6 +1794,18 @@ const bottomItems: Array<{ view: View; ar: string; de: string; icon: IconType }>
   { view: "news", ar: "الأخبار", de: "Aktuelles", icon: Megaphone },
 ];
 
+function LoadingSplash() {
+  return (
+    <div className="fixed inset-0 overflow-hidden bg-[#101a3b]" role="status" aria-label="جارٍ تحميل التطبيق | App wird geladen">
+      <img src={welcomeBackgroundAsset.url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-[#101a3b]/35" />
+      <div className="relative flex min-h-full items-center justify-center px-6">
+        <img src={welcomeLogoAsset.url} alt="حملة عشاق الحسين - ألمانيا | Reisegruppe Ushaq al-Hussein" className="h-auto w-[min(58vw,14rem)] object-contain" />
+      </div>
+    </div>
+  );
+}
+
 function Index() {
   const { data: content, isError } = useQuery(contentQuery);
   const [enteredWhileLoading, setEnteredWhileLoading] = useState(false);
@@ -1804,13 +1818,14 @@ function Index() {
   });
   if (!content) {
     if (isError) return <LangProvider><OfflineFallback /></LangProvider>;
-    return <LangProvider><div className="min-h-screen bg-background">
+    return <LangProvider>
+      <LoadingSplash />
       {showWelcomeWhileLoading && <WelcomeScreen onEnter={() => {
         try { sessionStorage.setItem("welcomed", "1"); } catch {}
         setEnteredWhileLoading(true);
       }} />}
-      {enteredWhileLoading && <p role="status" className="fixed inset-x-0 bottom-6 z-50 text-center text-sm font-bold text-primary">جارٍ تحميل التطبيق… | App wird geladen…</p>}
-    </div></LangProvider>;
+      {enteredWhileLoading && <p role="status" className="fixed inset-x-0 bottom-6 z-[110] text-center text-sm font-bold text-primary-foreground">جارٍ تحميل التطبيق… | App wird geladen…</p>}
+    </LangProvider>;
   }
   return <LangProvider><CampaignApp content={content} /></LangProvider>;
 }
@@ -1907,7 +1922,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("open-view", onOpen); };
   }, []);
   useEffect(() => { const open = () => go("favorites"); window.addEventListener("open-favorites", open); return () => window.removeEventListener("open-favorites", open); }, []);
-  if (welcomed === null) return <div className="min-h-screen bg-muted"><div className="mx-auto min-h-screen w-full max-w-[420px] bg-background shadow-xl" /></div>;
+  if (welcomed === null) return <LoadingSplash />;
   return (
     <div className="min-h-screen bg-muted">
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
