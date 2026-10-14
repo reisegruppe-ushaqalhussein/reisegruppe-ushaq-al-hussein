@@ -809,30 +809,62 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   });
 
-  // طلب الموقع الجغرافي من المتصفح
+  // طلب الموقع الجغرافي من الهاتف، مع محاولة احتياطية أقل دقة دون إرسال الموقع إلى خدمة خارجية
   const requestGps = () => {
     setManualPlace(null);
     try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
     setGpsLoading(true);
     setGpsError(null);
     if (typeof window === "undefined" || !navigator.geolocation) {
-      setGpsError("خاصية تحديد الموقع غير مدعومة في متصفحك | Geolocation wird nicht unterstützt");
+      setGpsError("خاصية تحديد الموقع غير مدعومة في جهازك | Geolocation wird nicht unterstützt");
       setGpsLoading(false);
       return;
     }
+
+    let settled = false;
+    let fallbackStarted = false;
+    const finishWithError = (message: string) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(guard);
+      setGpsLoading(false);
+      setGpsError(message);
+    };
+    const acceptPosition = (pos: GeolocationPosition) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(guard);
+      setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setGpsLabel("GPS");
+      setGpsError(null);
+      setGpsLoading(false);
+    };
+    const tryLowerAccuracy = () => {
+      if (settled || fallbackStarted) return;
+      fallbackStarted = true;
+      navigator.geolocation.getCurrentPosition(
+        acceptPosition,
+        (err) => finishWithError(err.code === 1
+          ? "يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben"
+          : "تعذر تحديد الموقع. تحقق من GPS وصلاحية الموقع أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte GPS/Berechtigung prüfen oder Stadt manuell wählen."),
+        { timeout: 12000, enableHighAccuracy: false, maximumAge: 120000 }
+      );
+    };
+    const guard = window.setTimeout(() => {
+      if (!fallbackStarted) tryLowerAccuracy();
+      else finishWithError("تعذر تحديد الموقع. تحقق من GPS وصلاحية الموقع أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte GPS/Berechtigung prüfen oder Stadt manuell wählen.");
+    }, 18000);
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGpsLabel("GPS");
-        setGpsLoading(false);
-      },
+      acceptPosition,
       (err) => {
-        setGpsLoading(false);
-        setGpsError(err.code === 1
-          ? "يرجى تفعيل صلاحية الموقع من إعدادات المتصفح | Bitte Standortfreigabe erlauben"
-          : "تعذر التقاط إشارة الموقع، يرجى اختيار المدينة أو المحاولة في مكان مفتوح");
+        if (err.code === 1) {
+          finishWithError("يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben");
+        } else {
+          tryLowerAccuracy();
+        }
       },
-      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+      { timeout: 10000, enableHighAccuracy: true, maximumAge: 60000 }
     );
   };
 
