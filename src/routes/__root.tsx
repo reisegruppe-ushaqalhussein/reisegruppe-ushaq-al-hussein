@@ -26,14 +26,19 @@ function NotFoundComponent() {
     const pathname = window.location.pathname;
     const normalizedPath = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
     const view = legacyViews[normalizedPath];
-    if (view) window.location.replace(`/#${view}`);
+    if (view) {
+      // Convert old section paths to the app's internal hash navigation without
+      // a full-page reload, so the app can open the requested view directly.
+      window.history.replaceState(window.history.state, "", `/#${view}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
   }, []);
 
   const legacyPaths = ["/tasbeeh", "/qibla", "/hadiths"];
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
   const normalizedCurrentPath = currentPath.endsWith("/") ? currentPath.slice(0, -1) : currentPath;
   if (legacyPaths.includes(normalizedCurrentPath)) {
-    return <div className="p-6 text-center" role="status">جارٍ فتح القسم… | Bereich wird geöffnet…</div>;
+    return null;
   }
 
   return (
