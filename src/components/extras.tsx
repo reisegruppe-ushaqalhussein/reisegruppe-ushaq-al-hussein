@@ -240,7 +240,7 @@ export function TawafView() {
     <div className="screen-enter px-4 py-7">
       <Title icon={RotateCcw} ar="عداد الطواف والسعي" de="Tawaf- & Sa‘i-Zähler" favoriteId="tool:tawaf" />
       <div className="mb-5 grid grid-cols-2 gap-2">
-        {(["tawaf", "sai"] as const).map((m) => <Button key={m} variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>{m === "tawaf" ? "الطواف | Tawaf" : "السعي | Sa‘i"}</Button>)}
+        {(["tawaf", "sai"] as const).map((m) => <Button key={m} variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}><P ar={m === "tawaf" ? "الطواف" : "السعي"} de={m === "tawaf" ? "Tawaf" : "Sa‘i"} /></Button>)}
       </div>
       <p className="mb-4 text-center text-sm font-bold text-primary"><P ar={done ? "تم بحمد الله" : `الشوط ${cur} — ${route.ar}`} de={done ? "Vollendet, Gott sei Dank" : `Runde ${cur} — ${route.de}`} /></p>
       <button onClick={tap} aria-label="تسجيل شوط | Runde zählen" className="mx-auto grid h-56 w-56 select-none place-items-center rounded-full text-primary-foreground shadow-xl ring-8 ring-secondary/30 transition-transform active:scale-95" style={{ background: `conic-gradient(var(--secondary) ${(n / 7) * 100}%, var(--primary) ${(n / 7) * 100}%)` }}>
@@ -256,8 +256,8 @@ export function TawafView() {
         </article>
       )}
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={() => set(n - 1)} disabled={n === 0}>تراجع شوط <span className="text-xs italic">| Zurück</span></Button>
-        <Button variant="outline" className="text-destructive" onClick={() => { if (window.confirm("تصفير العداد؟ | Zähler zurücksetzen?")) set(0); }}><RotateCcw />تصفير <span className="text-xs italic">| Reset</span></Button>
+        <Button variant="outline" onClick={() => set(n - 1)} disabled={n === 0}><P ar="تراجع شوط" de="Runde zurück" /></Button>
+        <Button variant="outline" className="text-destructive" onClick={() => { if (window.confirm(lang === "de" ? "Zähler zurücksetzen?" : "تصفير العداد؟")) set(0); }}><RotateCcw /><P ar="تصفير" de="Zurücksetzen" /></Button>
       </div>
     </div>
   );
@@ -287,6 +287,13 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
   const [ready, setReady] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [tripFilter, setTripFilter] = useState<"all" | "umrah" | "iraq" | "winter">("all");
+  useEffect(() => {
+    try {
+      const pending = localStorage.getItem("packing-open-filter");
+      if (pending === "all" || pending === "umrah" || pending === "iraq" || pending === "winter") setTripFilter(pending);
+      if (pending) localStorage.removeItem("packing-open-filter");
+    } catch { /* ignore unavailable storage */ }
+  }, []);
   const [editingTarget, setEditingTarget] = useState<
     | { kind: "category"; categoryId: string; ar: string; de: string }
     | { kind: "item"; categoryId: string; itemId: string; ar: string; de: string }
@@ -404,7 +411,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
       <div className="flex items-start justify-between gap-2">
         <div className="mb-5 flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><Landmark className="h-5 w-5" /></span>
-          <h2 className="min-w-0 flex-1 text-xl font-bold text-primary"><P ar="حقيبة السفر" de="Reise-Checkliste" en="Packing checklist" /></h2><FavStar id="tool:packing" />
+          <h2 className="min-w-0 flex-1 text-xl font-bold text-primary"><P ar="حقيبة السفر" de="Reise-Checkliste" en="Packing checklist" /></h2><FavStar id={tripFilter === "all" ? "tool:packing" : `tool:packing:${tripFilter}`} />
         </div>
         {admin && (
           <SectionAdminBar
