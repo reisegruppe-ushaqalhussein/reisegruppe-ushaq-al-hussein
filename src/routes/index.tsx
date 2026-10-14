@@ -659,7 +659,33 @@ function NewsView({ content, admin }: { content: SiteContent; admin: AdminProps 
   const showHidden = useShowHidden();
   const saveNews = (next: NewsEntry[]) => saveContent({ ...content, news: next });
   return <div className="screen-enter px-4 py-7"><ScreenTitle icon={Megaphone} ar="آخر الأخبار" de="Neuigkeiten" />
-        {admin && <SectionAdminBar addLabel={{ ar: "إضافة خبر جديد", de: "Neue Meldung hinzufügen" }} addFields={newsFields} addBlank={{ ar: "", de: "", bodyAr: "", bodyDe: "", hidden: false }} onAdd={(row) => saveNews([row as NewsEntry, ...news])} onRestore={() => saveNews(defaultContent.news)} />}
+               {admin && (
+          <div dir="ltr" className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <GearMenu>
+                <AddButton
+                  label={{ ar: "إضافة خبر جديد", de: "Neue Meldung hinzufügen" }}
+                  fields={newsFields}
+                  blank={{ ar: "", de: "", bodyAr: "", bodyDe: "", hidden: false }}
+                  onAdd={(row) => saveNews([row as NewsEntry, ...news])}
+                  inline
+                />
+                <RestoreButton
+                  onRestore={() => {
+                    if (window.confirm("استرجاع الأخبار الأصلية؟ | Originalmeldungen wiederherstellen?")) {
+                      saveNews(defaultContent.news);
+                    }
+                  }}
+                />
+              </GearMenu>
+              <SectionAdminBar inline />
+            </div>
+            <span className="text-[10px] font-medium text-muted-foreground">
+              <Pair ar="أدوات إدارة الأخبار" de="Neuigkeiten verwalten" />
+            </span>
+          </div>
+        )}
+
     <div className="space-y-3">{news.map((item, i) => (!item.hidden || showHidden) && (item.ar || item.de || admin) ? <div key={i} className={item.hidden ? "opacity-55" : ""}>{admin && <ItemActions fields={newsFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={(hidden) => saveNews(news.map((n, j) => (j === i ? { ...n, hidden } : n)))} onSave={(row) => saveNews(news.map((n, j) => (j === i ? { ...(row as NewsEntry), hidden: n.hidden ?? false } : n)))} onDelete={() => saveNews(news.filter((_, j) => j !== i))} />}<article className="rounded-lg border border-border bg-card p-4 shadow-sm"><div className={`mb-3 flex items-start justify-between ${admin ? "pe-8" : ""}`}><span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-primary"><Megaphone className="h-4 w-4" aria-hidden="true" /></span></div><h3 className="text-primary"><Pair ar={item.ar} de={item.de} /></h3><p className="mt-3 border-t border-border pt-3 text-sm"><Pair ar={item.bodyAr} de={item.bodyDe} /></p></article></div> : null)}</div></div>;
 }
 
