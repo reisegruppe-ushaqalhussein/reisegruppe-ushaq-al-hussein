@@ -786,6 +786,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const [failed, setFailed] = useState(false);
   const [nextInfo, setNextInfo] = useState<{ nameAr: string; nameDe: string; remainingSeconds: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
 
   // إعدادات التوقيت الصيفي/الشتوي وفوارق المرجع
   const [hourOffset, setHourOffset] = useState<number>(() => {
@@ -1088,36 +1089,65 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const nextSeconds = nextInfo ? nextInfo.remainingSeconds % 60 : 0;
   const prayerText = (ar: string, de: string) => lang === "de" || lang === "en" ? de : lang === "ar" ? ar : `${ar} | ${de}`;
 
-  return (
-    <section className="mt-5 rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-accent text-primary">
-            <Clock className="h-5 w-5" aria-hidden="true" />
+   return (
+    <section className="mt-5 rounded-lg border border-border bg-card p-3.5 shadow-xs">
+      {/* الرأس: العنوان + كبسولة المدينة الحالية القابلة للنقر + زر الإدارة */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-accent text-primary">
+            <Clock className="h-4 w-4" aria-hidden="true" />
           </span>
-          <h2 className="text-primary font-bold">
+          <h2 className="text-primary font-bold text-sm truncate">
             <Pair ar={prayerTitle.ar} de={prayerTitle.de} />
           </h2>
           {isEditing && content && <RenameTitle content={content} labelKey="prayer" ar={prayerTitle.ar} de={prayerTitle.de} />}
         </div>
-        {canManage && (
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* كبسولة اختيار المدينة الحالية: تفتح وتطوي قائمة المدن عند النقر */}
           <button
             type="button"
-            onClick={() => {
-              const next = !localEdit;
-              setLocalEdit(next);
-              setShowSettings(next);
-            }}
-            aria-label={prayerText("تعديل المواقيت والترتيب", "Gebetszeiten und Reihenfolge bearbeiten")}
-            className={`flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-semibold transition-colors ${
-              localEdit
-                ? "border-secondary bg-secondary text-secondary-foreground shadow-xs"
-                : "border-secondary/50 bg-secondary/10 text-secondary hover:bg-secondary/20"
-            }`}
+            onClick={() => setShowCityPicker((prev) => !prev)}
+            className="flex items-center gap-1 rounded-full border border-secondary/50 bg-secondary/10 px-2.5 py-1 text-xs font-semibold text-secondary hover:bg-secondary/20 transition-all shadow-2xs"
+            title={prayerText("تغيير المدينة أو الموقع", "Stadt oder Standort ändern")}
           >
-            {localEdit ? `✓ ${prayerText("إنهاء", "Fertig")}` : `⚙️ ${prayerText("تعديل وترتيب", "Anpassen")}`}
+            <span className="text-[11px]" aria-hidden="true">📍</span>
+            <span className="max-w-[110px] truncate text-[11px]">
+              {activeRegion === "location" ? (
+                manualPlace ? (
+                  <Pair ar={manualPlace.ar || manualPlace.name} de={manualPlace.de || manualPlace.name} />
+                ) : (
+                  <Pair ar={gpsLabel || "موقعي"} de={gpsLabel || "Standort"} />
+                )
+              ) : (
+                <Pair
+                  ar={citiesList.find((c) => c.id === city)?.ar || "المدينة"}
+                  de={citiesList.find((c) => c.id === city)?.de || "Stadt"}
+                />
+              )}
+            </span>
+            <span className="text-[9px] opacity-70">{showCityPicker ? "▲" : "▼"}</span>
           </button>
-        )}
+
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !localEdit;
+                setLocalEdit(next);
+                setShowSettings(next);
+              }}
+              aria-label={prayerText("تعديل المواقيت والترتيب", "Gebetszeiten und Reihenfolge bearbeiten")}
+              className={`flex items-center gap-1 rounded border px-2 py-1 text-xs font-semibold transition-colors ${
+                localEdit
+                  ? "border-secondary bg-secondary text-secondary-foreground shadow-xs"
+                  : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {localEdit ? `✓` : `⚙️`}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* لوحة تحكم التوقيت للإدارة */}
@@ -1152,9 +1182,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 key={p.key}
                 className="flex items-center justify-between rounded bg-card px-2 py-1 border border-border/50"
               >
-                <span>
-                  {prayerText(p.ar, p.de)}:
-                </span>
+                <span>{prayerText(p.ar, p.de)}:</span>
                 <div className="flex items-center gap-1.5 font-mono">
                   <button
                     type="button"
@@ -1189,136 +1217,136 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         </div>
       )}
 
-      {/* شريط اختيار الوجهة: موقعي الحالي | العراق | الحرمين | إيران */}
-      <div className="mb-3 grid grid-cols-4 gap-1 rounded-lg bg-muted/60 p-1 text-[11px]">
-        {prayerRegions.map((reg) => (
-          <button
-            key={reg.id}
-            type="button"
-            onClick={() => handleRegionChange(reg.id)}
-            className={`rounded-md px-1 py-1.5 font-bold transition-all text-center ${
-              activeRegion === reg.id
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            
-<Pair ar={reg.ar} de={reg.de} align="center" inverse={activeRegion === reg.id} />
-          </button>
-        ))}
-      </div>
-
-      {/* إذا تم اختيار موقعي الحالي GPS */}
-      {activeRegion === "location" ? (
-        <div className="mb-3 space-y-2 rounded-md border border-border/70 bg-accent/20 p-2.5 text-center">
-          {manualPlace ? (
-            <div className="flex items-center justify-between gap-2 px-1 text-xs">
-              <span className="min-w-0 truncate font-semibold text-primary">🔍 <Pair ar={manualPlace.ar || manualPlace.name} de={manualPlace.de || toGerman(manualPlace.name)} /></span>
-              <span className="flex shrink-0 items-center gap-2">
-                <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
-                  📍 GPS
-                </button>
-                <button type="button" onClick={clearManualPlace} aria-label={prayerText("حذف العنوان", "Ort löschen")} title={prayerText("حذف العنوان", "Ort löschen")} className="grid h-6 w-6 place-items-center rounded-full border border-destructive/40 text-destructive">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </span>
-            </div>
-          ) : gpsLoading ? (
-            <p className="text-xs text-muted-foreground animate-pulse">
-              <Pair ar="📍 جاري قراءة موقعك الحالي..." de="📍 Standort wird ermittelt..." />
-            </p>
-          ) : gpsCoords ? (
-            <div className="space-y-1 px-2 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate font-semibold text-primary">
-                  📍 {gpsLabel === "GPS" ? "" : `${gpsLabel} · `}<span className="font-mono text-secondary">{timezone.replace(/_/g, " ")}</span>
-                </span>
-                <button type="button" onClick={requestGps} className="shrink-0 text-[11px] text-muted-foreground underline hover:text-primary">
-                  🔄
-                </button>
-              </div>
-              <a href={`https://maps.google.com/?q=${gpsCoords.lat.toFixed(5)},${gpsCoords.lng.toFixed(5)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-secondary underline">
-                
-<MapPin className="h-3 w-3" />
-<Pair ar="عرض موقعي على الخريطة" de="Auf Karte zeigen" />
-              </a>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">
-                {gpsError || prayerText("اضغط على الزر لتفعيل مواقيت الصلاة حسب موقعك الحالي في العالم", "Tippen Sie, um Gebetszeiten für Ihren aktuellen Standort zu laden.")}
-              </p>
-              <Button size="sm" onClick={requestGps} className="h-8 gap-1 text-xs">
-                <MapPin className="h-3.5 w-3.5" />
-                <Pair ar="تحديد موقعي الآن" de="Meinen Standort abrufen" align="center" />
-              </Button>
-            </div>
-          )}
-          <form
-            className="flex gap-1.5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void searchPlace();
-            }}
-          >
-            <input
-              value={placeQuery}
-              onChange={(e) => setPlaceQuery(e.target.value)}
-              placeholder={lang === "de" ? "Stadt eingeben" : "اكتب اسم مدينتك"}
-              className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <Button type="submit" size="sm" disabled={placeBusy || !placeQuery.trim()} className="h-8 text-xs">
-              
-{placeBusy ? "..." : (
-  <Pair ar="🔍 بحث" de="🔍 Suchen" align="center" />
-)}
-            </Button>
-          </form>
-          {placeError && <p className="text-[11px] text-destructive">{placeError}</p>}
-        </div>
-      ) : (
-        /* أزرار اختيار المدن مع أسهم النقل ◀️ ▶️ للإدارة */
-        <div className="mb-3 grid grid-cols-2 gap-2">
-          {currentRegionCities.map((c, idx) => (
-            <div key={c.id} className="relative flex items-center">
-              <Button
-                size="sm"
-                variant={city === c.id ? "default" : "outline"}
-                onClick={() => setCity(c.id)}
-                className="h-auto w-full py-1.5"
+      {/* لوحة اختيار المدينة القابلة للطي والظهور بنقرة زر */}
+      {showCityPicker && (
+        <div className="mb-3 rounded-lg border border-border/70 bg-muted/40 p-2.5 transition-all">
+          <div className="mb-2 grid grid-cols-4 gap-1 rounded-md bg-muted/60 p-1 text-[11px]">
+            {prayerRegions.map((reg) => (
+              <button
+                key={reg.id}
+                type="button"
+                onClick={() => handleRegionChange(reg.id)}
+                className={`rounded px-1 py-1 font-bold transition-all text-center ${
+                  activeRegion === reg.id
+                    ? "bg-primary text-primary-foreground shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                <Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} />
-              </Button>
-              {isEditing && (
-                <div className="absolute left-1 flex items-center gap-0.5 bg-card/90 rounded border border-secondary/40 shadow-xs px-0.5">
-                  <button
-                    type="button"
-                    disabled={idx === 0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveCityInRegion(c.id, -1);
-                    }}
-                    aria-label="تقديم"
-                    className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
-                  >
-                    ◀
-                  </button>
-                  <button
-                    type="button"
-                    disabled={idx === currentRegionCities.length - 1}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveCityInRegion(c.id, 1);
-                    }}
-                    aria-label="تأخير"
-                    className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
-                  >
-                    ▶
-                  </button>
+                <Pair ar={reg.ar} de={reg.de} align="center" inverse={activeRegion === reg.id} />
+              </button>
+            ))}
+          </div>
+
+          {activeRegion === "location" ? (
+            <div className="space-y-2 rounded-md border border-border/70 bg-card p-2 text-center">
+              {manualPlace ? (
+                <div className="flex items-center justify-between gap-2 px-1 text-xs">
+                  <span className="min-w-0 truncate font-semibold text-primary">🔍 <Pair ar={manualPlace.ar || manualPlace.name} de={manualPlace.de || toGerman(manualPlace.name)} /></span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <button type="button" onClick={requestGps} className="text-[11px] text-muted-foreground underline hover:text-primary">
+                      📍 GPS
+                    </button>
+                    <button type="button" onClick={clearManualPlace} aria-label={prayerText("حذف العنوان", "Ort löschen")} title={prayerText("حذف العنوان", "Ort löschen")} className="grid h-6 w-6 place-items-center rounded-full border border-destructive/40 text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </div>
+              ) : gpsLoading ? (
+                <p className="text-xs text-muted-foreground animate-pulse">
+                  <Pair ar="📍 جاري قراءة موقعك الحالي..." de="📍 Standort wird ermittelt..." />
+                </p>
+              ) : gpsCoords ? (
+                <div className="space-y-1 px-1 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate font-semibold text-primary">
+                      📍 {gpsLabel === "GPS" ? "" : `${gpsLabel} · `}<span className="font-mono text-secondary">{timezone.replace(/_/g, " ")}</span>
+                    </span>
+                    <button type="button" onClick={requestGps} className="shrink-0 text-[11px] text-muted-foreground underline hover:text-primary">
+                      🔄
+                    </button>
+                  </div>
+                  <a href={`https://maps.google.com/?q=${gpsCoords.lat.toFixed(5)},${gpsCoords.lng.toFixed(5)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-secondary underline">
+                    <MapPin className="h-3 w-3" />
+                    <Pair ar="عرض موقعي على الخريطة" de="Auf Karte zeigen" />
+                  </a>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-[11px] text-muted-foreground">
+                    {gpsError || prayerText("اضغط لتفعيل المواقيت حسب موقعك الحالي", "Tippen Sie für aktuellen Standort.")}
+                  </p>
+                  <Button size="sm" onClick={requestGps} className="h-7 gap-1 text-xs">
+                    <MapPin className="h-3 w-3" />
+                    <Pair ar="تحديد موقعي الآن" de="Standort abrufen" align="center" />
+                  </Button>
                 </div>
               )}
+              <form
+                className="flex gap-1.5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void searchPlace();
+                }}
+              >
+                <input
+                  value={placeQuery}
+                  onChange={(e) => setPlaceQuery(e.target.value)}
+                  placeholder={lang === "de" ? "Stadt eingeben" : "اكتب اسم مدينتك"}
+                  className="min-w-0 flex-1 rounded border border-input bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <Button type="submit" size="sm" disabled={placeBusy || !placeQuery.trim()} className="h-7 text-xs">
+                  {placeBusy ? "..." : <Pair ar="🔍 بحث" de="🔍 Suchen" align="center" />}
+                </Button>
+              </form>
+              {placeError && <p className="text-[10px] text-destructive">{placeError}</p>}
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5">
+              {currentRegionCities.map((c, idx) => (
+                <div key={c.id} className="relative flex items-center">
+                  <Button
+                    size="sm"
+                    variant={city === c.id ? "default" : "outline"}
+                    onClick={() => {
+                      setCity(c.id);
+                      setShowCityPicker(false);
+                    }}
+                    className="h-auto w-full py-1 text-xs"
+                  >
+                    <Pair ar={c.ar} de={c.de} align="center" inverse={city === c.id} />
+                  </Button>
+                  {isEditing && (
+                    <div className="absolute left-1 flex items-center gap-0.5 bg-card/90 rounded border border-secondary/40 shadow-xs px-0.5">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveCityInRegion(c.id, -1);
+                        }}
+                        aria-label="تقديم"
+                        className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
+                      >
+                        ◀
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === currentRegionCities.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveCityInRegion(c.id, 1);
+                        }}
+                        aria-label="تأخير"
+                        className="px-1 text-[10px] font-bold text-secondary disabled:opacity-30 hover:scale-110"
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
