@@ -23,12 +23,16 @@ function NotFoundComponent() {
       "/qibla": "qibla",
       "/hadiths": "hadiths",
     };
-    const view = legacyViews[window.location.pathname.replace(/\\/+$/, "") || "/"];
+    const pathname = window.location.pathname;
+    const normalizedPath = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+    const view = legacyViews[normalizedPath];
     if (view) window.location.replace(`/#${view}`);
   }, []);
 
   const legacyPaths = ["/tasbeeh", "/qibla", "/hadiths"];
-  if (legacyPaths.includes(typeof window !== "undefined" ? window.location.pathname.replace(/\\/+$/, "") : "")) {
+  const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+  const normalizedCurrentPath = currentPath.endsWith("/") ? currentPath.slice(0, -1) : currentPath;
+  if (legacyPaths.includes(normalizedCurrentPath)) {
     return <div className="p-6 text-center" role="status">جارٍ فتح القسم… | Bereich wird geöffnet…</div>;
   }
 
