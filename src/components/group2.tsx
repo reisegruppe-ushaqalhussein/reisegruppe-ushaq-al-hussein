@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Star, Compass, FileText, Music, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, ItemActions, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
@@ -154,7 +154,21 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={title.icon} ar={title.ar} de={title.de} />
-      {admin && <AddButton label={{ ar: "إضافة", de: "Hinzufügen" }} fields={resourceFields} blank={blank} onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])} />}
+            {admin && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-1.5">
+          <SectionAdminBar
+            inline
+            addLabel={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
+            addFields={resourceFields}
+            addBlank={blank}
+            onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
+          />
+          <span className="text-[10px] font-medium text-muted-foreground">
+            <P ar="أدوات إدارة المحتوى" de="Verwaltung" />
+          </span>
+        </div>
+      )}
+
       <div className="space-y-3">
         {visible.map((item) => <ResourceCard key={item.id} item={item} admin={admin}
           onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden ?? false } : r)))}
