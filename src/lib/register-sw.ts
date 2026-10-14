@@ -16,15 +16,7 @@ export async function registerAppServiceWorker() {
     return;
   }
   const { registerSW } = await import("virtual:pwa-register");
-  // New versions activate immediately (skipWaiting); check again whenever the
-  // installed app returns to the foreground, since Android keeps it alive.
-  registerSW({
-    immediate: true,
-    onRegisteredSW: (_url, reg) => {
-      if (!reg) return;
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") reg.update().catch(() => {});
-      });
-    },
-  });
+  // Let vite-plugin-pwa's autoUpdate flow handle updates. Avoid a second
+  // foreground-triggered check that can race with Android pull-to-refresh.
+  registerSW({ immediate: true });
 }
