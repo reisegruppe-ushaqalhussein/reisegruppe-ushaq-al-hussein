@@ -17,6 +17,21 @@ import { OfflineStatus } from "@/components/offline-status";
 import { registerAppServiceWorker } from "@/lib/register-sw";
 
 function NotFoundComponent() {
+  useEffect(() => {
+    const legacyViews: Record<string, string> = {
+      "/tasbeeh": "tasbeeh",
+      "/qibla": "qibla",
+      "/hadiths": "hadiths",
+    };
+    const view = legacyViews[window.location.pathname.replace(/\\/+$/, "") || "/"];
+    if (view) window.location.replace(`/#${view}`);
+  }, []);
+
+  const legacyPaths = ["/tasbeeh", "/qibla", "/hadiths"];
+  if (legacyPaths.includes(typeof window !== "undefined" ? window.location.pathname.replace(/\\/+$/, "") : "")) {
+    return <div className="p-6 text-center" role="status">جارٍ فتح القسم… | Bereich wird geöffnet…</div>;
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
