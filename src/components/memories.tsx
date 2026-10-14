@@ -1,7 +1,7 @@
 import { Download, Facebook, ImageIcon, MapPin, CalendarDays, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, ItemActions, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, ItemActions, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
 import type { MemoryEntry, SiteContent } from "@/lib/site-content";
@@ -41,15 +41,19 @@ export function MemoriesView({ content, admin }: { content: SiteContent; admin: 
   return (
     <div className="screen-enter px-4 py-7">
       <div className="mb-5 flex items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><ImageIcon className="h-5 w-5" /></span><h2 className="min-w-0 flex-1 text-xl text-primary"><T ar="مقتطفات وذكريات الزيارة" de="Reiseerinnerungen" /></h2></div>
-            {admin && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-1.5">
-          <SectionAdminBar
-            inline
-            addLabel={{ ar: "إضافة صورة", de: "Bild hinzufügen" }}
-            addFields={fields}
-            addBlank={{ imageUrl: "", ar: "", de: "", place: "", date: "" }}
-            onAdd={(row) => put([...all, { ...(row as MemoryEntry), id: `m${Date.now()}`, hidden: false }])}
-          />
+                        {admin && (
+        <div dir="ltr" className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5">
+            <GearMenu>
+              <AddButton
+                label={{ ar: "إضافة صورة", de: "Bild hinzufügen" }}
+                fields={fields}
+                blank={{ imageUrl: "", ar: "", de: "", place: "", date: "" }}
+                onAdd={(row) => put([...all, { ...(row as MemoryEntry), id: `m${Date.now()}`, hidden: false }])}
+                inline
+              />
+            </GearMenu>
+          </div>
           <span className="text-[10px] font-medium text-muted-foreground">
             <T ar="إدارة الذكريات والصور" de="Fotos verwalten" />
           </span>
