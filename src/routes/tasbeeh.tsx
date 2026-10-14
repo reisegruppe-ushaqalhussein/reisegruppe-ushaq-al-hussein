@@ -7,7 +7,8 @@ export const Route = createFileRoute("/tasbeeh")({
 
 function LegacyTasbeehRedirect() {
   useEffect(() => {
-    window.location.replace("/#tasbeeh");
+    window.history.replaceState(window.history.state, "", "/#tasbeeh");
+    window.dispatchEvent(new PopStateEvent("popstate"));
   }, []);
-  return <main className="p-6 text-center" role="status">جارٍ فتح السبحة الإلكترونية… | Elektronische Gebetskette wird geöffnet…</main>;
+  return null;
 }
