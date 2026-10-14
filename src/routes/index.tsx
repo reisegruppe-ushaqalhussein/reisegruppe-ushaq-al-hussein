@@ -835,7 +835,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     const genericLocationError = "تعذر تحديد الموقع. تحقق من صلاحية الموقع وإعدادات GPS، أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte Standortfreigabe und GPS prüfen oder Stadt manuell wählen.";
     const permissionError =
       lang === "ar"
-        ? "تعذّر الوصول للموقع. اسمحي للمتصفح بطلب موقعك من إعداداته، ثم اضغطي تحديث. أو اختاري المدينة يدوياً."
+        ? "تعذّر الوصول للموقع. اسمح للمتصفح بطلب موقعك من إعداداته، ثم اضغط تحديث. أو اختر المدينة يدوياً."
         : lang === "de"
           ? "Standortzugriff blockiert? Erlaube dem Browser, nach deinem Standort zu fragen, und tippe auf Aktualisieren. Oder wähle die Stadt manuell."
           : lang === "en"
