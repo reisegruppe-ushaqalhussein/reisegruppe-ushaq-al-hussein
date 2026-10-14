@@ -581,8 +581,8 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
                 onClick={() => {
                   if (window.confirm(lang === "ar" ? "هل تريد تفريغ حقل الأسماء؟" : "Möchten Sie die Namensliste leeren?")) {
                     setBulk("");
-                    setNameAr("");
-                    setNameDe("");
+                   setAr("");
+                   setDe("");
                   }
                 }}
               >
