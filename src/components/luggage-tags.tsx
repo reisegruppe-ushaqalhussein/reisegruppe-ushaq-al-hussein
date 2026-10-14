@@ -566,9 +566,9 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       <span className="text-lg text-muted-foreground">{open ? "−" : "+"}</span>
     </button>
     {open && <div className="space-y-3">
-            {canManage && (
-        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
-          <SectionAdminBar inline>
+                 {canManage && (
+        <div dir="ltr" className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5">
             <GearMenu>
               <IconBtn
                 label="إعدادات البطاقات والتسميات | Einstellungen"
@@ -581,15 +581,15 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
                 onClick={() => {
                   if (window.confirm(lang === "ar" ? "هل تريد تفريغ حقل الأسماء؟" : "Möchten Sie die Namensliste leeren?")) {
                     setBulk("");
-                   setAr("");
-                   setDe("");
+                    setAr("");
+                    setDe("");
                   }
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
               </IconBtn>
             </GearMenu>
-          </SectionAdminBar>
+          </div>
           <span className="text-[10px] font-medium text-muted-foreground">
             <L ar="أدوات الإدارة والبطاقات" de="Verwaltungswerkzeuge" />
           </span>
