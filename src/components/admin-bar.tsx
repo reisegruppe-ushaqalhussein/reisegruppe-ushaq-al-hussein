@@ -147,7 +147,20 @@ function TrashDialog({ open, onOpenChange, content, password }: { open: boolean;
       const existing = new Set((cms.sections ?? []).map((section) => section["id"]));
       const add = restoredSections.filter((section) => !existing.has(String(section["id"])));
       const savedParents = item["__parents"] && typeof item["__parents"] === "object" ? item["__parents"] as Record<string, string> : {};
-      save({ ...content, cms: { ...cms, sections: [...(cms.sections ?? []), ...add] as NonNullable<typeof cms.sections>, parents: { ...(cms.parents ?? {}), ...savedParents } }, trash: trash.filter((x) => x.id !== t.id) });
+      const savedModes = item["__viewModes"] && typeof item["__viewModes"] === "object" ? item["__viewModes"] as NonNullable<typeof cms.viewModes> : {};
+      const savedOrder = Array.isArray(item["__order"]) ? item["__order"].filter((id): id is string => typeof id === "string") : [];
+      const currentModes = cms.viewModes ?? {};
+      const restoredModes = Object.fromEntries(Object.entries(savedModes).filter(([key]) => currentModes[key] === undefined));
+      const restoredOrder = [...(cms.order ?? [])];
+      savedOrder.forEach((id, index) => {
+        if (restoredOrder.includes(id)) return;
+        const nextExisting = savedOrder.slice(index + 1).find((candidate) => restoredOrder.includes(candidate));
+        if (nextExisting) { restoredOrder.splice(restoredOrder.indexOf(nextExisting), 0, id); return; }
+        const previousExisting = [...savedOrder.slice(0, index)].reverse().find((candidate) => restoredOrder.includes(candidate));
+        if (previousExisting) restoredOrder.splice(restoredOrder.indexOf(previousExisting) + 1, 0, id);
+        else restoredOrder.push(id);
+      });
+      save({ ...content, cms: { ...cms, sections: [...(cms.sections ?? []), ...add] as NonNullable<typeof cms.sections>, parents: { ...(cms.parents ?? {}), ...savedParents }, viewModes: { ...currentModes, ...restoredModes }, order: restoredOrder }, trash: trash.filter((x) => x.id !== t.id) });
       return;
     }
     if (t.section === "packingItems" && t.parentId) {
