@@ -1322,45 +1322,57 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         </div>
       )}
 
-      {/* شريط الأذان القادم */}
+      {/* شريط الأذان القادم المدمج والفاخر */}
       {nextInfo && (
-        <div className="mb-3 rounded-md border border-secondary/40 bg-accent/50 px-3 py-2 text-xs">
-          <div className="flex min-w-0 items-start gap-1 font-bold text-primary">
-            <span className="shrink-0" aria-hidden="true">⏳</span>
-            <div className="min-w-0 flex-1">
-              <Pair ar={`الأذان القادم: صلاة ${nextInfo.nameAr}`} de={`Nächster Gebetsruf: ${nextInfo.nameDe}`} />
-            </div>
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-secondary/50 bg-gradient-to-r from-secondary/15 via-accent/40 to-secondary/10 px-3 py-2 text-xs shadow-xs">
+          <div className="flex min-w-0 items-center gap-1.5 font-bold text-primary">
+            <span className="text-sm shrink-0" aria-hidden="true">⏳</span>
+            <span className="truncate">
+              <Pair ar={`القادم: صلاة ${nextInfo.nameAr}`} de={`Nächstes: ${nextInfo.nameDe}`} />
+            </span>
           </div>
-          <div className="mt-1 flex flex-col gap-0.5 font-semibold text-secondary">
+          <div className="shrink-0 font-bold text-secondary">
             {(lang === "ar" || lang === "both") && (
-              <span lang="ar" dir="rtl" className="text-right">
-                الوقت المتبقي: {nextHours > 0 && <><bdi dir="ltr">{nextHours}</bdi> س و </>}<bdi dir="ltr">{nextMinutes}</bdi> د و <bdi dir="ltr">{nextSeconds}</bdi> ث
+              <span lang="ar" dir="rtl" className="text-xs">
+                باقٍ <bdi dir="ltr">{nextHours > 0 ? `${nextHours}س ` : ""}{nextMinutes}د {nextSeconds}ث</bdi>
               </span>
             )}
-            {(lang === "de" || lang === "en" || lang === "both") && (
-              <span lang="de" dir="ltr" className="text-left">
-                Noch {nextHours > 0 && <>{nextHours} Std. </>}{nextMinutes} Min. {nextSeconds} Sek.
+            {lang === "de" && (
+              <span lang="de" dir="ltr" className="text-xs">
+                in {nextHours > 0 ? `${nextHours}h ` : ""}{nextMinutes}m {nextSeconds}s
+              </span>
+            )}
+            {lang === "en" && (
+              <span lang="en" dir="ltr" className="text-xs">
+                in {nextHours > 0 ? `${nextHours}h ` : ""}{nextMinutes}m {nextSeconds}s
               </span>
             )}
           </div>
         </div>
       )}
 
-      {/* كروت الصلوات الأربع */}
-      <div className="grid grid-cols-4 gap-2 text-center">
+      {/* كروت الصلوات الأربع بشريط مدمج وتمييز الصلاة القادمة بالذهب */}
+      <div className="grid grid-cols-4 gap-1.5 text-center">
         {prayerNames.map((p) => {
           const raw = times?.[p.key];
           const displayTime = raw ? getAdjustedTime(p.key, raw) : failed ? "—" : "…";
+          const isNext = nextInfo && (nextInfo.nameAr === p.ar || nextInfo.nameDe === p.de);
           return (
-           
-<div key={p.key} className="min-w-0 rounded-md bg-muted px-1 py-2 text-center">
-  <div className="min-w-0 text-[11px] leading-tight">
-    <Pair ar={p.ar} de={p.de} align="center" />
-  </div>
-  <p dir="ltr" className="mt-1 text-sm font-extrabold text-secondary">
-    {displayTime}
-  </p>
-</div>
+            <div
+              key={p.key}
+              className={`min-w-0 rounded-lg p-2 transition-all text-center ${
+                isNext
+                  ? "border border-secondary bg-secondary/15 ring-1 ring-secondary/50 shadow-xs"
+                  : "border border-border/60 bg-card text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              <div className={`min-w-0 text-[11px] leading-tight font-bold ${isNext ? "text-primary" : "text-foreground"}`}>
+                <Pair ar={p.ar} de={p.de} align="center" />
+              </div>
+              <p dir="ltr" className={`mt-1 text-sm font-extrabold ${isNext ? "text-secondary" : "text-primary/80"}`}>
+                {displayTime}
+              </p>
+            </div>
           );
         })}
       </div>
