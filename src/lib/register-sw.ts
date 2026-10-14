@@ -16,6 +16,15 @@ export async function registerAppServiceWorker() {
     return;
   }
   const { registerSW } = await import("virtual:pwa-register");
-  // No forced reload: a new version applies silently on the next app launch.
-  registerSW({ immediate: true, onNeedRefresh: () => {} });
+  // New versions activate immediately (skipWaiting); check again whenever the
+  // installed app returns to the foreground, since Android keeps it alive.
+  registerSW({
+    immediate: true,
+    onRegisteredSW: (_url, reg) => {
+      if (!reg) return;
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    },
+  });
 }

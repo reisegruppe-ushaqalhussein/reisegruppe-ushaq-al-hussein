@@ -14,10 +14,11 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    define: { __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace("T", " ")) },
     plugins: [
       VitePWA({
         strategies: "generateSW",
-        registerType: "prompt",
+        registerType: "autoUpdate",
         injectRegister: null,
         manifest: false,
         filename: "sw.js",
@@ -26,12 +27,15 @@ export default defineConfig({
         workbox: {
           globPatterns: ["**/*.{js,css,png,jpg,jpeg,svg,ico,woff2,webmanifest}"],
           navigateFallback: null,
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
           runtimeCaching: [
             {
               urlPattern: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
               handler: "NetworkFirst",
-              options: { cacheName: "pages", networkTimeoutSeconds: 1 },
+              options: { cacheName: "pages", networkTimeoutSeconds: 4 },
             },
             {
               urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com" || url.origin === "https://fonts.gstatic.com",
