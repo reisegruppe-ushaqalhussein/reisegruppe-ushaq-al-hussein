@@ -833,7 +833,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     let settled = false;
     let fallbackStarted = false;
     const genericLocationError = "تعذر تحديد الموقع. تحقق من صلاحية الموقع وإعدادات GPS، أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte Standortfreigabe und GPS prüfen oder Stadt manuell wählen.";
-    const permissionError = "تعذّر الوصول للموقع. اسمحي للمتصفح بطلب موقعك من إعداداته، ثم اضغطي تحديث. أو اختاري المدينة يدوياً. | Standortzugriff blockiert? Erlaube dem Browser, nach deinem Standort zu fragen, und tippe auf Aktualisieren. Oder wähle die Stadt manuell.";
+    const permissionError =
+      lang === "ar"
+        ? "تعذّر الوصول للموقع. اسمحي للمتصفح بطلب موقعك من إعداداته، ثم اضغطي تحديث. أو اختاري المدينة يدوياً."
+        : lang === "de"
+          ? "Standortzugriff blockiert? Erlaube dem Browser, nach deinem Standort zu fragen, und tippe auf Aktualisieren. Oder wähle die Stadt manuell."
+          : lang === "en"
+            ? "Location access is blocked. Allow your browser to ask for your location, then tap Refresh. Or choose a city manually."
+            : "تعذّر الوصول للموقع. اسمحي للمتصفح بطلب موقعك من إعداداته، ثم اضغطي تحديث. أو اختاري المدينة يدوياً. | Standortzugriff blockiert? Erlaube dem Browser, nach deinem Standort zu fragen, und tippe auf Aktualisieren. Oder wähle die Stadt manuell.";
     const finishWithError = (message: string, code: string) => {
       if (settled) return;
       settled = true;
