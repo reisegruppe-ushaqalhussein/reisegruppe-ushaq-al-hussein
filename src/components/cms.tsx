@@ -86,13 +86,15 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const [editing, setEditing] = useState<Tile | "new" | null>(null);
   const [moving, setMoving] = useState<Tile | null>(null);
   const [design, setDesign] = useState(false);
+  const [deletePickerOpen, setDeletePickerOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState("");
   const parents = cms.parents ?? {};
   const hiddenTiles = new Set(cms.hiddenTiles ?? []);
   const everything = arrange(allTiles(content, builtins), cms);
   const level = everything.filter((t) => parentOf(parents, t) === (parentId ?? "") && (!t.staffOnly || !!staff) && !(t.tripType && parentId === "trips"));
   const shown = level.filter((t) => showHidden || !hiddenTiles.has(t.id));
   const cols = cms.columns === 3 ? "grid-cols-3" : "grid-cols-2";
-  const viewMode = parentId ? (cms.viewModes?.[parentId] ?? "grid") : "grid";
+  const viewMode = parentId ? (cms.viewModes?.[parentId] ?? "grid") : (cms.viewModes?.home ?? (cms.columns === 3 ? "grid3" : "grid"));
   const hasSubfolders = shown.length > 0;
 
   const move = (t: Tile, dir: -1 | 1) => {
@@ -128,7 +130,9 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
     const removedSections = sections.filter((section) => descendants.has(section.id));
     const removedTileIds = new Set(removedSections.map((section) => customTileId(section.id)));
     const savedParents = Object.fromEntries(Object.entries(parents).filter(([key, value]) => removedTileIds.has(key) || (typeof value === "string" && descendants.has(value))));
-    const trashEntry = { id: `cms-section-${Date.now()}`, section: "cms.sections", item: { ...(root as unknown as Record<string, unknown>), __subtree: removedSections, __parents: savedParents } as unknown as import("@/lib/site-content").TrashEntry["item"], deletedAt: Date.now() };
+    const savedModes = Object.fromEntries(Object.entries(cms.viewModes ?? {}).filter(([key]) => descendants.has(key)));
+    const savedOrder = (cms.order ?? []).filter((tileId) => removedTileIds.has(tileId));
+    const trashEntry = { id: `cms-section-${Date.now()}`, section: "cms.sections", item: { ...(root as unknown as Record<string, unknown>), __subtree: removedSections, __parents: savedParents, __viewModes: savedModes, __order: savedOrder } as unknown as import("@/lib/site-content").TrashEntry["item"], deletedAt: Date.now() };
     const nextParents = Object.fromEntries(Object.entries(parents).filter(([key, value]) => !removedTileIds.has(key) && !(typeof value === "string" && descendants.has(value))));
     const nextModes = { ...(cms.viewModes ?? {}) };
     descendants.forEach((sectionId) => delete nextModes[sectionId]);
@@ -139,24 +143,25 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   if (parentId && !canManage && shown.length === 0) return null;
   return (
     <div className="mt-5">
-      {canManage && (!parentId || hasSubfolders) && <div className="mb-2 flex items-center justify-end gap-2">
+      {canManage && (!parentId || hasSubfolders) && <div className="mb-2 flex items-center justify-end gap-2" dir="ltr">
         {arranging && <button type="button" onClick={() => setArranging(false)} className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold text-secondary-foreground">✓</button>}
         <GearMenu>
           <IconBtn label={tr(parentId ? "إضافة مجلد فرعي هنا" : "قسم جديد", parentId ? "Unterordner hier hinzufügen" : "Neuer Bereich")} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn>
           {shown.length > 1 && <IconBtn label={tr("ترتيب ونقل", "Anordnen")} onClick={() => setArranging((v) => !v)}><Move className="h-3.5 w-3.5" /></IconBtn>}
           <IconBtn label={tr(parentId ? "تصميم هذا القسم" : "التصميم", parentId ? "Bereichsdesign" : "Design")} onClick={() => setDesign(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-          {shown.some((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")) && <IconBtn label={tr("حذف مجلد", "Ordner löschen")} danger onClick={() => { const candidate = shown.find((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")); if (candidate) remove(candidate); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
+          {shown.some((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")) && <IconBtn label={tr("حذف مجلد", "Ordner löschen")} danger onClick={() => { setDeleteTargetId(""); setDeletePickerOpen(true); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
           <IconBtn label={tr("استرجاع الترتيب والتصميم الأصلي", "Standard wiederherstellen")} onClick={() => {
-            if (!window.confirm("هل تريد استرجاع الترتيب والتصميم الأصلي لهذا القسم؟\\nStandard-Design für diesen Bereich wiederherstellen?")) return;
+            if (!window.confirm(tr("استعادة الترتيب والتصميم الافتراضي لهذا القسم؟", "Reihenfolge und Standarddesign dieses Bereichs wiederherstellen?"))) return;
             const currentIds = new Set(shown.map((t) => t.id));
             const nextOrder = (cms.order ?? []).filter((id) => !currentIds.has(id));
             const nextModes = { ...(cms.viewModes ?? {}) };
             if (parentId) delete nextModes[parentId];
-            save({ ...cms, order: nextOrder, viewModes: nextModes });
+            else delete nextModes.home;
+            save({ ...cms, columns: parentId ? cms.columns : 2, order: nextOrder, viewModes: nextModes });
           }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>
         </GearMenu>
       </div>}
-      {canManage && parentId && !hasSubfolders && <div className="mb-2 flex justify-end"><IconBtn label={tr("إضافة مجلد فرعي هنا", "Unterordner hier hinzufügen")} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn></div>}
+      {canManage && parentId && !hasSubfolders && <div className="mb-2 flex justify-start" dir="ltr"><GearMenu><IconBtn label={tr("إضافة مجلد فرعي هنا", "Unterordner hier hinzufügen")} onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /></IconBtn><IconBtn label={tr("تصميم هذا القسم", "Bereichsdesign")} onClick={() => setDesign(true)}><Palette className="h-3.5 w-3.5" /></IconBtn><IconBtn label={tr("استرجاع الترتيب والتصميم الأصلي", "Standard wiederherstellen")} onClick={() => { if (!window.confirm(tr("استعادة الترتيب والتصميم الافتراضي لهذا القسم؟", "Reihenfolge und Standarddesign dieses Bereichs wiederherstellen?"))) return; const currentIds = new Set(shown.map((t) => t.id)); const nextModes = { ...(cms.viewModes ?? {}) }; delete nextModes[parentId]; void save({ ...cms, order: (cms.order ?? []).filter((id) => !currentIds.has(id)), viewModes: nextModes }); }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
       <div className={`grid ${viewMode === "horizontal" ? "grid-cols-1" : viewMode === "grid3" ? "grid-cols-3" : viewMode === "grid" && !parentId ? cols : "grid-cols-2"} gap-2.5`}>
         {shown.map((t) => {
           const Icon = t.icon;
@@ -183,6 +188,24 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
       {editing && <SectionDialog content={content} tile={editing === "new" ? null : editing} parentId={parentId} onClose={() => setEditing(null)} />}
       {moving && <MoveDialog content={content} tile={moving} builtins={builtins} onClose={() => setMoving(null)} />}
       {design && <DesignDialog content={content} parentId={parentId} onClose={() => setDesign(false)} />}
+      <Dialog open={deletePickerOpen} onOpenChange={setDeletePickerOpen}>
+        <DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
+          <DialogHeader className={lang === "de" || lang === "en" ? "text-left" : "text-right"}>
+            <DialogTitle>{tr("اختيار المجلد المراد حذفه", "Ordner zum Löschen auswählen")}</DialogTitle>
+            <DialogDescription>{tr("اختر المجلد بالاسم. ستظهر رسالة تأكيد قبل نقل محتوياته ومجلداته الفرعية إلى سلة المحذوفات.", "Wähle den Ordner aus. Vor dem Verschieben samt Unterordnern in den Papierkorb erscheint eine Bestätigung.")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <select value={deleteTargetId} onChange={(e) => setDeleteTargetId(e.target.value)} className={inputCls}>
+              <option value="">{tr("— اختر مجلداً —", "— Ordner auswählen —")}</option>
+              {shown.filter((item) => !item.builtin && !item.tripType && item.id.startsWith("c:")).map((item) => <option key={item.id} value={item.id}>{lang === "de" ? (item.de || item.ar) : lang === "en" ? (item.de || item.ar) : lang === "ar" ? (item.ar || item.de) : `${item.ar || item.de} | ${item.de || item.ar}`}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setDeletePickerOpen(false)}>{tr("إلغاء", "Abbrechen")}</Button>
+              <Button variant="destructive" className="flex-1" disabled={!deleteTargetId} onClick={() => { const candidate = shown.find((item) => item.id === deleteTargetId && !item.builtin && !item.tripType && item.id.startsWith("c:")); setDeletePickerOpen(false); if (candidate) remove(candidate); }}>{tr("متابعة الحذف", "Löschen fortsetzen")}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -427,7 +450,8 @@ function DesignDialog({ content, parentId, onClose }: { content: SiteContent; pa
   const canManage = useCanManage(content);
   const qc = useQueryClient();
   const [draft, setDraft] = useState<CmsConfig>(cms);
-  const [viewMode, setViewMode] = useState<"grid" | "compact" | "grid3" | "horizontal" | "image">(parentId ? cms.viewModes?.[parentId] ?? "grid" : "grid");
+  const modeKey = parentId ?? "home";
+  const [viewMode, setViewMode] = useState<"grid" | "compact" | "grid3" | "horizontal" | "image">(cms.viewModes?.[modeKey] ?? (parentId ? "grid" : cms.columns === 3 ? "grid3" : "grid"));
   const [busy, setBusy] = useState(false);
   const persist = async (next: SiteContent) => {
     if (!s || !canManage) return;
@@ -453,10 +477,10 @@ function DesignDialog({ content, parentId, onClose }: { content: SiteContent; pa
     <DialogHeader className={lang === "de" || lang === "en" ? "text-left" : "text-right"}><DialogTitle>{tr("التصميم", "Design")}</DialogTitle><DialogDescription>{tr("يُطبّق على كل الأجهزة", "Gilt auf allen Geräten")}</DialogDescription></DialogHeader>
     <div className="space-y-4 text-sm">
       {!parentId && (<div><p className="mb-2 font-bold">{tr("اللون الأساسي", "Hauptfarbe")}</p><div className="grid grid-cols-5 gap-2">{themes.map((t) => <button key={t.id} type="button" aria-label={t.de} aria-pressed={(draft.theme ?? "") === t.id} onClick={() => setDraft({ ...draft, theme: t.id })} className={`flex flex-col items-center gap-1 rounded-md border p-1.5 text-[9px] ${(draft.theme ?? "") === t.id ? "border-secondary ring-2 ring-secondary" : "border-border"}`}><span className="h-7 w-7 rounded-full border-2 border-secondary" style={{ background: t.swatch }} />{lang === "de" || lang === "en" ? t.de : t.ar}</button>)}</div></div>)}
-      {!parentId && (<div><p className="mb-2 font-bold">{tr("عدد المربعات في الصف", "Kacheln pro Reihe")}</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(draft.columns ?? 2) === n ? "default" : "outline"} onClick={() => setDraft({ ...draft, columns: n })}>{n}</Button>)}</div></div>)}
-      {parentId ? <div><p className="mb-2 font-bold">{tr("نمط عرض هذا القسم", "Darstellungsart dieses Bereichs")}</p><div className="grid grid-cols-2 gap-2">{viewOptions.map((mode) => <Button key={mode.id} variant={viewMode === mode.id ? "default" : "outline"} onClick={() => setViewMode(mode.id)}>{mode.label}</Button>)}</div></div> : null}
+      <div><p className="mb-2 font-bold">{tr("نمط عرض هذا القسم", "Darstellungsart dieses Bereichs")}</p><div className="grid grid-cols-2 gap-2">{viewOptions.map((mode) => <Button key={mode.id} variant={viewMode === mode.id ? "default" : "outline"} onClick={() => setViewMode(mode.id)}>{mode.label}</Button>)}</div></div>
+      {!parentId && viewMode === "grid" && (<div><p className="mb-2 font-bold">{tr("عدد المربعات في الصف عند اختيار الشبكة العادية", "Kacheln pro Reihe im Standardraster")}</p><div className="grid grid-cols-2 gap-2">{([2, 3] as const).map((n) => <Button key={n} variant={(draft.columns ?? 2) === n ? "default" : "outline"} onClick={() => setDraft({ ...draft, columns: n })}>{n}</Button>)}</div></div>)}
       {!parentId && s?.role === "admin" && <label className="flex items-center gap-2 rounded-md border border-border p-3 font-bold"><input type="checkbox" checked={!!draft.hajToolsEnabled} onChange={(e) => setDraft({ ...draft, hajToolsEnabled: e.target.checked })} className="h-4 w-4 accent-secondary" />{tr("السماح للحاج بأدوات التحكم الكاملة", "Volle Kontrolle für Hajj")}</label>}
-      <Button disabled={busy} className="h-11 w-full" onClick={() => void persist({ ...content, cms: parentId ? { ...draft, viewModes: { ...(draft.viewModes ?? {}), [parentId]: viewMode } } : draft })}>{busy ? <Loader2 className="animate-spin" /> : tr("حفظ التصميم", "Design speichern")}</Button>
+      <Button disabled={busy} className="h-11 w-full" onClick={() => void persist({ ...content, cms: { ...draft, ...(parentId ? {} : { columns: viewMode === "grid3" ? 3 : draft.columns }), viewModes: { ...(draft.viewModes ?? {}), [modeKey]: viewMode } } })}>{busy ? <Loader2 className="animate-spin" /> : tr("حفظ التصميم", "Design speichern")}</Button>
       {!parentId && s?.role === "admin" && <Button disabled={busy} variant="outline" className="h-auto w-full whitespace-normal py-2 text-xs" onClick={clean}>{tr("🧹 حذف الألماني من خانات العربية بضغطة واحدة", "🧹 Deutsche Texte aus arabischen Feldern entfernen")}</Button>}
     </div>
   </DialogContent></Dialog>;
