@@ -17,6 +17,8 @@ import { OfflineStatus } from "@/components/offline-status";
 import { registerAppServiceWorker } from "@/lib/register-sw";
 
 function NotFoundComponent() {
+  const navigate = useNavigate();
+
   useEffect(() => {
     const legacyViews: Record<string, string> = {
       "/tasbeeh": "tasbeeh",
@@ -27,18 +29,21 @@ function NotFoundComponent() {
     const normalizedPath = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
     const view = legacyViews[normalizedPath];
     if (view) {
-      // Convert old section paths to the app's internal hash navigation without
-      // a full-page reload, so the app can open the requested view directly.
-      window.history.replaceState(window.history.state, "", `/#${view}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      // Use TanStack Router navigation instead of mutating history and
+      // dispatching a synthetic popstate event.
+      void navigate({ to: "/", hash: view, replace: true });
     }
-  }, []);
+  }, [navigate]);
 
   const legacyPaths = ["/tasbeeh", "/qibla", "/hadiths"];
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
   const normalizedCurrentPath = currentPath.endsWith("/") ? currentPath.slice(0, -1) : currentPath;
   if (legacyPaths.includes(normalizedCurrentPath)) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <p className="text-sm text-muted-foreground">جارٍ فتح القسم… | Bereich wird geöffnet…</p>
+      </div>
+    );
   }
 
   return (
