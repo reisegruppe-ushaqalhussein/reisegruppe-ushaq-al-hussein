@@ -809,7 +809,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   });
 
-  // الحصول على إحداثيات حديثة من الهاتف، ثم محاولة عرض اسم المنطقة دون حفظ الموقع على الخادم
+  // الحصول على الموقع بسرعة مع مهلة نهائية مضمونة؛ فشل GPS لا يجب أن يترك المؤشر يدور للأبد.
   const requestGps = () => {
     setManualPlace(null);
     setGpsCoords(null);
@@ -817,6 +817,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
     setGpsLoading(true);
     setGpsError(null);
+
     if (typeof window === "undefined" || !navigator.geolocation) {
       setGpsError("خاصية تحديد الموقع غير مدعومة في جهازك | Geolocation wird nicht unterstützt");
       setGpsLoading(false);
@@ -829,21 +830,21 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     const finishWithError = (message: string) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(guard);
+      window.clearTimeout(hardTimeout);
       setGpsLoading(false);
       setGpsError(message);
     };
     const acceptPosition = (pos: GeolocationPosition) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(guard);
+      window.clearTimeout(hardTimeout);
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setGpsCoords(coords);
       setGpsLabel("GPS");
       setGpsError(null);
       setGpsLoading(false);
 
-      // Reverse geocoding is used only to display a readable place name; prayer times use the GPS coordinates.
+      // اسم المدينة اختياري؛ لا نعتمد عليه للحصول على مواقيت الصلاة.
       void fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&zoom=10&accept-language=${lang === "ar" ? "ar" : "de"}`)
         .then((response) => {
           if (!response.ok) throw new Error("reverse-geocode-failed");
@@ -855,7 +856,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           if (placeName) setGpsLabel(placeName);
         })
         .catch(() => {
-          // Keep GPS coordinates usable even if the optional place-name lookup fails.
+          // GPS coordinates remain valid even if the optional place-name service is unavailable.
         });
     };
     const tryLowerAccuracy = () => {
@@ -866,13 +867,12 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         (err) => finishWithError(err.code === 1
           ? "يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben"
           : genericLocationError),
-        { timeout: 12000, enableHighAccuracy: false, maximumAge: 0 }
+        { timeout: 5000, enableHighAccuracy: false, maximumAge: 0 }
       );
     };
-    const guard = window.setTimeout(() => {
-      if (!fallbackStarted) tryLowerAccuracy();
-      else finishWithError(genericLocationError);
-    }, 24000);
+
+    // This deadline is independent of either GPS callback, so the loading state always ends.
+    const hardTimeout = window.setTimeout(() => finishWithError(genericLocationError), 12000);
 
     navigator.geolocation.getCurrentPosition(
       acceptPosition,
@@ -883,10 +883,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           tryLowerAccuracy();
         }
       },
-      { timeout: 12000, enableHighAccuracy: true, maximumAge: 0 }
+      { timeout: 5000, enableHighAccuracy: true, maximumAge: 0 }
     );
   };
-
   const clearManualPlace = () => {
     setManualPlace(null);
     setPlaceQuery("");
@@ -1318,10 +1317,15 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                   <p className="text-[11px] text-muted-foreground">
                     {gpsError || prayerText("اضغط لتفعيل المواقيت حسب موقعك الحالي", "Tippen Sie für aktuellen Standort.")}
                   </p>
-                  <Button size="sm" onClick={requestGps} className="h-7 gap-1 text-xs">
-                    <MapPin className="h-3 w-3" />
-                    <Pair ar="تحديد موقعي الآن" de="Standort abrufen" align="center" />
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Button size="sm" onClick={requestGps} className="h-7 gap-1 text-xs">
+                      <MapPin className="h-3 w-3" />
+                      <Pair ar="تحديد موقعي الآن" de="Standort abrufen" align="center" />
+                    </Button>
+                    <button type="button" onClick={requestGps} aria-label={prayerText("تحديث الموقع", "Standort aktualisieren")} className="text-[11px] text-muted-foreground underline hover:text-primary">
+                      🔄 {prayerText("إعادة المحاولة", "Erneut versuchen")}
+                    </button>
+                  </div>
                 </div>
               )}
               <form
