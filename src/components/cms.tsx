@@ -94,7 +94,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const level = everything.filter((t) => parentOf(parents, t) === (parentId ?? "") && (!t.staffOnly || !!staff) && !(t.tripType && parentId === "trips"));
   const shown = level.filter((t) => showHidden || !hiddenTiles.has(t.id));
   const cols = cms.columns === 3 ? "grid-cols-3" : "grid-cols-2";
-  const viewMode = parentId ? (cms.viewModes?.[parentId] ?? "grid") : (cms.viewModes?.home ?? (cms.columns === 3 ? "grid3" : "grid"));
+  const viewMode = parentId ? (cms.viewModes?.[parentId] ?? "grid") : (cms.viewModes?.["home"] ?? (cms.columns === 3 ? "grid3" : "grid"));
   const hasSubfolders = shown.length > 0;
 
   const move = (t: Tile, dir: -1 | 1) => {
@@ -156,8 +156,8 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
             const nextOrder = (cms.order ?? []).filter((id) => !currentIds.has(id));
             const nextModes = { ...(cms.viewModes ?? {}) };
             if (parentId) delete nextModes[parentId];
-            else delete nextModes.home;
-            save({ ...cms, columns: parentId ? cms.columns : 2, order: nextOrder, viewModes: nextModes });
+            else delete nextModes["home"];
+            save({ ...cms, ...(parentId ? {} : { columns: 2 }), order: nextOrder, viewModes: nextModes });
           }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>
         </GearMenu>
       </div>}
