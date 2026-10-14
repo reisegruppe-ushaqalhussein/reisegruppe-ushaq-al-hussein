@@ -7,7 +7,8 @@ export const Route = createFileRoute("/qibla")({
 
 function LegacyQiblaRedirect() {
   useEffect(() => {
-    window.location.replace("/#qibla");
+    window.history.replaceState(window.history.state, "", "/#qibla");
+    window.dispatchEvent(new PopStateEvent("popstate"));
   }, []);
-  return <main className="p-6 text-center" role="status">جارٍ فتح اتجاه القبلة… | Qibla-Kompass wird geöffnet…</main>;
+  return null;
 }
