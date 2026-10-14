@@ -6,7 +6,7 @@ import { listBookings, type BookingRow } from "@/lib/bookings.functions";
 import { useAdminSession } from "@/lib/admin-session";
 import { EditDialog, GearMenu, IconBtn, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import type { SiteContent } from "@/lib/site-content";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Download, Printer, Tag, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { display, isArabic, toGerman, useLang } from "@/lib/i18n";
@@ -566,8 +566,36 @@ export function LuggageTags({ nameAr, nameDe, content }: { nameAr: string; nameD
       <span className="text-lg text-muted-foreground">{open ? "−" : "+"}</span>
     </button>
     {open && <div className="space-y-3">
-      {canManage && <div className="flex items-center justify-between"><SectionAdminBar /><span className="text-[10px] text-muted-foreground"><L ar="أدوات الإدارة" de="Verwaltungswerkzeuge" /></span></div>}
-      {canManage && isEditing && <div className="flex justify-start"><GearMenu><IconBtn label="إعدادات القسم | Abschnittseinstellungen" onClick={() => setSettingsOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn></GearMenu></div>}
+            {canManage && (
+        <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+          <SectionAdminBar inline>
+            <GearMenu>
+              <IconBtn
+                label="إعدادات البطاقات والتسميات | Einstellungen"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </IconBtn>
+              <IconBtn
+                label="مسح الأسماء الحالية | Namen leeren"
+                onClick={() => {
+                  if (window.confirm(lang === "ar" ? "هل تريد تفريغ حقل الأسماء؟" : "Möchten Sie die Namensliste leeren?")) {
+                    setBulk("");
+                    setNameAr("");
+                    setNameDe("");
+                  }
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </IconBtn>
+            </GearMenu>
+          </SectionAdminBar>
+          <span className="text-[10px] font-medium text-muted-foreground">
+            <L ar="أدوات الإدارة والبطاقات" de="Verwaltungswerkzeuge" />
+          </span>
+        </div>
+      )}
+
       {canManage && settingsOpen && <EditDialog open={settingsOpen} onOpenChange={setSettingsOpen} title={{ ar: "إعدادات بطاقات الأمتعة", de: "Einstellungen der Kofferanhänger" }} fields={settingsFields} initial={settingsInitial} onSubmit={saveSettings} />}
 
       <div className="grid grid-cols-2 gap-2">
