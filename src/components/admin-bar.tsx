@@ -147,7 +147,12 @@ function TrashDialog({ open, onOpenChange, content, password }: { open: boolean;
       const existing = new Set((cms.sections ?? []).map((section) => section["id"]));
       const add = restoredSections.filter((section) => !existing.has(String(section["id"])));
       const savedParents = item["__parents"] && typeof item["__parents"] === "object" ? item["__parents"] as Record<string, string> : {};
-      save({ ...content, cms: { ...cms, sections: [...(cms.sections ?? []), ...add] as NonNullable<typeof cms.sections>, parents: { ...(cms.parents ?? {}), ...savedParents } }, trash: trash.filter((x) => x.id !== t.id) });
+      const savedModes = item["__viewModes"] && typeof item["__viewModes"] === "object" ? item["__viewModes"] as NonNullable<typeof cms.viewModes> : {};
+      const savedOrder = Array.isArray(item["__order"]) ? item["__order"].filter((id): id is string => typeof id === "string") : [];
+      const currentModes = cms.viewModes ?? {};
+      const restoredModes = Object.fromEntries(Object.entries(savedModes).filter(([key]) => currentModes[key] === undefined));
+      const restoredOrder = [...(cms.order ?? []), ...savedOrder.filter((id) => !(cms.order ?? []).includes(id))];
+      save({ ...content, cms: { ...cms, sections: [...(cms.sections ?? []), ...add] as NonNullable<typeof cms.sections>, parents: { ...(cms.parents ?? {}), ...savedParents }, viewModes: { ...currentModes, ...restoredModes }, order: restoredOrder }, trash: trash.filter((x) => x.id !== t.id) });
       return;
     }
     if (t.section === "packingItems" && t.parentId) {
