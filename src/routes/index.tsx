@@ -765,6 +765,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [gpsLabel, setGpsLabel] = useState("");
+  const [gpsDebug, setGpsDebug] = useState("");
+  const gpsReqRef = useRef(0);
 
   // ترتيب المدن مع حفظه محلياً
   const [citiesList, setCitiesList] = useState<PrayerCity[]>(() => {
@@ -811,15 +813,19 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
   // الحصول على الموقع بسرعة مع مهلة نهائية مضمونة؛ فشل GPS لا يجب أن يترك المؤشر يدور للأبد.
   const requestGps = () => {
+    const reqId = ++gpsReqRef.current;
+    const isCurrent = () => reqId === gpsReqRef.current;
     setManualPlace(null);
     setGpsCoords(null);
     setGpsLabel("");
+    setGpsDebug("");
     try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
     setGpsLoading(true);
     setGpsError(null);
 
     if (typeof window === "undefined" || !navigator.geolocation) {
       setGpsError("خاصية تحديد الموقع غير مدعومة في جهازك | Geolocation wird nicht unterstützt");
+      setGpsDebug("no-geolocation");
       setGpsLoading(false);
       return;
     }
@@ -827,22 +833,27 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     let settled = false;
     let fallbackStarted = false;
     const genericLocationError = "تعذر تحديد الموقع. تحقق من صلاحية الموقع وإعدادات GPS، أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte Standortfreigabe und GPS prüfen oder Stadt manuell wählen.";
-    const finishWithError = (message: string) => {
+    const permissionError = "يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben";
+    const finishWithError = (message: string, code: string) => {
       if (settled) return;
       settled = true;
       window.clearTimeout(hardTimeout);
+      if (!isCurrent()) return;
       setGpsLoading(false);
       setGpsError(message);
+      setGpsDebug(`err ${code}`);
     };
     const acceptPosition = (pos: GeolocationPosition) => {
       if (settled) return;
       settled = true;
       window.clearTimeout(hardTimeout);
+      if (!isCurrent()) return;
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setGpsCoords(coords);
       setGpsLabel("GPS");
       setGpsError(null);
       setGpsLoading(false);
+      setGpsDebug(`±${Math.round(pos.coords.accuracy)} m`);
 
       // اسم المدينة اختياري؛ لا نعتمد عليه للحصول على مواقيت الصلاة.
       void fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&zoom=10&accept-language=${lang === "ar" ? "ar" : "de"}`)
@@ -851,37 +862,31 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           return response.json();
         })
         .then((data: { name?: string; address?: { city?: string; town?: string; village?: string; municipality?: string; suburb?: string; county?: string } }) => {
+          if (!isCurrent()) return;
           const address = data.address;
           const placeName = address?.city || address?.town || address?.village || address?.municipality || address?.suburb || data.name || address?.county;
           if (placeName) setGpsLabel(placeName);
         })
-        .catch(() => {
-          // GPS coordinates remain valid even if the optional place-name service is unavailable.
-        });
+        .catch(() => {});
     };
     const tryLowerAccuracy = () => {
       if (settled || fallbackStarted) return;
       fallbackStarted = true;
       navigator.geolocation.getCurrentPosition(
         acceptPosition,
-        (err) => finishWithError(err.code === 1
-          ? "يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben"
-          : genericLocationError),
+        (err) => finishWithError(err.code === 1 ? permissionError : genericLocationError, String(err.code)),
         { timeout: 5000, enableHighAccuracy: false, maximumAge: 0 }
       );
     };
 
     // This deadline is independent of either GPS callback, so the loading state always ends.
-    const hardTimeout = window.setTimeout(() => finishWithError(genericLocationError), 12000);
+    const hardTimeout = window.setTimeout(() => finishWithError(genericLocationError, "timeout"), 12000);
 
     navigator.geolocation.getCurrentPosition(
       acceptPosition,
       (err) => {
-        if (err.code === 1) {
-          finishWithError("يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben");
-        } else {
-          tryLowerAccuracy();
-        }
+        if (err.code === 1) finishWithError(permissionError, "1");
+        else tryLowerAccuracy();
       },
       { timeout: 5000, enableHighAccuracy: true, maximumAge: 0 }
     );
@@ -931,9 +936,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     try {
       localStorage.setItem("ushaq_prayer_region", regId);
     } catch {}
-    if (regId === "location") {
-      if (!gpsCoords && !manualPlace) requestGps();
-    } else {
+    // "location" is handled solely by the activeRegion effect (avoids duplicate GPS requests).
+    if (regId !== "location") {
       const regCities = citiesList.filter((c) => c.region === regId);
       if (regCities[0] && !regCities.some((c) => c.id === city)) {
         setCity(regCities[0].id);
@@ -1328,6 +1332,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                   </div>
                 </div>
               )}
+              <p className="text-[9px] text-muted-foreground/70" dir="ltr">v {__APP_BUILD__}{gpsDebug ? ` · ${gpsDebug}` : ""}</p>
               <form
                 className="flex gap-1.5"
                 onSubmit={(e) => {
