@@ -166,7 +166,6 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
                 inline
               />
             </GearMenu>
-            <SectionAdminBar />
           </div>
           <span className="text-[10px] font-medium text-muted-foreground">
             <P ar="أدوات إدارة المحتوى" de="Verwaltung" />
