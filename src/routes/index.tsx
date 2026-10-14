@@ -833,7 +833,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     let settled = false;
     let fallbackStarted = false;
     const genericLocationError = "تعذر تحديد الموقع. تحقق من صلاحية الموقع وإعدادات GPS، أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte Standortfreigabe und GPS prüfen oder Stadt manuell wählen.";
-    const permissionError = "يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben";
+    const permissionError = "تعذّر الوصول للموقع. اسمحي للمتصفح بطلب موقعك من إعداداته، ثم اضغطي تحديث. أو اختاري المدينة يدوياً. | Standortzugriff blockiert? Erlaube dem Browser, nach deinem Standort zu fragen, und tippe auf Aktualisieren. Oder wähle die Stadt manuell.";
     const finishWithError = (message: string, code: string) => {
       if (settled) return;
       settled = true;
@@ -1332,7 +1332,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                   </div>
                 </div>
               )}
-              <p className="text-[9px] text-muted-foreground/70" dir="ltr">v {__APP_BUILD__}{gpsDebug ? ` · ${gpsDebug}` : ""}</p>
+              {gpsDebug.startsWith("±") && <p className="text-[9px] text-muted-foreground/70" dir="ltr">{gpsDebug}</p>}
               <form
                 className="flex gap-1.5"
                 onSubmit={(e) => {
