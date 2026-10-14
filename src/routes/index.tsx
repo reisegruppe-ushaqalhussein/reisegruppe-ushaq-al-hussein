@@ -1826,7 +1826,10 @@ function CampaignApp({ content }: { content: SiteContent }) {
   useLayoutEffect(() => {
     setWelcomed(sessionStorage.getItem("welcomed") === "1" || localStorage.getItem("welcome-seen") === "true");
     const pickAt = Number(localStorage.getItem("booking-picking-at") ?? 0);
-    const v = (pickAt && Date.now() - pickAt < 600000 ? localStorage.getItem("picking-view") : null) as View | null ?? sessionStorage.getItem("view") as View | null;
+    const activePicking = pickAt && Date.now() - pickAt < 600000;
+    const pickingView = activePicking ? localStorage.getItem("picking-view") as View | null : null;
+    const hashView = window.location.hash.replace(/^#/, "") as View;
+    const v = (pickingView && pickingView in viewTitles ? pickingView : hashView && hashView in viewTitles ? hashView : sessionStorage.getItem("view") as View | null);
     if (pickAt) setWelcomed(true);
     if (v && v in viewTitles) setView(v);
     setCustomId(sessionStorage.getItem("custom-id"));
