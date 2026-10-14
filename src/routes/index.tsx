@@ -1795,12 +1795,22 @@ const bottomItems: Array<{ view: View; ar: string; de: string; icon: IconType }>
 function Index() {
   const { data: content, isError } = useQuery(contentQuery);
   const [enteredWhileLoading, setEnteredWhileLoading] = useState(false);
+  const [showWelcomeWhileLoading] = useState(() => {
+    try {
+      return sessionStorage.getItem("welcomed") !== "1" && localStorage.getItem("welcome-seen") !== "true";
+    } catch {
+      return false;
+    }
+  });
   if (!content) {
     if (isError) return <LangProvider><OfflineFallback /></LangProvider>;
-    return <LangProvider><div className="min-h-screen bg-background"><WelcomeScreen onEnter={() => {
-      try { sessionStorage.setItem("welcomed", "1"); } catch {}
-      setEnteredWhileLoading(true);
-    }} />{enteredWhileLoading && <p role="status" className="fixed inset-x-0 bottom-6 z-50 text-center text-sm font-bold text-primary">جارٍ تحميل التطبيق… | App wird geladen…</p>}</div></LangProvider>;
+    return <LangProvider><div className="min-h-screen bg-background">
+      {showWelcomeWhileLoading && <WelcomeScreen onEnter={() => {
+        try { sessionStorage.setItem("welcomed", "1"); } catch {}
+        setEnteredWhileLoading(true);
+      }} />}
+      {enteredWhileLoading && <p role="status" className="fixed inset-x-0 bottom-6 z-50 text-center text-sm font-bold text-primary">جارٍ تحميل التطبيق… | App wird geladen…</p>}
+    </div></LangProvider>;
   }
   return <LangProvider><CampaignApp content={content} /></LangProvider>;
 }
