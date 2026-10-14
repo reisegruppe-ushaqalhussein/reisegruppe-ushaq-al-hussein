@@ -354,7 +354,10 @@ function FavoritesView({ content, go }: { content: SiteContent; go: (view: View)
     { id: "tool:qibla", ar: "اتجاه القبلة", de: "Qibla-Kompass", view: "qibla" as View },
     { id: "tool:guide", ar: "دليل الإقامة والمواقع", de: "Unterkunfts- & Ortsführer", view: "guide" as View },
     { id: "tool:donations", ar: "المساهمة في الحملة", de: "Beitrag leisten", view: "donations" as View },
-    { id: "tool:packing", ar: "حقيبة السفر", de: "Reise-Checkliste", view: "packing" as View },
+    { id: "tool:packing", ar: "حقيبة السفر (الكل)", de: "Reise-Checkliste (Alle)", view: "packing" as View },
+    { id: "tool:packing:umrah", ar: "حقيبة السفر (عمرة 🕋)", de: "Checkliste (Umrah 🕋)", view: "packing" as View },
+    { id: "tool:packing:iraq", ar: "حقيبة السفر (زيارة العراق 🕌)", de: "Checkliste (Irak 🕌)", view: "packing" as View },
+    { id: "tool:packing:winter", ar: "حقيبة السفر (رحلة شتوية ❄️)", de: "Checkliste (Winter ❄️)", view: "packing" as View },
   ];
   const savedTools = quickTools.filter((t) => ids.includes(t.id));
   const trips = content.trips.filter((t) => ids.includes(`trip:${t.id}`) && t.visible && !t.hidden);
@@ -376,7 +379,7 @@ function FavoritesView({ content, go }: { content: SiteContent; go: (view: View)
   return <div className="screen-enter px-4 py-7">
     <ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" />
     <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1">{tabs.map((t) => <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-pressed={tab === t.id} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${tab === t.id ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-card text-primary"}`}><Pair ar={`${t.ar} (${t.n})`} de={t.de} align="center" /></button>)}</div>
-    {show("all") && savedTools.length > 0 && <section className="mb-7"><H ar="أدواتي السريعة المفضلة" de="Meine bevorzugten Werkzeuge" /><div className="grid grid-cols-2 gap-2">{savedTools.map((t) => <div key={t.id} className="flex items-center justify-between gap-1 rounded-lg border border-secondary/60 bg-card p-2 shadow-sm"><button type="button" onClick={() => go(t.view)} className="min-w-0 flex-1 p-1 text-start text-xs font-bold text-primary"><Pair ar={t.ar} de={t.de} /></button><FavStar id={t.id} /></div>)}</div></section>}
+    {show("all") && savedTools.length > 0 && <section className="mb-7"><H ar="أدواتي السريعة المفضلة" de="Meine bevorzugten Werkzeuge" /><div className="grid grid-cols-2 gap-2">{savedTools.map((t) => <div key={t.id} className="flex items-center justify-between gap-1 rounded-lg border border-secondary/60 bg-card p-2 shadow-sm"><button type="button" onClick={() => { if (t.id.startsWith("tool:packing:")) { try { localStorage.setItem("packing-open-filter", t.id.slice("tool:packing:".length)); } catch {} } else if (t.id === "tool:packing") { try { localStorage.setItem("packing-open-filter", "all"); } catch {} } go(t.view); }} className="min-w-0 flex-1 p-1 text-start text-xs font-bold text-primary"><Pair ar={t.ar} de={t.de} /></button><FavStar id={t.id} /></div>)}</div></section>}
     {!total && <p className="rounded-lg border border-dashed border-secondary/50 bg-card p-6 text-center text-sm"><Pair ar="لم تضف شيئاً بعد — اضغط على النجمة ⭐ بجانب أي رحلة أو دعاء أو رقم أو معلومة لحفظها هنا." de="Noch nichts gespeichert — tippen Sie auf den Stern ⭐ bei einer Reise, einem Gebet, Kontakt oder Hinweis." align="center" /></p>}
     {show("trips") && trips.length > 0 && <section className="mb-7"><H ar="رحلاتي" de="Meine Reisen" /><div className="space-y-3">{trips.map((t) => { const days = (() => { const m = t.date.match(/(\d{2})\.(\d{2})\.(\d{4})/); if (!m) return null; const d = Math.ceil((new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() - Date.now()) / 86400000); return d > 0 ? d : null; })(); return <div key={t.id} className="relative"><button type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 pb-12 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{days && <span className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary"><Pair ar={`متبقٍ ${days} يوماً على الانطلاق ✈️`} de={`Noch ${days} Tage bis zur Abreise ✈️`} /></span>}{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button><TripFavButton id={t.id} /></div>; })}</div></section>}
     {show("duas") && duas.length > 0 && <section className="mb-7"><H ar="أدعيتي وزياراتي" de="Meine Gebete & Ziyarat" /><div className="space-y-3">{duas.map((d) => <ReaderListButton key={d.id} item={d} onRead={setReader} />)}</div></section>}
@@ -599,18 +602,19 @@ function PaymentCard({ payment }: { payment: SiteContent["payment"] }) {
 
 function PushButton() {
   const [state, setState] = useState<"idle" | "busy" | "on">("idle");
+  const { lang } = useLang();
   useEffect(() => { if (localStorage.getItem("push-enabled") && "Notification" in window && Notification.permission === "granted") setState("on"); }, []);
   const msgs: Record<string, string> = {
-    "not-configured": "الإشعارات غير مفعّلة بعد | Benachrichtigungen noch nicht eingerichtet",
-    unsupported: "جهازك لا يدعم الإشعارات. على iPhone أضف التطبيق للشاشة الرئيسية أولاً | Nicht unterstützt. Auf dem iPhone zuerst zum Home-Bildschirm hinzufügen",
-    "open-in-new-tab": "افتح التطبيق في نافذة مستقلة لتفعيل الإشعارات | Bitte die App in einem eigenen Tab öffnen",
-    denied: "تم رفض الإذن — فعّله من إعدادات المتصفح | Erlaubnis verweigert – bitte in den Browser-Einstellungen aktivieren",
+    "not-configured": lang === "de" ? "Benachrichtigungen noch nicht eingerichtet" : "الإشعارات غير مفعّلة بعد",
+    unsupported: lang === "de" ? "Dein Gerät unterstützt keine Benachrichtigungen. Auf dem iPhone zuerst zum Home-Bildschirm hinzufügen." : "جهازك لا يدعم الإشعارات. على iPhone أضف التطبيق للشاشة الرئيسية أولاً",
+    "open-in-new-tab": lang === "de" ? "Bitte die App in einem eigenen Tab öffnen" : "افتح التطبيق في نافذة مستقلة لتفعيل الإشعارات",
+    denied: lang === "de" ? "Erlaubnis verweigert – bitte in den Browser-Einstellungen aktivieren" : "تم رفض الإذن — فعّله من إعدادات المتصفح",
   };
   return <Button variant="outline" disabled={state !== "idle"} className="w-full border-secondary" onClick={async () => {
     setState("busy");
-    try { const r = await enablePush(); if (r === "registered") return setState("on"); window.alert(msgs[r]); } catch (e) { console.error(e); window.alert("تعذّر التفعيل | Aktivierung fehlgeschlagen"); }
+    try { const r = await enablePush(); if (r === "registered") return setState("on"); window.alert(msgs[r]); } catch (e) { console.error(e); window.alert(lang === "de" ? "Aktivierung fehlgeschlagen" : "تعذّر التفعيل"); }
     setState("idle");
-  }}><Bell />{state === "on" ? <>الإشعارات العاجلة مفعّلة <span className="text-xs italic">| Eilmeldungen aktiv</span></> : <>تفعيل الإشعارات العاجلة <span className="text-xs italic">| Eilmeldungen aktivieren</span></>}</Button>;
+  }}><Bell /><Pair ar={state === "on" ? "الإشعارات العاجلة مفعّلة" : state === "busy" ? "جارٍ التفعيل..." : "تفعيل الإشعارات العاجلة"} de={state === "on" ? "Eilmeldungen aktiv" : state === "busy" ? "Wird aktiviert..." : "Eilmeldungen aktivieren"} align="center" /></Button>;
 }
 
 function InstallButton() {
@@ -805,22 +809,6 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   });
 
-  // بديل تلقائي عند حجب GPS: تقدير الموقع من الشبكة
-  const ipFallback = async (reason: string) => {
-    try {
-      const r = await fetch("https://ipapi.co/json/");
-      const j = (await r.json()) as { latitude?: number; longitude?: number; city?: string };
-      if (typeof j.latitude !== "number" || typeof j.longitude !== "number") throw new Error("ip");
-      setGpsCoords({ lat: j.latitude, lng: j.longitude });
-      setGpsLabel(j.city ? `${j.city} (≈)` : "≈");
-      setGpsError(null);
-    } catch {
-      setGpsError(reason);
-    } finally {
-      setGpsLoading(false);
-    }
-  };
-
   // طلب الموقع الجغرافي من المتصفح
   const requestGps = () => {
     setManualPlace(null);
@@ -828,29 +816,23 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     setGpsLoading(true);
     setGpsError(null);
     if (typeof window === "undefined" || !navigator.geolocation) {
-      void ipFallback("خاصية الموقع غير مدعومة في متصفحك | Geolocation wird nicht unterstützt");
+      setGpsError("خاصية تحديد الموقع غير مدعومة في متصفحك | Geolocation wird nicht unterstützt");
+      setGpsLoading(false);
       return;
     }
-    let settled = false;
-    const guard = window.setTimeout(() => { if (!settled) { settled = true; void ipFallback("تعذر قراءة الموقع | Standort nicht ermittelbar"); } }, 9000);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        if (settled) return;
-        settled = true; window.clearTimeout(guard);
         setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setGpsLabel("GPS");
         setGpsLoading(false);
       },
       (err) => {
-        if (settled) return;
-        settled = true; window.clearTimeout(guard);
-        void ipFallback(
-          err.code === 1
-            ? "يرجى السماح بالوصول إلى الموقع من إعدادات المتصفح | Bitte Standortfreigabe erlauben"
-            : "تعذر قراءة الموقع، يرجى المحاولة ثانية | Standort nicht ermittelbar"
-        );
+        setGpsLoading(false);
+        setGpsError(err.code === 1
+          ? "يرجى تفعيل صلاحية الموقع من إعدادات المتصفح | Bitte Standortfreigabe erlauben"
+          : "تعذر التقاط إشارة الموقع، يرجى اختيار المدينة أو المحاولة في مكان مفتوح");
       },
-      { timeout: 8000, enableHighAccuracy: true, maximumAge: 60000 }
+      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
     );
   };
 
@@ -1476,6 +1458,7 @@ function DuasView({ content }: { content: SiteContent }) {
   if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
   return (
     <div className="screen-enter px-4 py-7">
+      <div className="mb-4"><TileGrid content={content} builtins={homeTiles} parentId="duas" onOpen={open} /></div>
       <ScreenTitle icon={BookOpen} ar="العتبات المقدسة" de="Heilige Stätten" />
             {admin && <SectionAdminBar addLabel={{ ar: "إضافة عتبة", de: "Heilige Stätte hinzufügen" }} addFields={shrineFields} addBlank={{ ar: "", de: "", imageUrl: "" }} onAdd={(row) => saveContent({ ...content, shrines: [...shrineList, { ...(row as ShrineEntry), id: `s${Date.now()}` }] })} onRestore={() => saveContent({ ...content, shrines: defaultContent.shrines })} />}
       <div className="grid grid-cols-2 gap-3">
@@ -1546,6 +1529,9 @@ function ZiyaratReader({ item, onBack, admin }: { item: ReaderItem; onBack: () =
   const [alignment, setAlignment] = useState<"right" | "center">("right");
   const [theme, setTheme] = useState<"navy" | "white" | "warm">("warm");
   const [font, setFont] = useState<ReaderFont>("amiri");
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [item.id]);
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem("ziyarat-reader-settings") ?? "{}");
@@ -1837,7 +1823,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
       {welcomed === false && <WelcomeScreen onEnter={() => setWelcomed(true)} />}
       <main className="mx-auto min-h-screen w-full max-w-[420px] overflow-x-hidden bg-background pb-24 text-foreground shadow-xl">
         <AppHeader view={view} onHome={() => go("home")} title={customTitle} crumbs={view === "home" ? [] : pathOf(content, homeTiles, view === "custom" ? `c:${customId ?? ""}` : view === "triptype" ? `triptype:${customId ?? ""}` : view === "iraqtypes" ? "system:iraq-types" : view === "iraqdetails" ? "system:iraq-details" : view)} onCrumb={open} />
-        {view !== "home" && view !== "custom" && view !== "triptype" && <div className="px-4"><TileGrid content={content} builtins={homeTiles} parentId={view} onOpen={open} /></div>}
+        {view !== "home" && view !== "custom" && view !== "triptype" && view !== "duas" && <div className="px-4"><TileGrid content={content} builtins={homeTiles} parentId={view} onOpen={open} /></div>}
         {view === "triptype" && customId && <div className="px-4"><TileGrid content={content} builtins={homeTiles} parentId={`triptype:${customId}`} onOpen={open} /></div>}
         {view === "home" && <AdminBar content={content} />}
         <AlertBanner alert={content.alert} />
