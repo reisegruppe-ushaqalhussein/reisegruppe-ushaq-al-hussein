@@ -24,7 +24,7 @@ import { RoomsPanel } from "@/components/final-group";
 import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, Calculator, CalendarClock, ClipboardList, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Tag, Vibrate, X } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
-import { AddButton, GearMenu, IconBtn, ItemActions, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
 import { Trash2 as TrashIcon } from "lucide-react";
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
