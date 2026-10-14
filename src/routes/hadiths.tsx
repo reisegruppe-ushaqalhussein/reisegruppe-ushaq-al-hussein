@@ -7,7 +7,8 @@ export const Route = createFileRoute("/hadiths")({
 
 function LegacyHadithsRedirect() {
   useEffect(() => {
-    window.location.replace("/#hadiths");
+    window.history.replaceState(window.history.state, "", "/#hadiths");
+    window.dispatchEvent(new PopStateEvent("popstate"));
   }, []);
-  return <main className="p-6 text-center" role="status">جارٍ فتح الأحاديث والروايات… | Hadithe und Überlieferungen werden geöffnet…</main>;
+  return null;
 }
