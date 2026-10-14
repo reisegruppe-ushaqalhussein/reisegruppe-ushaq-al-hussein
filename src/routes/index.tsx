@@ -809,9 +809,11 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   });
 
-  // طلب الموقع الجغرافي من الهاتف، مع محاولة احتياطية أقل دقة دون إرسال الموقع إلى خدمة خارجية
+  // الحصول على إحداثيات حديثة من الهاتف، ثم محاولة عرض اسم المنطقة دون حفظ الموقع على الخادم
   const requestGps = () => {
     setManualPlace(null);
+    setGpsCoords(null);
+    setGpsLabel("");
     try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
     setGpsLoading(true);
     setGpsError(null);
@@ -823,6 +825,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
     let settled = false;
     let fallbackStarted = false;
+    const genericLocationError = "تعذر تحديد الموقع. تحقق من صلاحية الموقع وإعدادات GPS، أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte Standortfreigabe und GPS prüfen oder Stadt manuell wählen.";
     const finishWithError = (message: string) => {
       if (settled) return;
       settled = true;
@@ -834,10 +837,26 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       if (settled) return;
       settled = true;
       window.clearTimeout(guard);
-      setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setGpsCoords(coords);
       setGpsLabel("GPS");
       setGpsError(null);
       setGpsLoading(false);
+
+      // Reverse geocoding is used only to display a readable place name; prayer times use the GPS coordinates.
+      void fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&zoom=10&accept-language=${lang === "ar" ? "ar" : "de"}`)
+        .then((response) => {
+          if (!response.ok) throw new Error("reverse-geocode-failed");
+          return response.json();
+        })
+        .then((data: { name?: string; address?: { city?: string; town?: string; village?: string; municipality?: string; suburb?: string; county?: string } }) => {
+          const address = data.address;
+          const placeName = address?.city || address?.town || address?.village || address?.municipality || address?.suburb || data.name || address?.county;
+          if (placeName) setGpsLabel(placeName);
+        })
+        .catch(() => {
+          // Keep GPS coordinates usable even if the optional place-name lookup fails.
+        });
     };
     const tryLowerAccuracy = () => {
       if (settled || fallbackStarted) return;
@@ -846,14 +865,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         acceptPosition,
         (err) => finishWithError(err.code === 1
           ? "يرجى تفعيل صلاحية الموقع من إعدادات الهاتف | Bitte Standortfreigabe in den Geräteeinstellungen erlauben"
-          : "تعذر تحديد الموقع. تحقق من GPS وصلاحية الموقع أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte GPS/Berechtigung prüfen oder Stadt manuell wählen."),
-        { timeout: 12000, enableHighAccuracy: false, maximumAge: 120000 }
+          : genericLocationError),
+        { timeout: 12000, enableHighAccuracy: false, maximumAge: 0 }
       );
     };
     const guard = window.setTimeout(() => {
       if (!fallbackStarted) tryLowerAccuracy();
-      else finishWithError("تعذر تحديد الموقع. تحقق من GPS وصلاحية الموقع أو اختر المدينة يدوياً | Standort nicht ermittelbar. Bitte GPS/Berechtigung prüfen oder Stadt manuell wählen.");
-    }, 18000);
+      else finishWithError(genericLocationError);
+    }, 24000);
 
     navigator.geolocation.getCurrentPosition(
       acceptPosition,
@@ -864,7 +883,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           tryLowerAccuracy();
         }
       },
-      { timeout: 10000, enableHighAccuracy: true, maximumAge: 60000 }
+      { timeout: 12000, enableHighAccuracy: true, maximumAge: 0 }
     );
   };
 
@@ -990,17 +1009,27 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
 
     fetch(url)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("prayer-times-request-failed");
+        return r.json();
+      })
       .then((j) => {
-        if (!off) {
-          setTimes(j?.data?.timings ?? null);
-          if (j?.data?.meta?.timezone) {
-            setTimezone(j.data.meta.timezone);
-          }
+        if (off) return;
+        const fetchedTimes = j?.data?.timings;
+        if (!fetchedTimes || typeof fetchedTimes !== "object") {
+          setTimes(null);
+          setFailed(true);
+          return;
         }
+        setTimes(fetchedTimes);
+        setFailed(false);
+        if (j?.data?.meta?.timezone) setTimezone(j.data.meta.timezone);
       })
       .catch(() => {
-        if (!off) setFailed(true);
+        if (!off) {
+          setTimes(null);
+          setFailed(true);
+        }
       });
 
     return () => {
