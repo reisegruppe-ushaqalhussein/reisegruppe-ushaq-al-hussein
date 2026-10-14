@@ -225,6 +225,7 @@ const tawafDuas = [
 ];
 
 export function TawafView() {
+  const { lang } = useLang();
   const [mode, setMode] = useState<"tawaf" | "sai">("tawaf");
   const [counts, setCounts] = useState({ tawaf: 0, sai: 0 });
   useEffect(() => { try { const s = JSON.parse(localStorage.getItem("tawaf-counter") ?? "{}"); if (s.counts) setCounts(s.counts); if (s.mode) setMode(s.mode); } catch { /* ignore */ } }, []);
