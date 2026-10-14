@@ -1605,7 +1605,32 @@ function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }
   return (
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={HelpCircle} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
-           {admin && <SectionAdminBar addLabel={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }} addFields={faqFields} addBlank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }} onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })} onRestore={() => saveContent({ ...content, faqs: defaultContent.faqs })} />}
+                  {admin && (
+          <div dir="ltr" className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <GearMenu>
+                <AddButton
+                  label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }}
+                  fields={faqFields}
+                  blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }}
+                  onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })}
+                  inline
+                />
+                <RestoreButton
+                  onRestore={() => {
+                    if (window.confirm("استرجاع الأسئلة الافتراضية؟ | Standardfragen wiederherstellen?")) {
+                      saveContent({ ...content, faqs: defaultContent.faqs });
+                    }
+                  }}
+                />
+              </GearMenu>
+            </div>
+            <span className="text-[10px] font-medium text-muted-foreground">
+              <Pair ar="أدوات إدارة الأسئلة" de="FAQ verwalten" />
+            </span>
+          </div>
+        )}
+
       {admin ? (
         <div className="space-y-3">
           {faqs.filter((f) => showHidden || !f.hidden).map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
