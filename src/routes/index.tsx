@@ -825,13 +825,46 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
   const [city, setCity] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      const match = window.location.hash.match(/^#prayer:city:([^:]+)$/);
-      try { const id = match ? decodeURIComponent(match[1] ?? "") : ""; if (defaultCities.some((c) => c.id === id)) return id; } catch { /* ignore malformed city */ }
+      const cityMatch = window.location.hash.match(/^#prayer:city:([^:]+)$/);
+      try { const id = cityMatch ? decodeURIComponent(cityMatch[1] ?? "") : ""; if (defaultCities.some((c) => c.id === id)) return id; } catch { /* ignore malformed city */ }
+      const regionMatch = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
+      if (regionMatch && regionMatch[1] !== "location") {
+        const firstCity = defaultCities.find((c) => c.region === regionMatch[1]);
+        if (firstCity) return firstCity.id;
+      }
     }
     try { const saved = localStorage.getItem("ushaq_prayer_city"); if (saved && defaultCities.some((c) => c.id === saved)) return saved; } catch {}
     return defaultCities[0]?.id ?? "Baghdad";
   });
 
+  useEffect(() => {
+    const restorePrayerRoute = () => {
+      const hash = window.location.hash;
+      const regionMatch = hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
+      const cityMatch = hash.match(/^#prayer:city:([^:]+)$/);
+      if (regionMatch) {
+        const region = regionMatch[1] ?? "iraq";
+        setActiveRegion(region);
+        try { localStorage.setItem("ushaq_prayer_region", region); } catch {}
+        if (region !== "location") {
+          const firstCity = citiesList.find((candidate) => candidate.region === region);
+          if (firstCity) { setCity(firstCity.id); try { localStorage.setItem("ushaq_prayer_city", firstCity.id); } catch {} }
+        }
+      } else if (cityMatch) {
+        try {
+          const id = decodeURIComponent(cityMatch[1] ?? "");
+          const selected = citiesList.find((candidate) => candidate.id === id);
+          if (selected) {
+            setCity(id);
+            setActiveRegion(selected.region);
+            try { localStorage.setItem("ushaq_prayer_city", id); localStorage.setItem("ushaq_prayer_region", selected.region); } catch {}
+          }
+        } catch { /* ignore malformed city route */ }
+      }
+    };
+    window.addEventListener("popstate", restorePrayerRoute);
+    return () => window.removeEventListener("popstate", restorePrayerRoute);
+  }, [citiesList]);
   const [times, setTimes] = useState<Record<string, string> | null>(null);
   const [timezone, setTimezone] = useState<string>("Asia/Baghdad");
   const [failed, setFailed] = useState(false);
