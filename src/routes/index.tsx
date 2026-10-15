@@ -781,20 +781,10 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
   // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
   const [activeRegion, setActiveRegion] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const regionMatch = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
-      if (regionMatch) return regionMatch[1] ?? "iraq";
-      const cityMatch = window.location.hash.match(/^#prayer:city:(?:(location|iraq|saudi|iran):)?([^:]+)$/);
-      if (cityMatch?.[1]) return cityMatch[1];
-      if (cityMatch?.[2]) {
-        try {
-          const id = decodeURIComponent(cityMatch[2]);
-          const selected = defaultCities.find((candidate) => candidate.id === id);
-          if (selected) return selected.region;
-        } catch { /* ignore malformed city route */ }
-      }
-    }
-    try { return localStorage.getItem("ushaq_prayer_region") || "iraq"; } catch { return "iraq"; }
+    try {
+      const saved = localStorage.getItem("ushaq_prayer_region");
+      return saved && ["location", "iraq", "saudi", "iran"].includes(saved) ? saved : "iraq";
+    } catch { return "iraq"; }
   });
 
   // إحداثيات الموقع الحالي GPS
@@ -844,43 +834,21 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   });
 
   const [city, setCity] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const cityMatch = window.location.hash.match(/^#prayer:city:(?:(location|iraq|saudi|iran):)?([^:]+)$/);
-      try { const id = cityMatch ? decodeURIComponent(cityMatch[2] ?? "") : ""; if (defaultCities.some((c) => c.id === id)) return id; } catch { /* ignore malformed city */ }
-      const regionMatch = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
-      if (regionMatch && regionMatch[1] !== "location") {
-        const firstCity = defaultCities.find((c) => c.region === regionMatch[1]);
-        if (firstCity) return firstCity.id;
-      }
-    }
-    try { const saved = localStorage.getItem("ushaq_prayer_city"); if (saved && defaultCities.some((c) => c.id === saved)) return saved; } catch {}
+    try {
+      const saved = localStorage.getItem("ushaq_prayer_city");
+      if (saved && defaultCities.some((candidate) => candidate.id === saved)) return saved;
+    } catch {}
     return defaultCities[0]?.id ?? "Baghdad";
   });
 
   useEffect(() => {
     const restorePrayerRoute = () => {
-      const hash = window.location.hash;
-      const regionMatch = hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
-      const cityMatch = hash.match(/^#prayer:city:(?:(location|iraq|saudi|iran):)?([^:]+)$/);
-      if (regionMatch) {
-        const region = regionMatch[1] ?? "iraq";
-        setActiveRegion(region);
-        try { localStorage.setItem("ushaq_prayer_region", region); } catch {}
-        if (region !== "location") {
-          const firstCity = citiesList.find((candidate) => candidate.region === region);
-          if (firstCity) { setCity(firstCity.id); try { localStorage.setItem("ushaq_prayer_city", firstCity.id); } catch {} }
-        }
-      } else if (cityMatch) {
-        try {
-          const id = decodeURIComponent(cityMatch[2] ?? "");
-          const selected = citiesList.find((candidate) => candidate.id === id);
-          if (selected) {
-            setCity(id);
-            setActiveRegion(selected.region);
-            try { localStorage.setItem("ushaq_prayer_city", id); localStorage.setItem("ushaq_prayer_region", selected.region); } catch {}
-          }
-        } catch { /* ignore malformed city route */ }
-      }
+      try {
+        const region = localStorage.getItem("ushaq_prayer_region");
+        const savedCity = localStorage.getItem("ushaq_prayer_city");
+        if (region && ["location", "iraq", "saudi", "iran"].includes(region)) setActiveRegion(region);
+        if (savedCity && citiesList.some((candidate) => candidate.id === savedCity)) setCity(savedCity);
+      } catch { /* ignore unavailable local storage */ }
     };
     window.addEventListener("popstate", restorePrayerRoute);
     return () => window.removeEventListener("popstate", restorePrayerRoute);
@@ -1041,8 +1009,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const handleRegionChange = (regId: string) => {
     const regCities = citiesList.filter((c) => c.region === regId);
     const nextCity = regId === "location" ? null : (regCities.some((c) => c.id === city) ? city : regCities[0]?.id ?? null);
-    const route = nextCity ? `#prayer:city:${regId}:${encodeURIComponent(nextCity)}` : `#prayer:region:${regId}`;
-    window.history.pushState({ view: "prayer", prayerRegion: regId, prayerCity: nextCity }, "", route);
+    window.history.pushState({ view: "prayer", prayerRegion: regId, prayerCity: nextCity }, "", "#prayer");
     setActiveRegion(regId);
     try { localStorage.setItem("ushaq_prayer_region", regId); } catch {}
     if (nextCity) {
@@ -1466,7 +1433,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                     size="sm"
                     variant={city === c.id ? "default" : "outline"}
                     onClick={() => {
-                      window.history.pushState({ view: "prayer", prayerCity: c.id, prayerRegion: activeRegion }, "", `#prayer:city:${activeRegion}:${encodeURIComponent(c.id)}`);
+                      window.history.pushState({ view: "prayer", prayerCity: c.id, prayerRegion: activeRegion }, "", "#prayer");
                       setCity(c.id);
                       try { localStorage.setItem("ushaq_prayer_city", c.id); localStorage.setItem("ushaq_prayer_region", activeRegion); } catch {}
                       setShowCityPicker(false);
