@@ -1,8 +1,14 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/qibla")({
-  beforeLoad: () => {
-    throw redirect({ to: "/", hash: "qibla", replace: true });
-  },
-  component: () => null,
+  component: LegacyQiblaRedirect,
 });
+
+function LegacyQiblaRedirect() {
+  useEffect(() => {
+    window.history.replaceState(window.history.state, "", "/#qibla");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, []);
+  return null;
+}
