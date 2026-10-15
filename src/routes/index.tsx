@@ -857,6 +857,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   });
   const [gpsDebug, setGpsDebug] = useState("");
+  // Temporary diagnostic: distinguish missing saved coordinates from a failed prayer-times request.
+  const [prayerDiagnostic, setPrayerDiagnostic] = useState("لم يبدأ الفحص | Prüfung noch nicht gestartet");
   const gpsReqRef = useRef(0);
 
   // ترتيب المدن مع حفظه محلياً
@@ -1144,7 +1146,13 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     let url = "";
     if (activeRegion === "location") {
       const pt = manualPlace ?? gpsCoords;
-      if (!pt) return;
+      if (!pt) {
+        setPrayerDiagnostic("لا توجد إحداثيات متاحة | Keine Koordinaten verfügbar");
+        return;
+      }
+      setPrayerDiagnostic(manualPlace
+        ? "الموقع اليدوي موجود؛ جارٍ جلب المواقيت | Manueller Ort vorhanden; Gebetszeiten werden geladen"
+        : "إحداثيات GPS موجودة؛ جارٍ جلب المواقيت | GPS-Koordinaten vorhanden; Gebetszeiten werden geladen");
       url = `https://api.aladhan.com/v1/timings?latitude=${pt.lat}&longitude=${pt.lng}&method=0`;
     } else {
       const curCity = citiesList.find((c) => c.id === city) || citiesList[0];
@@ -1167,12 +1175,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         }
         setTimes(fetchedTimes);
         setFailed(false);
+        if (activeRegion === "location") setPrayerDiagnostic("نجح جلب المواقيت | Gebetszeiten erfolgreich geladen");
         if (j?.data?.meta?.timezone) setTimezone(j.data.meta.timezone);
       })
       .catch(() => {
         if (!off) {
           setTimes(null);
           setFailed(true);
+          if (activeRegion === "location") setPrayerDiagnostic("الإحداثيات موجودة لكن طلب المواقيت فشل | Koordinaten vorhanden, Gebetszeiten-Anfrage fehlgeschlagen");
         }
       });
 
@@ -1474,6 +1484,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                 </div>
               )}
               {gpsDebug && !gpsLoading && <p className="text-[9px] text-muted-foreground/70" dir="ltr">{gpsDebug}</p>}
+              <p className="text-[9px] text-muted-foreground/70">{prayerDiagnostic}</p>
               <form
                 className="flex gap-1.5"
                 onSubmit={(e) => {
