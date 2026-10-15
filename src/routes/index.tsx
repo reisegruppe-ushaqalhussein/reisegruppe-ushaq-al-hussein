@@ -1833,8 +1833,10 @@ function Index() {
 function CampaignApp({ content }: { content: SiteContent }) {
     const [view, setView] = useState<View>(() => {
     if (typeof window === "undefined") return "home";
-    const h = window.location.hash.replace("#", "") as View;
-    if (h && h in viewTitles) return h;
+    const rawH = window.location.hash.replace(/^#/, "");
+    if (rawH.startsWith("triptype:")) return "triptype";
+    if (rawH.startsWith("c:")) return "custom";
+    if (rawH && rawH in viewTitles) return rawH as View;
     const sv = sessionStorage.getItem("view") as View;
     return (sv && sv in viewTitles) ? sv : "home";
   });
@@ -1853,11 +1855,13 @@ function CampaignApp({ content }: { content: SiteContent }) {
     const pickAt = Number(localStorage.getItem("booking-picking-at") ?? 0);
     const activePicking = pickAt && Date.now() - pickAt < 600000;
     const pickingView = activePicking ? localStorage.getItem("picking-view") as View | null : null;
-    const hashView = window.location.hash.replace(/^#/, "") as View;
-    const v = (pickingView && pickingView in viewTitles ? pickingView : hashView && hashView in viewTitles ? hashView : sessionStorage.getItem("view") as View | null);
+    const rawH = window.location.hash.replace(/^#/, "");
+    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH && rawH in viewTitles ? rawH as View : null;
+    const hashCustom = rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null;
+    const v = (pickingView && pickingView in viewTitles ? pickingView : hashView ?? sessionStorage.getItem("view") as View | null);
     if (pickAt) setWelcomed(true);
     if (v && v in viewTitles) setView(v);
-    setCustomId(sessionStorage.getItem("custom-id"));
+    setCustomId(hashCustom || sessionStorage.getItem("custom-id"));
   }, []);
   useEffect(() => { if (welcomed !== null) sessionStorage.setItem("view", view); }, [view, welcomed]);
   useEffect(() => { if (welcomed) sessionStorage.setItem("welcomed", "1"); }, [welcomed]);
@@ -1884,13 +1888,13 @@ function CampaignApp({ content }: { content: SiteContent }) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (id.startsWith("triptype:")) {
       const tid = id.slice("triptype:".length);
-      window.history.pushState({ view: "triptype", custom: tid }, "", "#triptype");
+      window.history.pushState({ view: "triptype", custom: tid }, "", `#triptype:${encodeURIComponent(tid)}`);
       setCustomId(tid);
       setView("triptype");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (id.startsWith("c:")) {
       const cid = id.slice(2);
-      window.history.pushState({ view: "custom", custom: cid }, "", "#custom");
+      window.history.pushState({ view: "custom", custom: cid }, "", `#c:${encodeURIComponent(cid)}`);
       setCustomId(cid);
       setView("custom");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1912,8 +1916,11 @@ function CampaignApp({ content }: { content: SiteContent }) {
         window.history.pushState({ view: e.state?.view ?? "home" }, "");
         return;
       }
-      const next = (e.state?.view as View | undefined) ?? "home";
-      if (next === "custom" || next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? null);
+      const rawH = window.location.hash.replace(/^#/, "");
+      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH && rawH in viewTitles ? rawH as View : null;
+      const next = (e.state?.view as View | undefined) ?? hashView ?? "home";
+      if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null));
+      else if (next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : null));
       setView(next in viewTitles ? next : "home");
       window.scrollTo({ top: 0 });
     };
