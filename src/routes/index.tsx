@@ -881,10 +881,10 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const requestGps = () => {
     const reqId = ++gpsReqRef.current;
     const isCurrent = () => reqId === gpsReqRef.current;
+    // Keep the last successful GPS location while requesting an update.
+    // A temporary permission/network timeout must not erase a usable saved location.
     setManualPlace(null);
-    setGpsCoords(null);
-    try { localStorage.removeItem("ushaq_prayer_gps_coords"); } catch {}
-    setGpsLabel("");
+    setGpsLabel((current) => current || "GPS");
     setGpsDebug("");
     try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
     setGpsLoading(true);
@@ -916,6 +916,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       setGpsLoading(false);
       setGpsError(message);
       setGpsDebug(`err ${code}`);
+      // Keep saved coordinates intact when a refresh attempt fails.
     };
     const acceptPosition = (pos: GeolocationPosition) => {
       if (settled) return;
