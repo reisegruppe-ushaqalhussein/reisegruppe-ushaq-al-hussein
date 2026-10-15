@@ -782,8 +782,17 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
   const [activeRegion, setActiveRegion] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      const match = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
-      if (match) return match[1] ?? "iraq";
+      const regionMatch = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
+      if (regionMatch) return regionMatch[1] ?? "iraq";
+      const cityMatch = window.location.hash.match(/^#prayer:city:(?:(location|iraq|saudi|iran):)?([^:]+)$/);
+      if (cityMatch?.[1]) return cityMatch[1];
+      if (cityMatch?.[2]) {
+        try {
+          const id = decodeURIComponent(cityMatch[2]);
+          const selected = defaultCities.find((candidate) => candidate.id === id);
+          if (selected) return selected.region;
+        } catch { /* ignore malformed city route */ }
+      }
     }
     try { return localStorage.getItem("ushaq_prayer_region") || "iraq"; } catch { return "iraq"; }
   });
