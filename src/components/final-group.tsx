@@ -412,9 +412,25 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   const showHidden = useShowHidden();
   const save = useSaveContent(staff?.password ?? "");
 
-  const [page, setPage] = useState(false);
-  const [folder, setFolder] = useState<string | null>(null);
+  const [page, setPage] = useState(() => typeof window !== "undefined" && (window.location.hash === "#trips:guidelines" || window.location.hash.startsWith("#trips:guidelines:")));
+  const [folder, setFolder] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const match = window.location.hash.match(/^#trips:guidelines:(.+)$/);
+    if (!match) return null;
+    try { return decodeURIComponent(match[1] ?? ""); } catch { return null; }
+  });
   const [manage, setManage] = useState(false);
+  useEffect(() => {
+    const restore = () => {
+      const hash = window.location.hash;
+      setPage(hash === "#trips:guidelines" || hash.startsWith("#trips:guidelines:"));
+      const match = hash.match(/^#trips:guidelines:(.+)$/);
+      if (!match) { setFolder(null); return; }
+      try { setFolder(decodeURIComponent(match[1] ?? "")); } catch { setFolder(null); }
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
 
   const all = content.guidelines ?? [];
   const items = all.filter((g) => showHidden || !g.hidden);
@@ -542,6 +558,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
         de={title.de}
         count={folders.length}
         onOpen={() => {
+          window.history.pushState({ view: "trips", tripsPanel: "guidelines" }, "", "#trips:guidelines");
           setPage(true);
           setFolder(null);
         }}
@@ -553,6 +570,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
         <FullPage
           title={title}
           onBack={() => {
+            window.history.pushState({ view: "trips" }, "", "#trips");
             setPage(false);
             setFolder(null);
           }}
@@ -580,9 +598,11 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
                     <button
                       type="button"
                       aria-expanded={isOpen}
-                      onClick={() =>
-                        setFolder(isOpen ? null : f.key)
-                      }
+                      onClick={() => {
+                        const nextFolder = isOpen ? null : f.key;
+                        window.history.pushState({ view: "trips", tripsPanel: "guidelines", guideFolder: nextFolder }, "", nextFolder === null ? "#trips:guidelines" : `#trips:guidelines:${encodeURIComponent(nextFolder)}`);
+                        setFolder(nextFolder);
+                      }}
                       className="flex min-h-[76px] w-full items-center gap-3 p-3 pe-14 text-right transition-colors hover:bg-accent/50 active:bg-accent"
                     >
                       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent text-secondary">
