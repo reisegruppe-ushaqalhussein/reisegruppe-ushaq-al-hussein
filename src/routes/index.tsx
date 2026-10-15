@@ -436,8 +436,18 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const isEditing = useSectionEditMode();
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
-  const [selected, setSelected] = useState<UpcomingTrip | null>(null);
-  const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const [selected, setSelected] = useState<UpcomingTrip | null>(() => {
+    if (typeof window === "undefined") return null;
+    const match = window.location.hash.match(/^#trips:detail:(.+)$/);
+    if (!match) return null;
+    let id = ""; try { id = decodeURIComponent(match[1] ?? ""); } catch { return null; }
+    return upcomingTrips.find((trip) => trip.id === id) ?? null;
+  });
+  const [upcomingOpen, setUpcomingOpen] = useState(() => typeof window !== "undefined" && window.location.hash === "#trips:upcoming");
+  const openUpcoming = () => { window.history.pushState({ view: "trips", tripsPanel: "upcoming" }, "", "#trips:upcoming"); setUpcomingOpen(true); };
+  const closeUpcoming = () => { window.history.pushState({ view: "trips" }, "", "#trips"); setUpcomingOpen(false); };
+  const openTrip = (trip: UpcomingTrip) => { window.history.pushState({ view: "trips", tripsPanel: "detail", tripId: trip.id }, "", `#trips:detail:${encodeURIComponent(trip.id)}`); setSelected(trip); };
+  const closeTrip = () => { window.history.pushState({ view: "trips", tripsPanel: upcomingOpen ? "upcoming" : undefined }, "", upcomingOpen ? "#trips:upcoming" : "#trips"); setSelected(null); };
   const upTitle = labelOf(content, "upcoming", "الرحلات القادمة", "Kommende Reisen");
   const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
   const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
@@ -461,8 +471,8 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
       </div>
 
       <div className="my-7 border-t border-border" />
-      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={() => setUpcomingOpen(true)} menu={upMenu} /></div>}
-      {upcomingOpen && <FullPage title={upTitle} onBack={() => setUpcomingOpen(false)} menu={upMenu}>
+      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} menu={upMenu} /></div>}
+      {upcomingOpen && <FullPage title={upTitle} onBack={closeUpcoming} menu={upMenu}>
       {admin && <SectionAdminBar addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />}
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
@@ -470,13 +480,13 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
           const raw = content.trips.find((t) => t.id === trip.id)!;
           return <div key={trip.id} className={`relative ${raw.hidden ? "opacity-55" : ""}`}>{admin && isEditing && <label className="absolute bottom-2 left-14 z-10 grid h-9 w-9 cursor-pointer place-items-center rounded-full border border-secondary bg-card text-sm shadow" title="رفع صورة الدعوة | Einladungsbild hochladen">📷<input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { const url = await uploadImage(f, admin.password); await saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, imageUrl: url } : t))); } catch (err) { window.alert(String(err)); } }} /></label>}{admin && isEditing && Boolean(raw.imageUrl) && <button type="button" onClick={() => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, imageUrl: "" } : t)))} className="absolute bottom-2 left-24 z-10 grid h-9 w-9 place-items-center rounded-full border border-secondary bg-card text-sm shadow hover:bg-muted" title="استرجاع البوستر الأصلي | Originalposter wiederherstellen">↩️</button>}
 
-{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => { if (t.id !== trip.id) return t; const next = row as TripEntry; const oldNames = [t.ar, t.de, [t.ar, t.de].filter(Boolean).join(" | ")].filter(Boolean); const aliases = [...new Set([...(t.aliases ?? []), ...oldNames, ...(next.ar !== t.ar || next.de !== t.de ? [[next.ar, next.de].filter(Boolean).join(" | ")] : [])].filter(Boolean))]; return { ...next, id: t.id, aliases, hidden: t.hidden ?? false }; }))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}<Button variant="outline" onClick={() => setSelected(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="h-5 w-5 shrink-0 self-center text-secondary" aria-hidden="true" /></span></Button><TripFavButton id={trip.id} /></div>;
+{admin && <ItemActions fields={tripFields} item={{ ...raw, statusAr: raw.statusAr ?? trip.statusAr, statusDe: raw.statusDe ?? trip.statusDe }} hidden={raw.hidden ?? false} onVisibilityChange={(hidden) => saveTrips(content.trips.map((t) => (t.id === trip.id ? { ...t, hidden, visible: hidden ? t.visible : true } : t)))} onSave={(row) => saveTrips(content.trips.map((t) => { if (t.id !== trip.id) return t; const next = row as TripEntry; const oldNames = [t.ar, t.de, [t.ar, t.de].filter(Boolean).join(" | ")].filter(Boolean); const aliases = [...new Set([...(t.aliases ?? []), ...oldNames, ...(next.ar !== t.ar || next.de !== t.de ? [[next.ar, next.de].filter(Boolean).join(" | ")] : [])].filter(Boolean))]; return { ...next, id: t.id, aliases, hidden: t.hidden ?? false }; }))} onDelete={() => saveTrips(content.trips.filter((t) => t.id !== trip.id))} />}<Button variant="outline" onClick={() => openTrip(trip)} className="h-auto min-h-32 w-full whitespace-normal bg-card p-4 text-right shadow-sm hover:border-secondary hover:bg-card"><span className="flex w-full items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-muted text-primary"><Icon className="h-5 w-5" aria-hidden="true" /></span><span className="min-w-0 flex-1"><Pair ar={trip.ar} de={trip.de} /><span dir="ltr" className="mt-3 flex items-center justify-end gap-2 text-sm font-bold text-foreground"><CalendarDays className="h-4 w-4 text-secondary" aria-hidden="true" />{trip.date}</span><span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-success px-2.5 py-1 text-xs text-success-foreground"><CircleCheck className="h-3.5 w-3.5" aria-hidden="true" /><Pair ar={trip.statusAr} de={trip.statusDe} /></span>{(trip.descAr || trip.descDe) && <span className="mt-3 block text-sm font-normal"><Pair ar={trip.descAr ?? ""} de={trip.descDe ?? ""} /></span>}</span><ChevronLeft className="h-5 w-5 shrink-0 self-center text-secondary" aria-hidden="true" /></span></Button><TripFavButton id={trip.id} /></div>;
         })}
         {upcomingTrips.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">لا توجد رحلات معلنة حالياً | Derzeit keine Reisen</p>}
       </div>
       </FullPage>}
 
-      <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+      <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) closeTrip(); }}>
         <DialogContent className="max-h-[92vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto rounded-lg p-0" dir="rtl">
           {selected && (
             <>
