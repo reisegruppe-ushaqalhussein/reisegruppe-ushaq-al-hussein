@@ -114,19 +114,26 @@ export function RoomsPanel({ content }: { content: SiteContent }) {
     setManage(false);
   };
 
-  const [page, setPage] = useState(false);
+  const [page, setPage] = useState(() => typeof window !== "undefined" && window.location.hash === "#rooms:occupancy");
   const [detail, setDetail] = useState<RoomEntry | null>(null);
+  useEffect(() => {
+    const restore = () => setPage(window.location.hash === "#rooms:occupancy");
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  const openRoomsPage = () => { window.history.pushState({ view: "rooms", roomsPanel: "occupancy" }, "", "#rooms:occupancy"); setPage(true); };
+  const closeRoomsPage = () => { window.history.pushState({ view: "rooms" }, "", "#rooms"); setPage(false); setDetail(null); };
   const canEdit = (staff?.role === "admin" && staff.mode === "admin") || (staff?.role === "haj" && !!content.cms?.hajToolsEnabled);
   const gear = canEdit ? <Button type="button" variant="ghost" size="icon" onClick={() => setManage(true)} aria-label="إدارة التسكين | Zimmer verwalten" title="إدارة | Verwalten" className={gearCls}><Settings className="h-3.5 w-3.5" /></Button> : null;
 
   return <section className="min-w-0">
-    <button type="button" onClick={() => setPage(true)} className="flex w-full items-center gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right">
+    <button type="button" onClick={openRoomsPage} className="flex w-full items-center gap-2 rounded-lg border border-secondary/50 bg-card p-3 text-right">
       <BedDouble className="h-5 w-5 shrink-0 text-secondary" />
       <span className="min-w-0 flex-1 font-bold text-primary"><Pair ar="تسكين الزوار" de="Zimmerverteilung" /></span>
       <span className="grid h-8 min-w-8 place-items-center rounded-full bg-primary px-2 text-sm font-bold text-primary-foreground" dir="ltr">{visible.length}</span>
     </button>
 
-    {page && <FullPage title={{ ar: `تسكين الزوار (${visible.length})`, de: "Zimmerverteilung" }} onBack={() => setPage(false)} menu={gear}>
+    {page && <FullPage title={{ ar: `تسكين الزوار (${visible.length})`, de: "Zimmerverteilung" }} onBack={closeRoomsPage} menu={gear}>
       <label className="relative block"><Search className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="بحث بالاسم أو الغرفة | Name oder Zimmer" className={`${inputCls} pr-9`} /></label>
       <div className="space-y-1.5">
         {list.map((r) => { const n = visible.indexOf(r) + 1; return <div key={r.id} className="flex items-start gap-2">
