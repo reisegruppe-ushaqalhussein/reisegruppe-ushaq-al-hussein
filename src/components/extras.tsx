@@ -309,13 +309,35 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
   const [text, setText] = useState("");
   const [ready, setReady] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
-  const [tripFilter, setTripFilter] = useState<"all" | "umrah" | "iraq" | "winter">("all");
+  const [tripFilter, setTripFilter] = useState<"all" | "umrah" | "iraq" | "winter">(() => {
+    if (typeof window !== "undefined") {
+      const match = window.location.hash.match(/^#packing:filter:(all|umrah|iraq|winter)$/);
+      if (match) return (match[1] ?? "all") as "all" | "umrah" | "iraq" | "winter";
+    }
+    return "all";
+  });
   useEffect(() => {
     try {
       const pending = localStorage.getItem("packing-open-filter");
-      if (pending === "all" || pending === "umrah" || pending === "iraq" || pending === "winter") setTripFilter(pending);
+      if (window.location.hash.match(/^#packing:filter:(all|umrah|iraq|winter)$/)) return;
+      if (pending === "all" || pending === "umrah" || pending === "iraq" || pending === "winter") {
+        setTripFilter(pending);
+        window.history.replaceState({ view: "packing", packingFilter: pending }, "", `#packing:filter:${pending}`);
+      }
       if (pending) localStorage.removeItem("packing-open-filter");
     } catch { /* ignore unavailable storage */ }
+  }, []);
+  const chooseTripFilter = (filter: "all" | "umrah" | "iraq" | "winter") => {
+    window.history.pushState({ view: "packing", packingFilter: filter }, "", `#packing:filter:${filter}`);
+    setTripFilter(filter);
+  };
+  useEffect(() => {
+    const restore = () => {
+      const match = window.location.hash.match(/^#packing:filter:(all|umrah|iraq|winter)$/);
+      if (match) setTripFilter((match[1] ?? "all") as "all" | "umrah" | "iraq" | "winter");
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
   }, []);
   const [editingTarget, setEditingTarget] = useState<
     | { kind: "category"; categoryId: string; ar: string; de: string }
@@ -460,7 +482,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
           <button
             key={tab.id}
             type="button"
-            onClick={() => setTripFilter(tab.id as typeof tripFilter)}
+            onClick={() => chooseTripFilter(tab.id as typeof tripFilter)}
             className={`shrink-0 rounded-full border px-3 py-1 font-bold transition-colors ${
               tripFilter === tab.id
                 ? "border-primary bg-primary text-primary-foreground shadow-sm"
