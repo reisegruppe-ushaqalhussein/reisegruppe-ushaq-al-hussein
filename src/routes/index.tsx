@@ -109,7 +109,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: () => undefined,
+  loader: () => fetchContentOfflineFirst(),
   component: Index,
   errorComponent: ({ error }) => (error instanceof OfflineMissingError || (typeof navigator !== "undefined" && !navigator.onLine) ? <OfflineFallback /> : <div className="p-6 text-center">تعذّر تحميل المحتوى | Inhalt konnte nicht geladen werden</div>),
 });
@@ -1807,7 +1807,8 @@ function LoadingSplash() {
 }
 
 function Index() {
-  const { data: content, isError } = useQuery(contentQuery);
+  const loaderContent = Route.useLoaderData();
+  const { data: content, isError } = useQuery({ ...contentQuery, initialData: loaderContent });
   const [enteredWhileLoading, setEnteredWhileLoading] = useState(false);
   const [showWelcomeWhileLoading] = useState(() => {
     try {
