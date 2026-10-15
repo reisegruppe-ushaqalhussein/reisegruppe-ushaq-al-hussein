@@ -782,15 +782,20 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
   const [activeRegion, setActiveRegion] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("ushaq_prayer_region");
+      const saved = localStorage.getItem("ushaq_prayer_region") || sessionStorage.getItem("ushaq_prayer_region");
       return saved && ["location", "iraq", "saudi", "iran"].includes(saved) ? saved : "iraq";
-    } catch { return "iraq"; }
+    } catch {
+      try {
+        const saved = sessionStorage.getItem("ushaq_prayer_region");
+        return saved && ["location", "iraq", "saudi", "iran"].includes(saved) ? saved : "iraq";
+      } catch { return "iraq"; }
+    }
   });
 
   // إحداثيات الموقع الحالي GPS
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
     try {
-      const saved = localStorage.getItem("ushaq_prayer_gps_coords");
+      const saved = localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords");
       if (!saved) return null;
       const parsed = JSON.parse(saved) as { lat?: number; lng?: number };
       return typeof parsed.lat === "number" && Number.isFinite(parsed.lat) &&
@@ -814,7 +819,13 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const [gpsLabel, setGpsLabel] = useState("");
+  const [gpsLabel, setGpsLabel] = useState(() => {
+    try {
+      return (localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords")) ? "GPS" : "";
+    } catch {
+      try { return sessionStorage.getItem("ushaq_prayer_gps_coords") ? "GPS" : ""; } catch { return ""; }
+    }
+  });
   const [gpsDebug, setGpsDebug] = useState("");
   const gpsReqRef = useRef(0);
 
@@ -926,6 +937,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setGpsCoords(coords);
       try { localStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
+      try { sessionStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
       setGpsLabel("GPS");
       setGpsError(null);
       setGpsLoading(false);
@@ -1004,6 +1016,10 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   // استخدم آخر إحداثيات ناجحة بعد تحديث الصفحة؛ لا نطلب GPS مجدداً بلا داعٍ.
   useEffect(() => {
     if (activeRegion === "location" && !manualPlace && !gpsCoords) requestGps();
+    try {
+      localStorage.setItem("ushaq_prayer_region", activeRegion);
+      sessionStorage.setItem("ushaq_prayer_region", activeRegion);
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRegion]);
 
@@ -1013,6 +1029,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     window.history.pushState({ view: "prayer", prayerRegion: regId, prayerCity: nextCity }, "", "#prayer");
     setActiveRegion(regId);
     try { localStorage.setItem("ushaq_prayer_region", regId); } catch {}
+    try { sessionStorage.setItem("ushaq_prayer_region", regId); } catch {}
     if (nextCity) {
       setCity(nextCity);
       try { localStorage.setItem("ushaq_prayer_city", nextCity); } catch {}
