@@ -1541,10 +1541,12 @@ function DuasView({ content }: { content: SiteContent }) {
   const shrineList = content.shrines;
   const shrines: Array<Shrine & { hidden?: boolean; raw: ShrineEntry }> = shrineList.filter((s) => showHidden || !s.hidden).map((s) => ({ id: s.id, ar: s.ar, de: s.de, image: s.imageUrl || shrineImages[s.id] || shrineImage, entries: inCat(s.id), hidden: s.hidden ?? false, raw: s }));
   const generalEntries = inCat("general");
-  const [shrineId, setShrineId] = useState<string | null>(null);
+  const [shrineId, setShrineId] = useState<string | null>(() => { if (typeof window === "undefined") return null; const m = window.location.hash.match(/^#duas:shrine:(.+)$/); try { return m ? decodeURIComponent(m[1] ?? "") : null; } catch { return null; } });
   const shrine = shrines.find((s) => s.id === shrineId) ?? null;
-  const [reader, setReader] = useState<ReaderItem | null>(null);
-  const [generalOpen, setGeneralOpen] = useState(false);
+  const [reader, setReader] = useState<ReaderItem | null>(() => { if (typeof window === "undefined") return null; const m = window.location.hash.match(/^#duas:reader:(.+)$/); try { return m ? managedEntries.find((d) => d.id === decodeURIComponent(m[1] ?? "")) ?? null : null; } catch { return null; } });
+  const [generalOpen, setGeneralOpen] = useState(() => typeof window !== "undefined" && window.location.hash === "#duas:general");
+  const openDuaSubpage = (hash: string, state: Record<string, unknown>) => window.history.pushState({ view: "duas", ...state }, "", hash);
+  useEffect(() => { const restore = () => { const hash = window.location.hash; setGeneralOpen(hash === "#duas:general"); const sm = hash.match(/^#duas:shrine:(.+)$/); try { setShrineId(sm ? decodeURIComponent(sm[1] ?? "") : null); } catch { setShrineId(null); } const rm = hash.match(/^#duas:reader:(.+)$/); try { setReader(rm ? managedEntries.find((d) => d.id === decodeURIComponent(rm[1] ?? "")) ?? null : null); } catch { setReader(null); } }; window.addEventListener("popstate", restore); return () => window.removeEventListener("popstate", restore); }, [managedEntries]);
   const gTitle = labelOf(content, "generalDuas", "الأدعية والتعقيبات", "Bittgebete & Taqibat");
   const gHidden = content.labels?.["generalDuas"]?.hidden ?? false;
   const setGLabel = (patch: { hidden?: boolean }) => saveContent({ ...content, labels: { ...(content.labels ?? {}), generalDuas: { ar: content.labels?.["generalDuas"]?.ar ?? "", de: content.labels?.["generalDuas"]?.de ?? "", hidden: gHidden, ...patch } } });
@@ -1554,9 +1556,9 @@ function DuasView({ content }: { content: SiteContent }) {
     {showHidden && <IconBtn label={gHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => setGLabel({ hidden: !gHidden })}>{gHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
     <IconBtn label="حذف | Löschen" danger onClick={() => { if (!window.confirm("حذف جميع الأدعية والتعقيبات داخل المجلد؟ (يمكن إرجاعها من سلة المحذوفات)\nAlle Bittgebete in diesem Ordner löschen?")) return; void saveContent({ ...content, duas: content.duas.filter((d) => duaCategoryOf(d) !== "general") }); }}><TrashIcon className="h-3.5 w-3.5" /></IconBtn>
   </GearMenu>;
-  if (reader) return <ZiyaratReader item={reader} onBack={() => setReader(null)} admin={admin} />;
-  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => setGeneralOpen(false)} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button>{duaGear}</div><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} />{admin && <SectionAdminBar onRestore={() => saveContent({ ...content, duas: defaultContent.duas })}><DuaAddButton category="general" password={admin.password} content={admin.content} /></SectionAdminBar>}</div><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={setReader} admin={admin} />)}</div></div>;
-  if (shrine) return <ShrineDetail shrine={shrine} onBack={() => setShrineId(null)} onRead={setReader} admin={admin} />;
+  if (reader) return <ZiyaratReader item={reader} onBack={() => { openDuaSubpage(shrineId ? `#duas:shrine:${encodeURIComponent(shrineId)}` : generalOpen ? "#duas:general" : "#duas", { shrineId, generalOpen }); setReader(null); }} admin={admin} />;
+  if (generalOpen) return <div className="screen-enter px-4 py-7"><div className="mb-2 flex items-start justify-between gap-2"><Button variant="outline" size="icon" onClick={() => { openDuaSubpage("#duas", {}); setGeneralOpen(false); }} aria-label="العودة | Zurück" className="h-8 w-8 shrink-0"><ArrowLeft className="h-4 w-4 rotate-180" /></Button>{duaGear}</div><div className="flex items-start justify-between gap-2"><ScreenTitle icon={ScrollText} ar={gTitle.ar} de={gTitle.de} />{admin && <SectionAdminBar onRestore={() => saveContent({ ...content, duas: defaultContent.duas })}><DuaAddButton category="general" password={admin.password} content={admin.content} /></SectionAdminBar>}</div><div className="space-y-3">{generalEntries.map((entry) => <ReaderListButton key={entry.id} item={entry} onRead={(item) => { openDuaSubpage(`#duas:reader:${encodeURIComponent(item.id)}`, { readerId: item.id, generalOpen: true }); setReader(item); }} admin={admin} />)}</div></div>;
+  if (shrine) return <ShrineDetail shrine={shrine} onBack={() => { openDuaSubpage("#duas", {}); setShrineId(null); }} onRead={(item) => { openDuaSubpage(`#duas:reader:${encodeURIComponent(item.id)}`, { readerId: item.id, shrineId }); setReader(item); }} admin={admin} />;
   return (
     <div className="screen-enter px-4 py-7">
       <div className="mb-4"><TileGrid content={content} builtins={homeTiles} parentId="duas" onOpen={open} /></div>
@@ -1565,13 +1567,13 @@ function DuasView({ content }: { content: SiteContent }) {
       <div className="grid grid-cols-2 gap-3">
         {shrines.map((item) => (
           <div key={item.id} className={`min-w-0 ${item.hidden ? "opacity-55" : ""}`}>{admin && <ItemActions fields={shrineFields} item={item.raw} hidden={item.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, shrines: shrineList.map((x) => (x.id === item.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, shrines: shrineList.map((x) => (x.id === item.id ? { ...(row as ShrineEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, shrines: shrineList.filter((x) => x.id !== item.id) })} />}
-          <Button variant="outline" onClick={() => setShrineId(item.id)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
+          <Button variant="outline" onClick={() => { openDuaSubpage(`#duas:shrine:${encodeURIComponent(item.id)}`, { shrineId: item.id }); setShrineId(item.id); }} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
             <img src={item.image} alt={`${item.ar} | ${item.de}`} loading="lazy" width={768} height={1024} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <span className="shrine-card-shade absolute inset-0" />
             <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={item.ar} de={item.de} align="center" inverse /></span>
           </Button></div>
         ))}
-        {(generalEntries.length > 0 || admin) && (!gHidden || showHidden) && <div className={`relative min-w-0 ${gHidden ? "opacity-55" : ""}`}>{duaGear && <div className="absolute left-2 top-2 z-10">{duaGear}</div>}<Button variant="outline" onClick={() => setGeneralOpen(true)} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
+        {(generalEntries.length > 0 || admin) && (!gHidden || showHidden) && <div className={`relative min-w-0 ${gHidden ? "opacity-55" : ""}`}>{duaGear && <div className="absolute left-2 top-2 z-10">{duaGear}</div>}<Button variant="outline" onClick={() => { openDuaSubpage("#duas:general", { generalOpen: true }); setGeneralOpen(true); }} className="group relative aspect-[4/5] h-auto w-full overflow-hidden border-0 p-0 shadow-md">
           <img src={misbahaCard.url} alt={`${gTitle.ar} | ${gTitle.de}`} loading="lazy" width={736} height={1307} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
           <span className="shrine-card-shade absolute inset-0" />
           <span className="absolute inset-x-0 bottom-0 p-3 text-primary-foreground"><Pair ar={gTitle.ar} de={gTitle.de} align="center" inverse /></span>
