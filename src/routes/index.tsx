@@ -798,7 +798,18 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   });
 
   // إحداثيات الموقع الحالي GPS
-  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem("ushaq_prayer_gps_coords");
+      if (!saved) return null;
+      const parsed = JSON.parse(saved) as { lat?: number; lng?: number };
+      return typeof parsed.lat === "number" && Number.isFinite(parsed.lat) &&
+        typeof parsed.lng === "number" && Number.isFinite(parsed.lng) &&
+        Math.abs(parsed.lat) <= 90 && Math.abs(parsed.lng) <= 180
+        ? { lat: parsed.lat, lng: parsed.lng }
+        : null;
+    } catch { return null; }
+  });
   // مدينة مكتوبة يدوياً (تُحفظ فقط عند الإدخال اليدوي)
   const [manualPlace, setManualPlace] = useState<{ name: string; ar?: string; de?: string; lat: number; lng: number } | null>(() => {
     try {
@@ -904,6 +915,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     const isCurrent = () => reqId === gpsReqRef.current;
     setManualPlace(null);
     setGpsCoords(null);
+    try { localStorage.removeItem("ushaq_prayer_gps_coords"); } catch {}
     setGpsLabel("");
     setGpsDebug("");
     try { localStorage.removeItem("ushaq_prayer_manual"); } catch {}
@@ -944,6 +956,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       if (!isCurrent()) return;
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       setGpsCoords(coords);
+      try { localStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
       setGpsLabel("GPS");
       setGpsError(null);
       setGpsLoading(false);
@@ -1019,7 +1032,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   };
 
-  // تحديث الموقع الحي تلقائياً عند فتح «موقعي» (ما لم تُختر مدينة يدوياً)
+  // استخدم آخر إحداثيات ناجحة بعد تحديث الصفحة؛ لا نطلب GPS مجدداً بلا داعٍ.
   useEffect(() => {
     if (activeRegion === "location" && !manualPlace && !gpsCoords) requestGps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
