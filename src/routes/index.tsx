@@ -349,7 +349,23 @@ type FavTab = "all" | "trips" | "duas" | "contacts" | "info";
 function FavoritesView({ content, go }: { content: SiteContent; go: (view: View) => void }) {
   const { ids } = useFavorites();
   const [reader, setReader] = useState<ReaderItem | null>(null);
-  const [tab, setTab] = useState<FavTab>("all");
+  const [tab, setTab] = useState<FavTab>(() => {
+    if (typeof window === "undefined") return "all";
+    const match = window.location.hash.match(/^#favorites:tab:(all|trips|duas|contacts|info)$/);
+    return (match?.[1] as FavTab | undefined) ?? "all";
+  });
+  const chooseTab = (next: FavTab) => {
+    window.history.pushState({ view: "favorites", favoritesTab: next }, "", `#favorites:tab:${next}`);
+    setTab(next);
+  };
+  useEffect(() => {
+    const restore = () => {
+      const match = window.location.hash.match(/^#favorites:tab:(all|trips|duas|contacts|info)$/);
+      if (match) setTab((match[1] as FavTab | undefined) ?? "all");
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
   const quickTools = [
     { id: "tool:tawaf", ar: "عداد الطواف والسعي", de: "Tawaf- & Sa'i-Zähler", view: "tawaf" as View },
     { id: "tool:tasbeeh", ar: "السبحة الإلكترونية", de: "Elektronische Misbaha", view: "tasbeeh" as View },
@@ -380,7 +396,7 @@ function FavoritesView({ content, go }: { content: SiteContent; go: (view: View)
   const H = ({ ar, de }: { ar: string; de: string }) => <h3 className="mb-3 text-sm font-bold text-primary"><Pair ar={ar} de={de} /></h3>;
   return <div className="screen-enter px-4 py-7">
     <ScreenTitle icon={Star} ar="محفوظاتي" de="Meine Favoriten" />
-    <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1">{tabs.map((t) => <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-pressed={tab === t.id} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${tab === t.id ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-card text-primary"}`}><Pair ar={`${t.ar} (${t.n})`} de={t.de} align="center" /></button>)}</div>
+    <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1">{tabs.map((t) => <button key={t.id} type="button" onClick={() => chooseTab(t.id)} aria-pressed={tab === t.id} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${tab === t.id ? "border-secondary bg-secondary text-secondary-foreground" : "border-border bg-card text-primary"}`}><Pair ar={`${t.ar} (${t.n})`} de={t.de} align="center" /></button>)}</div>
     {show("all") && savedTools.length > 0 && <section className="mb-7"><H ar="أدواتي السريعة المفضلة" de="Meine bevorzugten Werkzeuge" /><div className="grid grid-cols-2 gap-2">{savedTools.map((t) => <div key={t.id} className="flex items-center justify-between gap-1 rounded-lg border border-secondary/60 bg-card p-2 shadow-sm"><button type="button" onClick={() => { if (t.id.startsWith("tool:packing:")) { try { localStorage.setItem("packing-open-filter", t.id.slice("tool:packing:".length)); } catch {} } else if (t.id === "tool:packing") { try { localStorage.setItem("packing-open-filter", "all"); } catch {} } go(t.view); }} className="min-w-0 flex-1 p-1 text-start text-xs font-bold text-primary"><Pair ar={t.ar} de={t.de} /></button><FavStar id={t.id} /></div>)}</div></section>}
     {!total && <p className="rounded-lg border border-dashed border-secondary/50 bg-card p-6 text-center text-sm"><Pair ar="لم تضف شيئاً بعد — اضغط على النجمة ⭐ بجانب أي رحلة أو دعاء أو رقم أو معلومة لحفظها هنا." de="Noch nichts gespeichert — tippen Sie auf den Stern ⭐ bei einer Reise, einem Gebet, Kontakt oder Hinweis." align="center" /></p>}
     {show("trips") && trips.length > 0 && <section className="mb-7"><H ar="رحلاتي" de="Meine Reisen" /><div className="space-y-3">{trips.map((t) => { const days = (() => { const m = t.date.match(/(\d{2})\.(\d{2})\.(\d{4})/); if (!m) return null; const d = Math.ceil((new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() - Date.now()) / 86400000); return d > 0 ? d : null; })(); return <div key={t.id} className="relative"><button type="button" onClick={() => go("trips")} className="w-full rounded-lg border border-secondary/50 bg-card p-4 pb-12 text-right shadow-sm"><Pair ar={t.ar} de={t.de} /><span dir="ltr" className="mt-2 flex items-center justify-end gap-2 text-sm font-bold"><CalendarDays className="h-4 w-4 text-secondary" />{t.date}</span>{days && <span className="mt-2 inline-block rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary"><Pair ar={`متبقٍ ${days} يوماً على الانطلاق ✈️`} de={`Noch ${days} Tage bis zur Abreise ✈️`} /></span>}{(t.programAr || t.programDe) && <div className="mt-3 whitespace-pre-line rounded-md bg-accent p-3 text-sm"><Pair ar={t.programAr ?? ""} de={t.programDe ?? ""} /></div>}</button><TripFavButton id={t.id} /></div>; })}</div></section>}
@@ -1728,6 +1744,23 @@ function VisaView({ content, admin }: { content: SiteContent; admin: AdminProps 
 function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }) {
   const saveContent = useSaveContent(admin?.password ?? "");
   const { lang } = useLang();
+  const [openFaq, setOpenFaq] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const match = window.location.hash.match(/^#faqs:question:(.+)$/);
+    try { return match ? decodeURIComponent(match[1] ?? "") : ""; } catch { return ""; }
+  });
+  const chooseFaq = (value: string) => {
+    window.history.pushState({ view: "faqs", faqId: value }, "", value ? `#faqs:question:${encodeURIComponent(value)}` : "#faqs");
+    setOpenFaq(value);
+  };
+  useEffect(() => {
+    const restore = () => {
+      const match = window.location.hash.match(/^#faqs:question:(.+)$/);
+      try { setOpenFaq(match ? decodeURIComponent(match[1] ?? "") : ""); } catch { setOpenFaq(""); }
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
   const faqs = content.faqs ?? defaultContent.faqs;
   const visibleFaqs = faqs.filter((f) => !f.hidden);
   const showHidden = useShowHidden();
@@ -1765,7 +1798,7 @@ function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }
           {faqs.filter((f) => showHidden || !f.hidden).map((f) => <div key={f.id} className={`rounded-lg border border-border bg-card p-3 ${f.hidden ? "opacity-55" : ""}`}><ItemActions fields={faqFields} item={f} hidden={f.hidden ?? false} onVisibilityChange={(hidden) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...x, hidden } : x)) })} onSave={(row) => saveContent({ ...content, faqs: faqs.map((x) => (x.id === f.id ? { ...(row as FaqEntry), id: x.id, hidden: x.hidden ?? false } : x)) })} onDelete={() => saveContent({ ...content, faqs: faqs.filter((x) => x.id !== f.id) })} /><div className="text-sm font-bold"><Pair ar={f.qAr} de={f.qDe} /></div><div className="mt-2 whitespace-pre-line text-sm"><Pair ar={f.aAr} de={f.aDe} /></div></div>)}
         </div>
       ) : visibleFaqs.length > 0 && (
-        <Accordion type="single" collapsible className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
+        <Accordion type="single" collapsible value={openFaq} onValueChange={chooseFaq} className="overflow-hidden rounded-lg border border-border bg-card px-4 shadow-sm">
           {visibleFaqs.map((f) => <FaqItem key={f.id} value={f.id} questionAr={f.qAr} questionDe={lang === "en" && f.qEn ? f.qEn : f.qDe} answerAr={f.aAr} answerDe={lang === "en" && f.aEn ? f.aEn : f.aDe} />)}
         </Accordion>
       )}
@@ -1869,6 +1902,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
     if (rawH.startsWith("hadiths:")) return "hadiths";
     if (rawH.startsWith("tasbeeh:")) return "tasbeeh";
     if (rawH.startsWith("tawaf:")) return "tawaf";
+    if (rawH.startsWith("favorites:")) return "favorites";
+    if (rawH.startsWith("faqs:")) return "faqs";
     if (rawH && rawH in viewTitles) return rawH as View;
     const sv = sessionStorage.getItem("view") as View;
     return (sv && sv in viewTitles) ? sv : "home";
@@ -1889,7 +1924,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     const activePicking = pickAt && Date.now() - pickAt < 600000;
     const pickingView = activePicking ? localStorage.getItem("picking-view") as View | null : null;
     const rawH = window.location.hash.replace(/^#/, "");
-    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH && rawH in viewTitles ? rawH as View : null;
+    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH.startsWith("favorites:") ? "favorites" : rawH.startsWith("faqs:") ? "faqs" : rawH && rawH in viewTitles ? rawH as View : null;
     const hashCustom = rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null;
     const v = (pickingView && pickingView in viewTitles ? pickingView : hashView ?? sessionStorage.getItem("view") as View | null);
     if (pickAt) setWelcomed(true);
@@ -1950,7 +1985,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         return;
       }
       const rawH = window.location.hash.replace(/^#/, "");
-      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH && rawH in viewTitles ? rawH as View : null;
+      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH.startsWith("favorites:") ? "favorites" : rawH.startsWith("faqs:") ? "faqs" : rawH && rawH in viewTitles ? rawH as View : null;
       const next = (e.state?.view as View | undefined) ?? hashView ?? "home";
       if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null));
       else if (next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : null));
