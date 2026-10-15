@@ -825,8 +825,8 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
   const [city, setCity] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      const cityMatch = window.location.hash.match(/^#prayer:city:([^:]+)$/);
-      try { const id = cityMatch ? decodeURIComponent(cityMatch[1] ?? "") : ""; if (defaultCities.some((c) => c.id === id)) return id; } catch { /* ignore malformed city */ }
+      const cityMatch = window.location.hash.match(/^#prayer:city:(?:(location|iraq|saudi|iran):)?([^:]+)$/);
+      try { const id = cityMatch ? decodeURIComponent(cityMatch[2] ?? "") : ""; if (defaultCities.some((c) => c.id === id)) return id; } catch { /* ignore malformed city */ }
       const regionMatch = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
       if (regionMatch && regionMatch[1] !== "location") {
         const firstCity = defaultCities.find((c) => c.region === regionMatch[1]);
@@ -841,7 +841,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     const restorePrayerRoute = () => {
       const hash = window.location.hash;
       const regionMatch = hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
-      const cityMatch = hash.match(/^#prayer:city:([^:]+)$/);
+      const cityMatch = hash.match(/^#prayer:city:(?:(location|iraq|saudi|iran):)?([^:]+)$/);
       if (regionMatch) {
         const region = regionMatch[1] ?? "iraq";
         setActiveRegion(region);
@@ -852,7 +852,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         }
       } else if (cityMatch) {
         try {
-          const id = decodeURIComponent(cityMatch[1] ?? "");
+          const id = decodeURIComponent(cityMatch[2] ?? "");
           const selected = citiesList.find((candidate) => candidate.id === id);
           if (selected) {
             setCity(id);
@@ -1017,17 +1017,15 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   }, [activeRegion]);
 
   const handleRegionChange = (regId: string) => {
-    window.history.pushState({ view: "prayer", prayerRegion: regId }, "", `#prayer:region:${regId}`);
+    const regCities = citiesList.filter((c) => c.region === regId);
+    const nextCity = regId === "location" ? null : (regCities.some((c) => c.id === city) ? city : regCities[0]?.id ?? null);
+    const route = nextCity ? `#prayer:city:${regId}:${encodeURIComponent(nextCity)}` : `#prayer:region:${regId}`;
+    window.history.pushState({ view: "prayer", prayerRegion: regId, prayerCity: nextCity }, "", route);
     setActiveRegion(regId);
-    try {
-      localStorage.setItem("ushaq_prayer_region", regId);
-    } catch {}
-    // "location" is handled solely by the activeRegion effect (avoids duplicate GPS requests).
-    if (regId !== "location") {
-      const regCities = citiesList.filter((c) => c.region === regId);
-      if (regCities[0] && !regCities.some((c) => c.id === city)) {
-        setCity(regCities[0].id);
-      }
+    try { localStorage.setItem("ushaq_prayer_region", regId); } catch {}
+    if (nextCity) {
+      setCity(nextCity);
+      try { localStorage.setItem("ushaq_prayer_city", nextCity); } catch {}
     }
   };
 
@@ -1446,9 +1444,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                     size="sm"
                     variant={city === c.id ? "default" : "outline"}
                     onClick={() => {
-                      window.history.pushState({ view: "prayer", prayerCity: c.id, prayerRegion: activeRegion }, "", `#prayer:city:${encodeURIComponent(c.id)}`);
+                      window.history.pushState({ view: "prayer", prayerCity: c.id, prayerRegion: activeRegion }, "", `#prayer:city:${activeRegion}:${encodeURIComponent(c.id)}`);
                       setCity(c.id);
-                      try { localStorage.setItem("ushaq_prayer_city", c.id); } catch {}
+                      try { localStorage.setItem("ushaq_prayer_city", c.id); localStorage.setItem("ushaq_prayer_region", activeRegion); } catch {}
                       setShowCityPicker(false);
                     }}
                     className="h-auto w-full py-1 text-xs"
