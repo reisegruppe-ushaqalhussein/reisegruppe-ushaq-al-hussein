@@ -1,8 +1,14 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/hadiths")({
-  beforeLoad: () => {
-    throw redirect({ to: "/", hash: "hadiths", replace: true });
-  },
-  component: () => null,
+  component: LegacyHadithsRedirect,
 });
+
+function LegacyHadithsRedirect() {
+  useEffect(() => {
+    window.history.replaceState(window.history.state, "", "/#hadiths");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, []);
+  return null;
+}
