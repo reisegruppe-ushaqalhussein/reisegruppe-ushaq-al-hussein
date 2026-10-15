@@ -14,7 +14,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    define: { __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 16).replace("T", " ")) },
     plugins: [
       VitePWA({
         strategies: "generateSW",

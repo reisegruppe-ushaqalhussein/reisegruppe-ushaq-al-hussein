@@ -1341,7 +1341,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                   </div>
                 </div>
               )}
-              {gpsDebug.startsWith("±") && <p className="text-[9px] text-muted-foreground/70" dir="ltr">{gpsDebug}</p>}
+              {gpsDebug && !gpsLoading && <p className="text-[9px] text-muted-foreground/70" dir="ltr">{gpsDebug}</p>}
               <form
                 className="flex gap-1.5"
                 onSubmit={(e) => {
