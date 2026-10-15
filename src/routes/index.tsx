@@ -1867,6 +1867,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
     if (rawH.startsWith("rooms:")) return "rooms";
     if (rawH.startsWith("occasions:")) return "occasions";
     if (rawH.startsWith("hadiths:")) return "hadiths";
+    if (rawH.startsWith("tasbeeh:")) return "tasbeeh";
+    if (rawH.startsWith("tawaf:")) return "tawaf";
     if (rawH && rawH in viewTitles) return rawH as View;
     const sv = sessionStorage.getItem("view") as View;
     return (sv && sv in viewTitles) ? sv : "home";
@@ -1887,7 +1889,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     const activePicking = pickAt && Date.now() - pickAt < 600000;
     const pickingView = activePicking ? localStorage.getItem("picking-view") as View | null : null;
     const rawH = window.location.hash.replace(/^#/, "");
-    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH && rawH in viewTitles ? rawH as View : null;
+    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH && rawH in viewTitles ? rawH as View : null;
     const hashCustom = rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null;
     const v = (pickingView && pickingView in viewTitles ? pickingView : hashView ?? sessionStorage.getItem("view") as View | null);
     if (pickAt) setWelcomed(true);
@@ -1948,7 +1950,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         return;
       }
       const rawH = window.location.hash.replace(/^#/, "");
-      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH && rawH in viewTitles ? rawH as View : null;
+      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH && rawH in viewTitles ? rawH as View : null;
       const next = (e.state?.view as View | undefined) ?? hashView ?? "home";
       if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null));
       else if (next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : null));
