@@ -448,6 +448,18 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const closeUpcoming = () => { window.history.pushState({ view: "trips" }, "", "#trips"); setUpcomingOpen(false); };
   const openTrip = (trip: UpcomingTrip) => { window.history.pushState({ view: "trips", tripsPanel: "detail", tripId: trip.id }, "", `#trips:detail:${encodeURIComponent(trip.id)}`); setSelected(trip); };
   const closeTrip = () => { window.history.pushState({ view: "trips", tripsPanel: upcomingOpen ? "upcoming" : undefined }, "", upcomingOpen ? "#trips:upcoming" : "#trips"); setSelected(null); };
+  useEffect(() => {
+    const restore = () => {
+      const hash = window.location.hash;
+      setUpcomingOpen(hash === "#trips:upcoming");
+      const match = hash.match(/^#trips:detail:(.+)$/);
+      if (!match) { setSelected(null); return; }
+      try { const id = decodeURIComponent(match[1] ?? ""); setSelected(upcomingTrips.find((trip) => trip.id === id) ?? null); }
+      catch { setSelected(null); }
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [upcomingTrips]);
   const upTitle = labelOf(content, "upcoming", "الرحلات القادمة", "Kommende Reisen");
   const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
   const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
