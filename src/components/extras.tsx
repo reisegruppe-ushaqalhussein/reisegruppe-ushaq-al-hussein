@@ -38,8 +38,30 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
   const available = showHidden ? all : all.filter((item) => !item.hidden);
   const commit = (next: ItineraryEntry[]) => save({ ...content, itinerary: next });
   const dates = useMemo(() => [...new Set(available.map((e) => e.date))].sort(), [available]);
-  const [day, setDay] = useState<string>("");
-  useEffect(() => { const t = todayIso(); setDay(dates.includes(t) ? t : dates.find((d) => d >= t) ?? dates[dates.length - 1] ?? ""); }, [dates.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [day, setDay] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const match = window.location.hash.match(/^#itinerary:day:(.+)$/);
+    try { const value = match ? decodeURIComponent(match[1] ?? "") : ""; return dates.includes(value) ? value : ""; } catch { return ""; }
+  });
+  useEffect(() => {
+    const t = todayIso();
+    const match = typeof window !== "undefined" ? window.location.hash.match(/^#itinerary:day:(.+)$/) : null;
+    let restored = ""; try { restored = match ? decodeURIComponent(match[1] ?? "") : ""; } catch { restored = ""; }
+    setDay(dates.includes(restored) ? restored : dates.includes(t) ? t : dates.find((d) => d >= t) ?? dates[dates.length - 1] ?? "");
+  }, [dates.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chooseDay = (value: string) => {
+    window.history.pushState({ view: "itinerary", itineraryDay: value }, "", `#itinerary:day:${encodeURIComponent(value)}`);
+    setDay(value);
+  };
+  useEffect(() => {
+    const restore = () => {
+      const match = window.location.hash.match(/^#itinerary:day:(.+)$/);
+      try { const value = match ? decodeURIComponent(match[1] ?? "") : ""; if (dates.includes(value)) setDay(value); }
+      catch { /* ignore malformed date in URL */ }
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [dates]);
   const events = available.filter((e) => e.date === day).sort((a, b) => a.time.localeCompare(b.time));
   return (
     <div className="screen-enter px-4 py-7">
@@ -47,7 +69,7 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
       {admin && <AddButton label={{ ar: "إضافة فعالية", de: "Programmpunkt hinzufügen" }} fields={itineraryFields} blank={{ id: "", date: day || todayIso(), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false, hidden: false }} onAdd={(row) => commit([...all, { ...(row as ItineraryEntry), id: `e${Date.now()}` }])} />}
       {dates.length === 0 ? <p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><P ar="سيتم نشر جدول الرحلة هنا قريباً." de="Das Tagesprogramm wird hier bald veröffentlicht." /></p> : <>
         <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1" dir="ltr">
-          {dates.map((d) => <button key={d} onClick={() => setDay(d)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${d === day ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{d === todayIso() ? "اليوم · Heute" : fmtDate(d)}</button>)}
+          {dates.map((d) => <button key={d} onClick={() => chooseDay(d)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${d === day ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{d === todayIso() ? "اليوم · Heute" : fmtDate(d)}</button>)}
         </div>
         <ol className="relative space-y-3 border-r-2 border-secondary/40 pr-4">
           {events.map((e) => (
