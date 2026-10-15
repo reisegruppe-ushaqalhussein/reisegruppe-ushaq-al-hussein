@@ -56,8 +56,14 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
   useEffect(() => {
     const restore = () => {
       const match = window.location.hash.match(/^#itinerary:day:(.+)$/);
-      try { const value = match ? decodeURIComponent(match[1] ?? "") : ""; if (dates.includes(value)) setDay(value); }
-      catch { /* ignore malformed date in URL */ }
+      try {
+        const value = match ? decodeURIComponent(match[1] ?? "") : "";
+        if (dates.includes(value)) setDay(value);
+        else if (window.location.hash === "#itinerary") {
+          const today = todayIso();
+          setDay(dates.includes(today) ? today : dates.find((date) => date >= today) ?? dates[dates.length - 1] ?? "");
+        }
+      } catch { /* ignore malformed date in URL */ }
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
@@ -367,6 +373,7 @@ export function PackingView({ content, admin }: { content?: SiteContent; admin?:
     const restore = () => {
       const match = window.location.hash.match(/^#packing:filter:(all|umrah|iraq|winter)$/);
       if (match) setTripFilter((match[1] ?? "all") as "all" | "umrah" | "iraq" | "winter");
+      else if (window.location.hash === "#packing") setTripFilter("all");
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
