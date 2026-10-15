@@ -1866,30 +1866,31 @@ function CampaignApp({ content }: { content: SiteContent }) {
   const adminSession = useAdminSession();
   const adminOnly: AdminProps = adminSession?.role === "admin" && adminSession.mode === "admin" ? { password: adminSession.password, content } : null;
     const go = (next: View) => {
-    if (window.history.state?.view !== next) window.history.pushState({ view: next }, "");
-    try { window.location.hash = next; } catch {}
+    if (window.history.state?.view !== next || window.location.hash !== `#${next}`) {
+      window.history.pushState({ view: next }, "", `#${next}`);
+    }
     setView(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   /** Opens a built-in section or an admin-created one ("c:<id>"). */
   const open = (id: string) => {
     if (id === "system:iraq-types") {
-      window.history.pushState({ view: "iraqtypes" }, "");
+      window.history.pushState({ view: "iraqtypes" }, "", "#iraqtypes");
       setView("iraqtypes");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (id === "system:iraq-details") {
-      window.history.pushState({ view: "iraqdetails" }, "");
+      window.history.pushState({ view: "iraqdetails" }, "", "#iraqdetails");
       setView("iraqdetails");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (id.startsWith("triptype:")) {
       const tid = id.slice("triptype:".length);
-      window.history.pushState({ view: "triptype", custom: tid }, "");
+      window.history.pushState({ view: "triptype", custom: tid }, "", "#triptype");
       setCustomId(tid);
       setView("triptype");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (id.startsWith("c:")) {
       const cid = id.slice(2);
-      window.history.pushState({ view: "custom", custom: cid }, "");
+      window.history.pushState({ view: "custom", custom: cid }, "", "#custom");
       setCustomId(cid);
       setView("custom");
       window.scrollTo({ top: 0, behavior: "smooth" });
