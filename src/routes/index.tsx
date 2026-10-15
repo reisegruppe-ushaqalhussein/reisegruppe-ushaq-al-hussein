@@ -1013,14 +1013,30 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     }
   };
 
-  // استخدم آخر إحداثيات ناجحة بعد تحديث الصفحة؛ لا نطلب GPS مجدداً بلا داعٍ.
+  // استعادة الموقع المحفوظ بعد تحميل الواجهة، حتى لو بدأ العرض بحالة SSR فارغة.
   useEffect(() => {
-    if (activeRegion === "location" && !manualPlace && !gpsCoords) requestGps();
+    if (activeRegion !== "location" || manualPlace || gpsCoords) return;
+    try {
+      const raw = localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords");
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lat?: number; lng?: number };
+        if (typeof parsed.lat === "number" && Number.isFinite(parsed.lat) &&
+            typeof parsed.lng === "number" && Number.isFinite(parsed.lng) &&
+            Math.abs(parsed.lat) <= 90 && Math.abs(parsed.lng) <= 180) {
+          setGpsCoords({ lat: parsed.lat, lng: parsed.lng });
+          setGpsLabel((current) => current || "GPS");
+          return;
+        }
+      }
+    } catch { /* invalid or unavailable saved coordinates */ }
+    requestGps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRegion, manualPlace, gpsCoords]);
+  useEffect(() => {
     try {
       localStorage.setItem("ushaq_prayer_region", activeRegion);
       sessionStorage.setItem("ushaq_prayer_region", activeRegion);
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRegion]);
 
   const handleRegionChange = (regId: string) => {
