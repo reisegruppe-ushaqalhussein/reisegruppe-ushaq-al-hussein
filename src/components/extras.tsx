@@ -126,6 +126,24 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
   const emergencyContacts = showHidden ? content.contacts : content.contactsVisible ? content.contacts.filter((contact) => contact.visible !== false && !contact.hidden).sort((a, b) => Number(b.ar.includes("ياسر")) - Number(a.ar.includes("ياسر"))).slice(0, 1) : [];
   const emergency = content.emergency.filter((e) => showHidden || !e.hidden);
   const [manage, setManage] = useState(false);
+  const [locationKind, setLocationKind] = useState<"all" | LocationKind>(() => {
+    if (typeof window === "undefined") return "all";
+    const match = window.location.hash.match(/^#guide:kind:(all|hotel|shrine|gathering)$/);
+    return (match?.[1] as "all" | LocationKind | undefined) ?? "all";
+  });
+  const chooseLocationKind = (kind: "all" | LocationKind) => {
+    window.history.pushState({ view: "guide", locationKind: kind }, "", kind === "all" ? "#guide" : `#guide:kind:${kind}`);
+    setLocationKind(kind);
+  };
+  useEffect(() => {
+    const restore = () => {
+      const match = window.location.hash.match(/^#guide:kind:(all|hotel|shrine|gathering)$/);
+      if (match) setLocationKind((match[1] as "all" | LocationKind | undefined) ?? "all");
+      else if (window.location.hash === "#guide") setLocationKind("all");
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
   return (
         <div className="screen-enter px-4 py-7">
       <div className="flex items-start justify-between gap-2">
@@ -139,6 +157,13 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
             onRestore={() => commit(defaultContent.locations)}
           />
         )}
+      </div>
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[{ id: "all" as const, ar: "الكل", de: "Alle" }, ...kinds.map((kind) => ({ id: kind.id, ar: kind.ar, de: kind.de }))].map((kind) => (
+          <Button key={kind.id} type="button" variant={locationKind === kind.id ? "default" : "outline"} className="h-auto min-h-10 whitespace-normal px-2 py-2 text-xs" onClick={() => chooseLocationKind(kind.id)}>
+            <P ar={kind.ar} de={kind.de} />
+          </Button>
+        ))}
       </div>
       {(emergencyContacts.length > 0 || emergency.length > 0 || admin) && <section className="mb-6 rounded-lg bg-primary p-4 text-primary-foreground shadow-md">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -165,7 +190,7 @@ export function GuideView({ content, admin }: { content: SiteContent; admin: Adm
         </DialogContent>
       </Dialog>}
      {kinds.map((k) => {
-        const items = available.filter((l) => l.kind === k.id);
+        const items = available.filter((l) => l.kind === k.id && (locationKind === "all" || locationKind === k.id));
         return (
           <section key={k.id} className="mb-6">
             <h3 className="mb-3 flex items-center gap-2 font-bold text-primary"><k.icon className="h-5 w-5 text-secondary" /><P ar={k.ar} de={k.de} /></h3>
