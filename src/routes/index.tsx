@@ -805,6 +805,14 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         : null;
     } catch { return null; }
   });
+  // Persist the GPS state whenever it changes, including after the home card remounts.
+  useEffect(() => {
+    if (!gpsCoords || !Number.isFinite(gpsCoords.lat) || !Number.isFinite(gpsCoords.lng)) return;
+    const serialized = JSON.stringify(gpsCoords);
+    try { localStorage.setItem("ushaq_prayer_gps_coords", serialized); } catch {}
+    try { sessionStorage.setItem("ushaq_prayer_gps_coords", serialized); } catch {}
+  }, [gpsCoords]);
+
   // مدينة مكتوبة يدوياً (تُحفظ فقط عند الإدخال اليدوي)
   const [manualPlace, setManualPlace] = useState<{ name: string; ar?: string; de?: string; lat: number; lng: number } | null>(() => {
     try {
@@ -1029,6 +1037,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         }
       }
     } catch { /* invalid or unavailable saved coordinates */ }
+    // No saved coordinates: request GPS again; never leave the prayer panel empty silently.
     requestGps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRegion, manualPlace, gpsCoords]);
