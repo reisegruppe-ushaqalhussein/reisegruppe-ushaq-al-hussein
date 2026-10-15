@@ -770,6 +770,30 @@ const prayerRegions = [
   { id: "iran", ar: "🇮🇷 إيران", de: "Iran" },
 ] as const;
 
+type PrayerGpsCoordinates = { lat: number; lng: number };
+
+// Keep a same-page cache as well as browser storage because the home card unmounts
+// when the visitor opens another section.
+let prayerGpsCache: PrayerGpsCoordinates | null = null;
+let prayerRegionCache: string | null = null;
+try {
+  const rawGps = typeof window !== "undefined"
+    ? (localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords"))
+    : null;
+  if (rawGps) {
+    const parsed = JSON.parse(rawGps) as { lat?: number; lng?: number };
+    if (typeof parsed.lat === "number" && Number.isFinite(parsed.lat) &&
+        typeof parsed.lng === "number" && Number.isFinite(parsed.lng) &&
+        Math.abs(parsed.lat) <= 90 && Math.abs(parsed.lng) <= 180) {
+      prayerGpsCache = { lat: parsed.lat, lng: parsed.lng };
+    }
+  }
+  if (typeof window !== "undefined") {
+    const region = localStorage.getItem("ushaq_prayer_region") || sessionStorage.getItem("ushaq_prayer_region");
+    if (region && ["location", "iraq", "saudi", "iran"].includes(region)) prayerRegionCache = region;
+  }
+} catch { /* browser storage may be unavailable */ }
+
 function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const { lang } = useLang();
   const prayerTitle = content ? labelOf(content, "prayer", "مواقيت الصلاة", "Gebetszeiten") : { ar: "مواقيت الصلاة", de: "Gebetszeiten" };
@@ -781,19 +805,16 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
   // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
   const [activeRegion, setActiveRegion] = useState<string>(() => {
+    if (prayerRegionCache) return prayerRegionCache;
     try {
       const saved = localStorage.getItem("ushaq_prayer_region") || sessionStorage.getItem("ushaq_prayer_region");
       return saved && ["location", "iraq", "saudi", "iran"].includes(saved) ? saved : "iraq";
-    } catch {
-      try {
-        const saved = sessionStorage.getItem("ushaq_prayer_region");
-        return saved && ["location", "iraq", "saudi", "iran"].includes(saved) ? saved : "iraq";
-      } catch { return "iraq"; }
-    }
+    } catch { return "iraq"; }
   });
 
   // إحداثيات الموقع الحالي GPS
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    if (prayerGpsCache) return prayerGpsCache;
     try {
       const saved = localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords");
       if (!saved) return null;
@@ -808,6 +829,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   // Persist the GPS state whenever it changes, including after the home card remounts.
   useEffect(() => {
     if (!gpsCoords || !Number.isFinite(gpsCoords.lat) || !Number.isFinite(gpsCoords.lng)) return;
+    prayerGpsCache = gpsCoords;
     const serialized = JSON.stringify(gpsCoords);
     try { localStorage.setItem("ushaq_prayer_gps_coords", serialized); } catch {}
     try { sessionStorage.setItem("ushaq_prayer_gps_coords", serialized); } catch {}
@@ -943,6 +965,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       window.clearTimeout(hardTimeout);
       if (!isCurrent()) return;
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      prayerGpsCache = coords;
       setGpsCoords(coords);
       try { localStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
       try { sessionStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
@@ -1042,6 +1065,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRegion, manualPlace, gpsCoords]);
   useEffect(() => {
+    prayerRegionCache = activeRegion;
     try {
       localStorage.setItem("ushaq_prayer_region", activeRegion);
       sessionStorage.setItem("ushaq_prayer_region", activeRegion);
@@ -1049,6 +1073,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   }, [activeRegion]);
 
   const handleRegionChange = (regId: string) => {
+    prayerRegionCache = regId;
     const regCities = citiesList.filter((c) => c.region === regId);
     const nextCity = regId === "location" ? null : (regCities.some((c) => c.id === city) ? city : regCities[0]?.id ?? null);
     window.history.pushState({ view: "prayer", prayerRegion: regId, prayerCity: nextCity }, "", "#prayer");
