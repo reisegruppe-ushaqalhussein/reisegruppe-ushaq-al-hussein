@@ -1836,6 +1836,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     const rawH = window.location.hash.replace(/^#/, "");
     if (rawH.startsWith("triptype:")) return "triptype";
     if (rawH.startsWith("c:")) return "custom";
+    if (rawH.startsWith("trips:")) return "trips";
     if (rawH && rawH in viewTitles) return rawH as View;
     const sv = sessionStorage.getItem("view") as View;
     return (sv && sv in viewTitles) ? sv : "home";
@@ -1856,7 +1857,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     const activePicking = pickAt && Date.now() - pickAt < 600000;
     const pickingView = activePicking ? localStorage.getItem("picking-view") as View | null : null;
     const rawH = window.location.hash.replace(/^#/, "");
-    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH && rawH in viewTitles ? rawH as View : null;
+    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH && rawH in viewTitles ? rawH as View : null;
     const hashCustom = rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null;
     const v = (pickingView && pickingView in viewTitles ? pickingView : hashView ?? sessionStorage.getItem("view") as View | null);
     if (pickAt) setWelcomed(true);
@@ -1917,7 +1918,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         return;
       }
       const rawH = window.location.hash.replace(/^#/, "");
-      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH && rawH in viewTitles ? rawH as View : null;
+      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH && rawH in viewTitles ? rawH as View : null;
       const next = (e.state?.view as View | undefined) ?? hashView ?? "home";
       if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null));
       else if (next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : null));
