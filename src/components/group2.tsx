@@ -123,14 +123,24 @@ const resourceFields: FieldDef[] = [
 ];
 const blank = { ar: "", de: "", en: "", place: "", textAr: "", textDe: "", textEn: "", pdfUrl: "", audioUrl: "" };
 
-function ResourceCard({ item, admin, onSave, onDelete, onHide }: { item: ResourceEntry; admin: Admin; onSave: (r: Record<string, unknown>) => Promise<void>; onDelete: () => Promise<void>; onHide: (h: boolean) => Promise<void> }) {
-  const [open, setOpen] = useState(false);
+function ResourceCard({ item, admin, onSave, onDelete, onHide, kind }: { item: ResourceEntry; admin: Admin; onSave: (r: Record<string, unknown>) => Promise<void>; onDelete: () => Promise<void>; onHide: (h: boolean) => Promise<void>; kind: "occasions" | "hadiths" }) {
+  const [open, setOpen] = useState(() => typeof window !== "undefined" && window.location.hash === `#${kind}:item:${encodeURIComponent(item.id)}`);
+  const toggleOpen = () => {
+    const next = !open;
+    window.history.pushState({ view: kind, resourceId: next ? item.id : undefined }, "", next ? `#${kind}:item:${encodeURIComponent(item.id)}` : `#${kind}`);
+    setOpen(next);
+  };
+  useEffect(() => {
+    const restore = () => setOpen(window.location.hash === `#${kind}:item:${encodeURIComponent(item.id)}`);
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [kind, item.id]);
   const { lang } = useLang();
   const text = lang === "ar" ? item.textAr : lang === "en" ? item.textEn || item.textDe : lang === "de" ? item.textDe : null;
   return (
     <article className={`rounded-lg border border-border bg-card p-4 shadow-sm ${item.hidden ? "opacity-55" : ""}`}>
       {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} />}
-      <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-start gap-2 text-right">
+      <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={toggleOpen} className="flex min-w-0 flex-1 items-start gap-2 text-right">
         <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
       </button></div>
@@ -175,7 +185,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
 
 
       <div className="space-y-3">
-        {visible.map((item) => <ResourceCard key={item.id} item={item} admin={admin}
+        {visible.map((item) => <ResourceCard key={item.id} item={item} kind={kind} admin={admin}
           onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden ?? false } : r)))}
           onDelete={() => put(list.filter((r) => r.id !== item.id))}
           onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
