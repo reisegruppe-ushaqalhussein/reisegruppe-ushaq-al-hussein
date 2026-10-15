@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as HadithsRouteImport } from './routes/hadiths'
+import { Route as QiblaRouteImport } from './routes/qibla'
+import { Route as TasbeehRouteImport } from './routes/tasbeeh'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +25,58 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HadithsRoute = HadithsRouteImport.update({
+  id: '/hadiths',
+  path: '/hadiths',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QiblaRoute = QiblaRouteImport.update({
+  id: '/qibla',
+  path: '/qibla',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasbeehRoute = TasbeehRouteImport.update({
+  id: '/tasbeeh',
+  path: '/tasbeeh',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/hadiths': typeof HadithsRoute
+  '/qibla': typeof QiblaRoute
+  '/tasbeeh': typeof TasbeehRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/hadiths': typeof HadithsRoute
+  '/qibla': typeof QiblaRoute
+  '/tasbeeh': typeof TasbeehRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/hadiths': typeof HadithsRoute
+  '/qibla': typeof QiblaRoute
+  '/tasbeeh': typeof TasbeehRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin'
+  fullPaths: '/' | '/admin' | '/hadiths' | '/qibla' | '/tasbeeh'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin'
-  id: '__root__' | '/' | '/admin'
+  to: '/' | '/admin' | '/hadiths' | '/qibla' | '/tasbeeh'
+  id: '__root__' | '/' | '/admin' | '/hadiths' | '/qibla' | '/tasbeeh'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  HadithsRoute: typeof HadithsRoute
+  QiblaRoute: typeof QiblaRoute
+  TasbeehRoute: typeof TasbeehRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +95,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hadiths': {
+      id: '/hadiths'
+      path: '/hadiths'
+      fullPath: '/hadiths'
+      preLoaderRoute: typeof HadithsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qibla': {
+      id: '/qibla'
+      path: '/qibla'
+      fullPath: '/qibla'
+      preLoaderRoute: typeof QiblaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasbeeh': {
+      id: '/tasbeeh'
+      path: '/tasbeeh'
+      fullPath: '/tasbeeh'
+      preLoaderRoute: typeof TasbeehRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  HadithsRoute: HadithsRoute,
+  QiblaRoute: QiblaRoute,
+  TasbeehRoute: TasbeehRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
