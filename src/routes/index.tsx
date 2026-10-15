@@ -781,11 +781,11 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
 
   // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
   const [activeRegion, setActiveRegion] = useState<string>(() => {
-    try {
-      return localStorage.getItem("ushaq_prayer_region") || "iraq";
-    } catch {
-      return "iraq";
+    if (typeof window !== "undefined") {
+      const match = window.location.hash.match(/^#prayer:region:(location|iraq|saudi|iran)$/);
+      if (match) return match[1] ?? "iraq";
     }
+    try { return localStorage.getItem("ushaq_prayer_region") || "iraq"; } catch { return "iraq"; }
   });
 
   // إحداثيات الموقع الحالي GPS
@@ -824,6 +824,11 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   });
 
   const [city, setCity] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const match = window.location.hash.match(/^#prayer:city:([^:]+)$/);
+      try { const id = match ? decodeURIComponent(match[1] ?? "") : ""; if (defaultCities.some((c) => c.id === id)) return id; } catch { /* ignore malformed city */ }
+    }
+    try { const saved = localStorage.getItem("ushaq_prayer_city"); if (saved && defaultCities.some((c) => c.id === saved)) return saved; } catch {}
     return defaultCities[0]?.id ?? "Baghdad";
   });
 
@@ -979,6 +984,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   }, [activeRegion]);
 
   const handleRegionChange = (regId: string) => {
+    window.history.pushState({ view: "prayer", prayerRegion: regId }, "", `#prayer:region:${regId}`);
     setActiveRegion(regId);
     try {
       localStorage.setItem("ushaq_prayer_region", regId);
@@ -1407,7 +1413,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
                     size="sm"
                     variant={city === c.id ? "default" : "outline"}
                     onClick={() => {
+                      window.history.pushState({ view: "prayer", prayerCity: c.id, prayerRegion: activeRegion }, "", `#prayer:city:${encodeURIComponent(c.id)}`);
                       setCity(c.id);
+                      try { localStorage.setItem("ushaq_prayer_city", c.id); } catch {}
                       setShowCityPicker(false);
                     }}
                     className="h-auto w-full py-1 text-xs"
@@ -1905,6 +1913,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     if (rawH.startsWith("favorites:")) return "favorites";
     if (rawH.startsWith("faqs:")) return "faqs";
     if (rawH.startsWith("guide:")) return "guide";
+    if (rawH.startsWith("prayer:")) return "prayer";
     if (rawH && rawH in viewTitles) return rawH as View;
     const sv = sessionStorage.getItem("view") as View;
     return (sv && sv in viewTitles) ? sv : "home";
@@ -1925,7 +1934,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
     const activePicking = pickAt && Date.now() - pickAt < 600000;
     const pickingView = activePicking ? localStorage.getItem("picking-view") as View | null : null;
     const rawH = window.location.hash.replace(/^#/, "");
-    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH.startsWith("favorites:") ? "favorites" : rawH.startsWith("faqs:") ? "faqs" : rawH.startsWith("guide:") ? "guide" : rawH && rawH in viewTitles ? rawH as View : null;
+    const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH.startsWith("favorites:") ? "favorites" : rawH.startsWith("faqs:") ? "faqs" : rawH.startsWith("guide:") ? "guide" : rawH.startsWith("prayer:") ? "prayer" : rawH && rawH in viewTitles ? rawH as View : null;
     const hashCustom = rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null;
     const v = (pickingView && pickingView in viewTitles ? pickingView : hashView ?? sessionStorage.getItem("view") as View | null);
     if (pickAt) setWelcomed(true);
@@ -1986,7 +1995,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         return;
       }
       const rawH = window.location.hash.replace(/^#/, "");
-      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH.startsWith("favorites:") ? "favorites" : rawH.startsWith("faqs:") ? "faqs" : rawH.startsWith("guide:") ? "guide" : rawH && rawH in viewTitles ? rawH as View : null;
+      const hashView: View | null = rawH.startsWith("triptype:") ? "triptype" : rawH.startsWith("c:") ? "custom" : rawH.startsWith("trips:") ? "trips" : rawH.startsWith("duas:") ? "duas" : rawH.startsWith("itinerary:") ? "itinerary" : rawH.startsWith("packing:") ? "packing" : rawH.startsWith("rooms:") ? "rooms" : rawH.startsWith("occasions:") ? "occasions" : rawH.startsWith("hadiths:") ? "hadiths" : rawH.startsWith("tasbeeh:") ? "tasbeeh" : rawH.startsWith("tawaf:") ? "tawaf" : rawH.startsWith("favorites:") ? "favorites" : rawH.startsWith("faqs:") ? "faqs" : rawH.startsWith("guide:") ? "guide" : rawH.startsWith("prayer:") ? "prayer" : rawH && rawH in viewTitles ? rawH as View : null;
       const next = (e.state?.view as View | undefined) ?? hashView ?? "home";
       if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null));
       else if (next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : null));
