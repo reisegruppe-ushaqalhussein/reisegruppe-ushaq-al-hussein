@@ -1,14 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/tasbeeh")({
-  component: LegacyTasbeehRedirect,
+  beforeLoad: () => {
+    throw redirect({ to: "/", hash: "tasbeeh", replace: true });
+  },
+  component: () => null,
 });
-
-function LegacyTasbeehRedirect() {
-  useEffect(() => {
-    window.history.replaceState(window.history.state, "", "/#tasbeeh");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, []);
-  return null;
-}
