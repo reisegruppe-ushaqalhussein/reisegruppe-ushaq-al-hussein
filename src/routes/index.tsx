@@ -1147,16 +1147,20 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     if (activeRegion === "location") {
       const pt = manualPlace ?? gpsCoords;
       if (!pt) {
-        setPrayerDiagnostic("لا توجد إحداثيات متاحة | Keine Koordinaten verfügbar");
+        setPrayerDiagnostic("المنطقة: موقعي الحالي؛ لا توجد إحداثيات | Bereich: Mein Standort; keine Koordinaten");
         return;
       }
       setPrayerDiagnostic(manualPlace
-        ? "الموقع اليدوي موجود؛ جارٍ جلب المواقيت | Manueller Ort vorhanden; Gebetszeiten werden geladen"
-        : "إحداثيات GPS موجودة؛ جارٍ جلب المواقيت | GPS-Koordinaten vorhanden; Gebetszeiten werden geladen");
+        ? `المنطقة: موقعي الحالي؛ العنوان اليدوي ${manualPlace.name}؛ جارٍ الجلب | Bereich: Mein Standort; manueller Ort ${manualPlace.name}; lädt`
+        : `المنطقة: موقعي الحالي؛ GPS ${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}؛ جارٍ الجلب | Bereich: Mein Standort; GPS ${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}; lädt`);
       url = `https://api.aladhan.com/v1/timings?latitude=${pt.lat}&longitude=${pt.lng}&method=0`;
     } else {
       const curCity = citiesList.find((c) => c.id === city) || citiesList[0];
-      if (!curCity) return;
+      if (!curCity) {
+        setPrayerDiagnostic(`المنطقة: ${activeRegion}؛ لا توجد مدينة | Bereich: ${activeRegion}; keine Stadt`);
+        return;
+      }
+      setPrayerDiagnostic(`المنطقة: ${activeRegion}؛ المدينة: ${curCity.ar} / ${curCity.de}؛ جارٍ الجلب | Bereich: ${activeRegion}; Stadt: ${curCity.de}; lädt`);
       url = `https://api.aladhan.com/v1/timingsByCity?city=${curCity.apiCity}&country=${encodeURIComponent(curCity.country)}&method=0`;
     }
 
@@ -1175,14 +1179,18 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         }
         setTimes(fetchedTimes);
         setFailed(false);
-        if (activeRegion === "location") setPrayerDiagnostic("نجح جلب المواقيت | Gebetszeiten erfolgreich geladen");
+        setPrayerDiagnostic(activeRegion === "location"
+          ? "نجح جلب المواقيت للموقع الحالي | Gebetszeiten für aktuellen Standort geladen"
+          : `نجح جلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Gebetszeiten für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} geladen`);
         if (j?.data?.meta?.timezone) setTimezone(j.data.meta.timezone);
       })
       .catch(() => {
         if (!off) {
           setTimes(null);
           setFailed(true);
-          if (activeRegion === "location") setPrayerDiagnostic("الإحداثيات موجودة لكن طلب المواقيت فشل | Koordinaten vorhanden, Gebetszeiten-Anfrage fehlgeschlagen");
+          setPrayerDiagnostic(activeRegion === "location"
+            ? "فشل طلب المواقيت للموقع الحالي | Anfrage für aktuellen Standort fehlgeschlagen"
+            : `فشل طلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Anfrage für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} fehlgeschlagen`);
         }
       });
 
