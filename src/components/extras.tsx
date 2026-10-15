@@ -199,11 +199,16 @@ const dhikrs = [
 ];
 
 export function TasbeehView() {
-  const [sel, setSel] = useState(dhikrs[0]!.id);
+  const [sel, setSel] = useState(() => {
+    if (typeof window !== "undefined") { const match = window.location.hash.match(/^#tasbeeh:dhikr:(.+)$/); try { const id = match ? decodeURIComponent(match[1] ?? "") : ""; if (dhikrs.some((item) => item.id === id)) return id; } catch { /* ignore malformed hash */ } }
+    return dhikrs[0]!.id;
+  });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState(0);
-  useEffect(() => { try { const s = JSON.parse(localStorage.getItem("tasbeeh") ?? "{}"); if (s.counts) setCounts(s.counts); if (typeof s.total === "number") setTotal(s.total); if (s.sel) setSel(s.sel); } catch { /* ignore */ } }, []);
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("tasbeeh") ?? "{}"); if (saved.counts) setCounts(saved.counts); if (typeof saved.total === "number") setTotal(saved.total); if (saved.sel && !window.location.hash.startsWith("#tasbeeh:dhikr:")) setSel(saved.sel); } catch { /* ignore */ } }, []);
   useEffect(() => { localStorage.setItem("tasbeeh", JSON.stringify({ counts, total, sel })); }, [counts, total, sel]);
+  const chooseDhikr = (id: string) => { window.history.pushState({ view: "tasbeeh", dhikrId: id }, "", `#tasbeeh:dhikr:${encodeURIComponent(id)}`); setSel(id); };
+  useEffect(() => { const restore = () => { const match = window.location.hash.match(/^#tasbeeh:dhikr:(.+)$/); try { const id = match ? decodeURIComponent(match[1] ?? "") : ""; if (dhikrs.some((item) => item.id === id)) setSel(id); } catch { /* ignore malformed hash */ } }; window.addEventListener("popstate", restore); return () => window.removeEventListener("popstate", restore); }, []);
   const d = dhikrs.find((x) => x.id === sel) ?? dhikrs[0]!;
   const count = counts[d.id] ?? 0;
   const tap = () => {
@@ -217,7 +222,7 @@ export function TasbeehView() {
     <div className="screen-enter px-4 py-7">
       <Title icon={Vibrate} ar="السبحة الإلكترونية" de="Digitale Tasbih" favoriteId="tool:tasbeeh" />
       <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1">
-        {dhikrs.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${x.id === sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{x.ar}</button>)}
+        {dhikrs.map((x) => <button key={x.id} onClick={() => chooseDhikr(x.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${x.id === sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{x.ar}</button>)}
       </div>
       <p className="text-center text-2xl font-extrabold leading-loose text-primary">{d.ar}</p>
       <p lang="de" dir="ltr" className="mb-6 text-center text-sm italic text-muted-foreground">{d.de}</p>
@@ -248,10 +253,12 @@ const tawafDuas = [
 
 export function TawafView() {
   const { lang } = useLang();
-  const [mode, setMode] = useState<"tawaf" | "sai">("tawaf");
+  const [mode, setMode] = useState<"tawaf" | "sai">(() => typeof window !== "undefined" && window.location.hash === "#tawaf:mode:sai" ? "sai" : "tawaf");
   const [counts, setCounts] = useState({ tawaf: 0, sai: 0 });
-  useEffect(() => { try { const s = JSON.parse(localStorage.getItem("tawaf-counter") ?? "{}"); if (s.counts) setCounts(s.counts); if (s.mode) setMode(s.mode); } catch { /* ignore */ } }, []);
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("tawaf-counter") ?? "{}"); if (saved.counts) setCounts(saved.counts); if (saved.mode && !window.location.hash.startsWith("#tawaf:mode:")) setMode(saved.mode); } catch { /* ignore */ } }, []);
   useEffect(() => { localStorage.setItem("tawaf-counter", JSON.stringify({ counts, mode })); }, [counts, mode]);
+  const chooseMode = (value: "tawaf" | "sai") => { window.history.pushState({ view: "tawaf", tawafMode: value }, "", `#tawaf:mode:${value}`); setMode(value); };
+  useEffect(() => { const restore = () => { if (window.location.hash === "#tawaf:mode:tawaf") setMode("tawaf"); else if (window.location.hash === "#tawaf:mode:sai") setMode("sai"); }; window.addEventListener("popstate", restore); return () => window.removeEventListener("popstate", restore); }, []);
   const n = counts[mode];
   const done = n >= 7;
   const cur = Math.min(n + 1, 7);
@@ -263,7 +270,7 @@ export function TawafView() {
     <div className="screen-enter px-4 py-7">
       <Title icon={RotateCcw} ar="عداد الطواف والسعي" de="Tawaf- & Sa‘i-Zähler" favoriteId="tool:tawaf" />
       <div className="mb-5 grid grid-cols-2 gap-2">
-        {(["tawaf", "sai"] as const).map((m) => <Button key={m} variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}><P ar={m === "tawaf" ? "الطواف" : "السعي"} de={m === "tawaf" ? "Tawaf" : "Sa‘i"} /></Button>)}
+        {(["tawaf", "sai"] as const).map((m) => <Button key={m} variant={mode === m ? "default" : "outline"} onClick={() => chooseMode(m)}><P ar={m === "tawaf" ? "الطواف" : "السعي"} de={m === "tawaf" ? "Tawaf" : "Sa‘i"} /></Button>)}
       </div>
       <p className="mb-4 text-center text-sm font-bold text-primary"><P ar={done ? "تم بحمد الله" : `الشوط ${cur} — ${route.ar}`} de={done ? "Vollendet, Gott sei Dank" : `Runde ${cur} — ${route.de}`} /></p>
       <button onClick={tap} aria-label="تسجيل شوط | Runde zählen" className="mx-auto grid h-56 w-56 select-none place-items-center rounded-full text-primary-foreground shadow-xl ring-8 ring-secondary/30 transition-transform active:scale-95" style={{ background: `conic-gradient(var(--secondary) ${(n / 7) * 100}%, var(--primary) ${(n / 7) * 100}%)` }}>
