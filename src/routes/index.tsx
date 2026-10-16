@@ -408,6 +408,8 @@ function FavoritesView({ content, go }: { content: SiteContent; go: (view: View)
 
 function IraqItemsView({ content, admin, kind }: { content: SiteContent; admin: AdminProps; kind: "details" | "types" }) {
   const saveContent = useSaveContent(admin?.password ?? "");
+  const { lang } = useLang();
+  const actionLabel = (ar: string, de: string) => lang === "ar" ? ar : lang === "de" ? de : `${ar} | ${de}`;
   const showHidden = useShowHidden();
   const [sectionEditing, setSectionEditing] = useState(false);
   const iraqAll = content.iraqItems ?? defaultIraqItems;
@@ -425,7 +427,7 @@ function IraqItemsView({ content, admin, kind }: { content: SiteContent; admin: 
     <SectionAdminBar inline languageAware editMode={sectionEditing} onEditClick={() => setSectionEditing((v) => !v)} onRestore={() => saveIraq([...iraqAll.filter((x) => x.kind !== (kind === "details" ? "detail" : "type")), ...defaultIraqItems.filter((x) => x.kind === (kind === "details" ? "detail" : "type"))])} />
     {kind === "types" && <AddButton inline languageAware label={{ ar: "إضافة نوع زيارة", de: "Ziyara-Art hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `it${Date.now()}`, kind: "type", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />}
     {kind === "details" && <AddButton inline languageAware label={{ ar: "إضافة تفصيل للرحلة", de: "Reisedetail hinzufügen" }} fields={iraqFields} blank={{ ar: "", de: "", bodyAr: "", bodyDe: "" }} onAdd={(row) => saveIraq([...iraqAll, { id: `id${Date.now()}`, kind: "detail", ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), bodyAr: String(row["bodyAr"] ?? ""), bodyDe: String(row["bodyDe"] ?? "") }])} />}
-    {showHidden && <IconBtn label={(kind === "details" ? iraqHidden : typesHidden) ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleHidden(kind === "details" ? "iraqDetails" : "iraqTypes", !(kind === "details" ? iraqHidden : typesHidden))}>{(kind === "details" ? iraqHidden : typesHidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+    {showHidden && <IconBtn label={(kind === "details" ? iraqHidden : typesHidden) ? actionLabel("إرجاع", "Wiederherstellen") : actionLabel("إخفاء", "Verbergen")} onClick={() => void toggleHidden(kind === "details" ? "iraqDetails" : "iraqTypes", !(kind === "details" ? iraqHidden : typesHidden))}>{(kind === "details" ? iraqHidden : typesHidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
   return <section className={`mb-5 rounded-lg border border-border bg-card p-4 shadow-sm ${((kind === "details" && iraqHidden) || (kind === "types" && typesHidden)) ? "opacity-60" : ""}`}>
     <div className="relative mb-3 min-h-7"><h2 className="pl-9 text-lg font-bold text-primary"><Pair ar={iraqTitle.ar} de={iraqTitle.de} /></h2><div className="absolute left-0 top-0">{menu}</div></div>
@@ -447,6 +449,8 @@ function IraqDetailsPage({ content, admin }: { content: SiteContent; admin: Admi
 
 function TripsView({ content, admin, open }: { content: SiteContent; admin: AdminProps; open: (id: string) => void }) {
   const saveContent = useSaveContent(admin?.password ?? "");
+  const { lang } = useLang();
+  const actionLabel = (ar: string, de: string) => lang === "ar" ? ar : lang === "de" ? de : `${ar} | ${de}`;
   const showHidden = useShowHidden();
   const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => showHidden || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; const sAr = t.statusAr || m.statusAr; return { ...t, ...m, image: t.imageUrl || m.image, statusAr: sAr, statusDe: statusDeMap[sAr.trim()] ?? (t.statusDe || m.statusDe) }; });
   const isEditing = useSectionEditMode();
@@ -480,15 +484,17 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
   const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
   const upMenu = admin && <GearMenu>
-    <RenameTitle content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
-    <AddButton inline label={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} fields={tripFields} blank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} />
-    {showHidden && <IconBtn label={upHidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen"} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+    <RenameTitle languageAware content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
+    <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />
+    {showHidden && <IconBtn label={upHidden ? actionLabel("إرجاع", "Wiederherstellen") : actionLabel("إخفاء", "Verbergen")} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
   const tripTypesAtTrips = content.tripTypes.filter((t) => (content.cms?.parents?.[`triptype:${t.id}`] ?? "trips") === "trips" && (showHidden || !t.hidden));
   return (
     <div className="screen-enter px-4 py-7">
-      <ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" />
-            {admin && <SectionAdminBar addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} />}
+      <div className="relative mb-4 min-h-8">
+        <div className="pl-9"><ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" /></div>
+        <div className="absolute left-0 top-0">{admin && <GearMenu><SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} /></GearMenu>}</div>
+      </div>
            <div className="grid grid-cols-2 gap-3">
         {tripTypesAtTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? Landmark;
@@ -501,7 +507,7 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
       <div className="my-7 border-t border-border" />
       {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} menu={upMenu} /></div>}
       {upcomingOpen && <FullPage title={upTitle} onBack={closeUpcoming} menu={upMenu}>
-      {admin && <SectionAdminBar addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />}
+
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? (/عمر|umrah/i.test(trip.ar + trip.de) ? KaabaIcon : /حج|hadsch/i.test(trip.ar + trip.de) ? HajjIcon : /إيران|iran/i.test(trip.ar + trip.de) ? IranIcon : /عراق|حسين|irak|hussein/i.test(trip.ar + trip.de) ? IraqIcon : trip.icon);
