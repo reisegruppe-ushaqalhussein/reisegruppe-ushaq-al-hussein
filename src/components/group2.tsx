@@ -1,9 +1,9 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Compass, FileText, Music, ScrollText, Sparkles } from "lucide-react";
+import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
-import { ItemActions, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, toggleSectionEditMode, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
@@ -123,7 +123,7 @@ const resourceFields: FieldDef[] = [
 ];
 const blank = { ar: "", de: "", en: "", place: "", textAr: "", textDe: "", textEn: "", pdfUrl: "", audioUrl: "" };
 
-function ResourceCard({ item, admin, onSave, onDelete, onHide, kind }: { item: ResourceEntry; admin: Admin; onSave: (r: Record<string, unknown>) => Promise<void>; onDelete: () => Promise<void>; onHide: (h: boolean) => Promise<void>; kind: "occasions" | "hadiths" }) {
+function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }: { item: ResourceEntry; admin: Admin; onSave: (r: Record<string, unknown>) => Promise<void>; onDelete: () => Promise<void>; onHide: (h: boolean) => Promise<void>; kind: "occasions" | "hadiths"; editMode: boolean }) {
   const [open, setOpen] = useState(() => typeof window !== "undefined" && window.location.hash === `#${kind}:item:${encodeURIComponent(item.id)}`);
   const toggleOpen = () => {
     const next = !open;
@@ -139,7 +139,7 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind }: { item: R
   const text = lang === "ar" ? item.textAr : lang === "en" ? item.textEn || item.textDe : lang === "de" ? item.textDe : null;
   return (
     <article className={`rounded-lg border border-border bg-card p-4 shadow-sm ${item.hidden ? "opacity-55" : ""}`}>
-      {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} />}
+      {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} editMode={editMode} />}
       <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={toggleOpen} className="flex min-w-0 flex-1 items-start gap-2 text-right">
         <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
@@ -157,6 +157,7 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind }: { item: R
 export function ResourcesView({ content, admin, kind }: { content: SiteContent; admin: Admin; kind: "occasions" | "hadiths" }) {
   const save = useSaveContent(admin?.password ?? "");
   const list = content[kind];
+  const [itemsEditMode, setItemsEditMode] = useState(false);
   const showHidden = useShowHidden();
   const visible = list.filter((r) => showHidden || !r.hidden);
   const put = (next: ResourceEntry[]) => save({ ...content, [kind]: next });
@@ -164,21 +165,28 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   return (
     <div className="screen-enter px-4 py-7">
       <Title icon={title.icon} ar={title.ar} de={title.de} />
-                 {admin && (
-        <div className="mb-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-          <SectionAdminBar
-            addLabel={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
-            addFields={resourceFields}
-            addBlank={blank}
-            onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
-            onRestore={() => put(defaultContent[kind])}
-          />
+      {admin && (
+        <div dir="ltr" className="mb-4 flex justify-start">
+          <GearMenu>
+            <IconBtn
+              label={itemsEditMode ? "إنهاء تعديل العناصر | Bearbeitung beenden" : "تعديل عناصر القسم | Elemente bearbeiten"}
+              onClick={() => setItemsEditMode((value) => !value)}
+            ><Pencil className="h-3.5 w-3.5" /></IconBtn>
+            <AddButton
+              label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
+              fields={resourceFields}
+              blank={blank}
+              onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
+              inline
+            />
+            <RestoreButton onRestore={() => put(defaultContent[kind])} />
+          </GearMenu>
         </div>
       )}
 
 
       <div className="space-y-3">
-        {visible.map((item) => <ResourceCard key={item.id} item={item} kind={kind} admin={admin}
+        {visible.map((item) => <ResourceCard key={item.id} item={item} kind={kind} admin={admin} editMode={itemsEditMode}
           onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden ?? false } : r)))}
           onDelete={() => put(list.filter((r) => r.id !== item.id))}
           onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
