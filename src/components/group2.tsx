@@ -165,21 +165,14 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
     <div className="screen-enter px-4 py-7">
       <Title icon={title.icon} ar={title.ar} de={title.de} />
                  {admin && (
-        <div dir="ltr" className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-1.5">
-          <div className="flex items-center gap-1.5">
-            <GearMenu>
-              <AddButton
-                label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
-                fields={resourceFields}
-                blank={blank}
-                onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
-                inline
-              />
-            </GearMenu>
-          </div>
-          <span className="text-[10px] font-medium text-muted-foreground">
-            <P ar="أدوات إدارة المحتوى" de="Verwaltung" />
-          </span>
+        <div className="mb-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+          <SectionAdminBar
+            addLabel={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
+            addFields={resourceFields}
+            addBlank={blank}
+            onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
+            onRestore={() => put(defaultContent[kind])}
+          />
         </div>
       )}
 
