@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, RotateCcw } from "lucide-react";
+import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, RotateCcw, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
@@ -170,7 +170,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   const [itemsEditMode, setItemsEditMode] = useState(false);
   const showHidden = useShowHidden();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [sectionDesignOpen, setSectionDesignOpen] = useState(false);
+  const [titleEditOpen, setTitleEditOpen] = useState(false);
   const [selectedDeleteIds, setSelectedDeleteIds] = useState<string[]>([]);
   const visible = list.filter((r) => showHidden || !r.hidden);
   const put = (next: ResourceEntry[]) => save({ ...content, [kind]: next });
@@ -183,10 +183,19 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
       {admin && (
         <div dir="ltr" className="mb-4 flex justify-start">
           <GearMenu>
-            <IconBtn label="حذف محتوى محدد | Ausgewählte Inhalte löschen" danger onClick={() => { setSelectedDeleteIds([]); setDeleteOpen(true); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
-            <IconBtn label={list.length > 0 && list.every((item) => item.hidden) ? "إظهار المحتوى | Inhalte einblenden" : "إخفاء المحتوى | Inhalte ausblenden"} onClick={() => { const hide = !(list.length > 0 && list.every((item) => item.hidden)); void put(list.map((item) => ({ ...item, hidden: hide }))); }}>{list.length > 0 && list.every((item) => item.hidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
+            <IconBtn label="إعادة تسمية القسم | Bereich umbenennen" onClick={() => setTitleEditOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
+            <IconBtn
+              label={itemsEditMode ? "إنهاء تعديل العناصر | Bearbeitung beenden" : "تعديل عناصر القسم | Elemente bearbeiten"}
+              onClick={() => setItemsEditMode((value) => !value)}
+            ><Pencil className="h-3.5 w-3.5" /></IconBtn>
+            <AddButton
+              label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
+              fields={resourceFields}
+              blank={blank}
+              onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
+              inline
+            />
             <RestoreButton onRestore={() => put(defaultContent[kind])} />
-            <IconBtn label="تصميم المحتوى | Inhalte gestalten" onClick={() => setSectionDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
           </GearMenu>
         </div>
       )}
@@ -199,7 +208,8 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
           onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
         {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." en="Content coming soon." /></p>}
       </div>
-      <Dialog open={sectionDesignOpen} onOpenChange={setSectionDesignOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[340px]" dir="rtl"><DialogHeader><DialogTitle>تصميم المحتوى | Inhalte gestalten</DialogTitle></DialogHeader><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => { void put(list.map((item) => ({ ...item, design: "default" as const }))); setSectionDesignOpen(false); }}>عادي | Standard</Button><Button variant="outline" onClick={() => { void put(list.map((item) => ({ ...item, design: "navy" as const }))); setSectionDesignOpen(false); }}>كحلي | Marineblau</Button><Button variant="outline" onClick={() => { void put(list.map((item) => ({ ...item, design: "gold" as const }))); setSectionDesignOpen(false); }}>ذهبي | Gold</Button><Button variant="outline" onClick={() => { void put(list.map((item) => ({ ...item, design: "plain" as const }))); setSectionDesignOpen(false); }}>فاتح | Hell</Button></div></DialogContent></Dialog>
+
+      {titleEditOpen && <EditDialog open onOpenChange={setTitleEditOpen} title={{ ar: "إعادة تسمية القسم", de: "Bereich umbenennen" }} fields={[{ key: "ar", ar: "الاسم بالعربية", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true }]} initial={{ ar: title.ar, de: title.de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [kind]: { ar: String(row.ar ?? ""), de: String(row.de ?? "") } } })} />}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}><DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[380px] overflow-y-auto" dir="rtl"><DialogHeader><DialogTitle>اختيار المحتوى المراد حذفه | Inhalte auswählen</DialogTitle></DialogHeader><div className="space-y-2">{list.map((item) => <label key={item.id} className="flex items-start gap-2 rounded-md border border-border p-2 text-sm"><input type="checkbox" checked={selectedDeleteIds.includes(item.id)} onChange={(event) => setSelectedDeleteIds((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} className="mt-1" /><span>{item.ar || item.de}</span></label>)}</div><div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1" onClick={() => setDeleteOpen(false)}>إلغاء | Abbrechen</Button><Button variant="destructive" className="flex-1" disabled={!selectedDeleteIds.length} onClick={() => { const removeIds = new Set(selectedDeleteIds); void put(list.filter((item) => !removeIds.has(item.id))); setDeleteOpen(false); }}>حذف المحدد | Auswahl löschen</Button></div></DialogContent></Dialog>
     </div>
   );
