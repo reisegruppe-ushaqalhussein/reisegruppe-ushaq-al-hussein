@@ -442,7 +442,7 @@ function cleanArabic(x: unknown, key = ""): unknown {
   return x;
 }
 
-function DesignDialog({ content, parentId, onClose }: { content: SiteContent; parentId?: string | undefined; onClose: () => void }) {
+export function DesignDialog({ content, parentId, onClose }: { content: SiteContent; parentId?: string | undefined; onClose: () => void }) {
   const { cms } = useCms(content);
   const { lang } = useLang();
   const tr = (ar: string, de: string, en?: string) => adminText(lang, ar, de, en);
