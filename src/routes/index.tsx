@@ -485,10 +485,14 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const upTitle = labelOf(content, "upcoming", "الرحلات القادمة", "Kommende Reisen");
   const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
   const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
-  const tripsMenu = admin && <GearMenu>
+  const upMenu = admin && <GearMenu>
+    <RenameTitle languageAware content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
+    <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />
+    {showHidden && <IconBtn label={upHidden ? actionLabel("إرجاع", "Wiederherstellen") : actionLabel("إخفاء", "Verbergen")} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+  </GearMenu>;
+  const upcomingInnerMenu = admin && <GearMenu>
     <RenameTitle languageAware content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
     <IconBtn label={actionLabel("التصميم", "Design")} onClick={() => setTripDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-    <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} />
     <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />
     {showHidden && <IconBtn label={upHidden ? actionLabel("إرجاع", "Wiederherstellen") : actionLabel("إخفاء", "Verbergen")} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
@@ -497,7 +501,7 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
     <div className="screen-enter px-4 py-7">
       <div className="relative mb-4 min-h-8">
         <div className="pl-9"><ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" /></div>
-        <div className="absolute left-0 top-0" dir="ltr">{tripsMenu}</div>
+        <div className="absolute left-0 top-0" dir="ltr">{admin && <GearMenu><SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} /></GearMenu>}</div>
       </div>
       <div className={`grid gap-3 ${tripViewMode === "horizontal" ? "grid-cols-1" : tripViewMode === "compact" ? "grid-cols-2" : tripViewMode === "grid3" ? "grid-cols-3" : "grid-cols-2"}`}>
         {tripTypesAtTrips.map((trip) => {
@@ -509,9 +513,10 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
       </div>
 
       <div className="my-7 border-t border-border" />
-      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} /></div>}
+      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} menu={upMenu} /></div>}
       {tripDesignOpen && admin && <DesignDialog content={content} parentId="trips" onClose={() => setTripDesignOpen(false)} />}
       {upcomingOpen && <FullPage title={upTitle} onBack={closeUpcoming}>
+      <div className="min-h-8" dir="ltr">{upcomingInnerMenu && <div className="flex justify-start">{upcomingInnerMenu}</div>}</div>
 
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
