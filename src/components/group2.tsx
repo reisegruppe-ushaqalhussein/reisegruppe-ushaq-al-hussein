@@ -198,11 +198,11 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
         className="mb-4"
         sectionActions={<>
           <IconBtn label="T — إعادة تسمية القسم | Bereich umbenennen" onClick={() => setRenameSectionOpen(true)}><span className="text-xs font-black">T</span></IconBtn>
-          <IconBtn label="تعديل معلومة أو خانة | Eintrag oder Feld bearbeiten" onClick={() => { setEditDraftId(list[0]?.id ?? ""); setEditPickerOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>
           {showHidden && <IconBtn label={sectionHidden ? "إظهار القسم | Bereich einblenden" : "إخفاء القسم | Bereich ausblenden"} onClick={() => void setSectionHidden(!sectionHidden)}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
         </>}
         contentActions={<>
           <IconBtn label="T — إعادة تسمية محتوى فرعي | Unterinhalt umbenennen" onClick={() => { setRenameDraftId(list[0]?.id ?? ""); setRenamePickerOpen(true); }}><span className="text-xs font-black">T</span></IconBtn>
+          <IconBtn label="تعديل معلومة أو خانة | Eintrag oder Feld bearbeiten" onClick={() => { setEditDraftId(list[0]?.id ?? ""); setEditPickerOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>
           <IconBtn label="إخفاء/إظهار المحتوى | Inhalte aus-/einblenden" onClick={() => void toggleContentVisibility()}>{list.length > 0 && list.every((item) => item.hidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
           <AddButton label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }} fields={resourceFields} blank={blank} onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])} inline />
         </>}
