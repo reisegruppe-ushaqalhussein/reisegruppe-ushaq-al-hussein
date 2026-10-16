@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, Type } from "lucide-react";
+import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, Type, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
@@ -143,10 +143,10 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }:
   return (
     <article className={`rounded-lg border border-border p-4 shadow-sm ${item.hidden ? "opacity-55" : ""} ${item.design === "navy" ? "bg-primary text-primary-foreground" : item.design === "gold" ? "bg-secondary/20" : item.design === "plain" ? "bg-background" : "bg-card"}`}>
       {admin && editMode && <div className="mb-2 flex justify-start" dir="ltr"><GearMenu>
-        <IconBtn label="إعادة تسمية العنوان | Titel umbenennen" onClick={() => setEditOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label="تصميم المحتوى | Inhalt gestalten" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn label={item.hidden ? "إظهار | Einblenden" : "إخفاء | Ausblenden"} onClick={() => void onHide(!item.hidden)}>{item.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
         <IconBtn label="حذف المحتوى | Inhalt löschen" danger onClick={() => { if (window.confirm("هل تريد حذف هذا المحتوى؟ | Diesen Inhalt löschen?")) void onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label={item.hidden ? "إظهار | Einblenden" : "إخفاء | Ausblenden"} onClick={() => void onHide(!item.hidden)}>{item.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
+        <IconBtn label="استرجاع المحتوى الأصلي | Originalinhalt wiederherstellen" onClick={() => { const original = defaultContent[kind].find((entry) => entry.id === item.id); if (original) void onSave(original as unknown as Record<string, unknown>); else void onSave({ ...item, design: "default" }); }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="تصميم المحتوى | Inhalt gestalten" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu></div>}
       <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={() => editMode ? setEditOpen(true) : toggleOpen()} className="flex min-w-0 flex-1 items-start gap-2 text-right">
         <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
