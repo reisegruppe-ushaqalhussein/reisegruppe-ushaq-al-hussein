@@ -16,7 +16,7 @@ import { GuideView, ItineraryView, TasbeehView, TawafView, PackingView } from "@
 import { WelcomeScreen } from "@/components/welcome-screen";
 import welcomeBackgroundAsset from "@/assets/celestial-shrines-splash.jpg.asset.json";
 import welcomeLogoAsset from "@/assets/ushaq-original-logo.png.asset.json";
-import { CustomSectionView, HomeBanner, TileGrid, pathOf, type Tile } from "@/components/cms";
+import { CustomSectionView, DesignDialog, HomeBanner, TileGrid, pathOf, type Tile } from "@/components/cms";
 import { LanguageSwitcher } from "@/components/lang-switcher";
 import { LangText } from "@/lib/i18n";
 import { AccessGateway, AdminBar, openGateway } from "@/components/admin-bar";
@@ -27,7 +27,7 @@ import { CampaignQrDialog } from "@/components/campaign-qr";
 import { Bell, Calculator, CalendarClock, ClipboardList, Compass, Eye, EyeOff, Feather, MapPin, Minus, Moon, Plus, Sun, Tag, Vibrate, X } from "lucide-react";
 import { FavStar, QiblaView, ResourcesView, useFavorites } from "@/components/group2";
 import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
-import { Trash2 as TrashIcon } from "lucide-react";
+import { Trash2 as TrashIcon, Palette } from "lucide-react";
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -454,6 +454,8 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const showHidden = useShowHidden();
   const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => showHidden || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; const sAr = t.statusAr || m.statusAr; return { ...t, ...m, image: t.imageUrl || m.image, statusAr: sAr, statusDe: statusDeMap[sAr.trim()] ?? (t.statusDe || m.statusDe) }; });
   const isEditing = useSectionEditMode();
+  const [tripDesignOpen, setTripDesignOpen] = useState(false);
+  const tripViewMode = content.cms?.viewModes?.["trips"] ?? "grid";
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(() => {
@@ -483,8 +485,10 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const upTitle = labelOf(content, "upcoming", "الرحلات القادمة", "Kommende Reisen");
   const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
   const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
-  const upMenu = admin && <GearMenu>
+  const tripsMenu = admin && <GearMenu>
     <RenameTitle languageAware content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
+    <IconBtn label={actionLabel("التصميم", "Design")} onClick={() => setTripDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
+    <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} />
     <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />
     {showHidden && <IconBtn label={upHidden ? actionLabel("إرجاع", "Wiederherstellen") : actionLabel("إخفاء", "Verbergen")} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
   </GearMenu>;
@@ -493,9 +497,9 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
     <div className="screen-enter px-4 py-7">
       <div className="relative mb-4 min-h-8">
         <div className="pl-9"><ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" /></div>
-        <div className="absolute left-0 top-0">{admin && <GearMenu><SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} /></GearMenu>}</div>
+        <div className="absolute left-0 top-0" dir="ltr">{tripsMenu}</div>
       </div>
-           <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${tripViewMode === "horizontal" ? "grid-cols-1" : tripViewMode === "compact" ? "grid-cols-2" : tripViewMode === "grid3" ? "grid-cols-3" : "grid-cols-2"}`}>
         {tripTypesAtTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? Landmark;
           const list = content.tripTypes;
@@ -505,8 +509,9 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
       </div>
 
       <div className="my-7 border-t border-border" />
-      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} menu={upMenu} /></div>}
-      {upcomingOpen && <FullPage title={upTitle} onBack={closeUpcoming} menu={upMenu}>
+      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} /></div>}
+      {tripDesignOpen && admin && <DesignDialog content={content} parentId="trips" onClose={() => setTripDesignOpen(false)} />}
+      {upcomingOpen && <FullPage title={upTitle} onBack={closeUpcoming}>
 
       <div className="space-y-3">
         {upcomingTrips.map((trip) => {
