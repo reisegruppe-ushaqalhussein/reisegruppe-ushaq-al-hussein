@@ -4,13 +4,13 @@ import { LanguageSwitcher } from "@/components/lang-switcher";
 import { createPortal } from "react-dom";
 import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft, Palette } from "lucide-react";
 import { DesignDialog } from "@/components/cms";
-import { RestoreButton } from "@/components/inline-admin";
+
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
 import { useAdminSession, useShowHidden, useCanManage } from "@/lib/admin-session";
-import { AddButton, EditDialog, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, GearMenu, IconBtn, ManageRow, SectionAdminBar, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { defaultContent, labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
 
 const gearCls = "h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary";
@@ -518,17 +518,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       />
 
       <IconBtn label="التصميم | Design" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-      <RestoreButton onRestore={() => commit(defaultContent.guidelines)} />
-      <AddButton
-        inline
-        label={{
-          ar: "إضافة مجلد زيارة",
-          de: "Ziyarat-Ordner hinzufügen",
-        }}
-        fields={guideFields}
-        blank={blankGuide}
-        onAdd={addNew}
-      />
+      <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} addFields={guideFields} addBlank={blankGuide} onAdd={addNew} onRestore={() => commit(defaultContent.guidelines)} />
 
       {showHidden && (
         <IconBtn
