@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { ChevronDown, Star, Compass, Eye, EyeOff, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, RestoreButton, SectionManagementGears, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
@@ -160,6 +161,8 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   const [itemsEditMode, setItemsEditMode] = useState(false);
   const [renameSectionOpen, setRenameSectionOpen] = useState(false);
   const [renameItemId, setRenameItemId] = useState("");
+  const [renamePickerOpen, setRenamePickerOpen] = useState(false);
+  const [renameDraftId, setRenameDraftId] = useState("");
   const showHidden = useShowHidden();
   const labels = content.labels ?? {};
   const sectionKey = `tile:${kind}`;
@@ -196,7 +199,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
           {showHidden && <IconBtn label={sectionHidden ? "إظهار القسم | Bereich einblenden" : "إخفاء القسم | Bereich ausblenden"} onClick={() => void setSectionHidden(!sectionHidden)}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
         </>}
         contentActions={<>
-          <IconBtn label="T — إعادة تسمية محتوى فرعي | Unterinhalt umbenennen" onClick={() => setRenameItemId(list[0]?.id ?? "")}><span className="text-xs font-black">T</span></IconBtn>
+          <IconBtn label="T — إعادة تسمية محتوى فرعي | Unterinhalt umbenennen" onClick={() => { setRenameDraftId(list[0]?.id ?? ""); setRenamePickerOpen(true); }}><span className="text-xs font-black">T</span></IconBtn>
           <IconBtn label="إخفاء/إظهار المحتوى | Inhalte aus-/einblenden" onClick={() => void toggleContentVisibility()}>{list.length > 0 && list.every((item) => item.hidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
           <AddButton label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }} fields={resourceFields} blank={blank} onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])} inline />
           <RestoreButton onRestore={() => put(defaultContent[kind])} />
@@ -209,6 +212,22 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
           onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
         {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." /></p>}
       </div>
+      <Dialog open={renamePickerOpen} onOpenChange={setRenamePickerOpen}>
+        <DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle>اختيار المحتوى المراد إعادة تسميته | Inhalt zum Umbenennen auswählen</DialogTitle>
+            <DialogDescription>اختر عنصرًا واحدًا فقط. لن يتغير أي نص آخر. | Wähle genau einen Eintrag aus.</DialogDescription>
+          </DialogHeader>
+          <select value={renameDraftId} onChange={(event) => setRenameDraftId(event.target.value)} className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
+            <option value="">— اختر عنصرًا — | — Eintrag auswählen —</option>
+            {list.map((item) => <option key={item.id} value={item.id}>{item.ar || item.de}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setRenamePickerOpen(false)}>إلغاء | Abbrechen</Button>
+            <Button className="flex-1" disabled={!renameDraftId || !list.some((item) => item.id === renameDraftId)} onClick={() => { setRenameItemId(renameDraftId); setRenamePickerOpen(false); }}>متابعة | Weiter</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {renameSectionOpen && <EditDialog open={renameSectionOpen} onOpenChange={setRenameSectionOpen} title={{ ar: "إعادة تسمية القسم", de: "Bereich umbenennen" }} fields={renameFields} initial={sectionTitle} onSubmit={(row) => save({ ...content, labels: { ...labels, [sectionKey]: { ar: String(row.ar ?? ""), de: String(row.de ?? ""), hidden: labels[sectionKey]?.hidden } } })} />}
       {renameTarget && <EditDialog open={true} onOpenChange={(open) => { if (!open) setRenameItemId(""); }} title={{ ar: "إعادة تسمية المحتوى", de: "Inhalt umbenennen" }} fields={renameFields} initial={{ ar: renameTarget.ar, de: renameTarget.de }} onSubmit={async (row) => { await put(list.map((item) => item.id === renameTarget.id ? { ...item, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : item)); setRenameItemId(""); }} />}
     </div>
