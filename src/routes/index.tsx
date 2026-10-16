@@ -455,7 +455,9 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const upcomingTrips: UpcomingTrip[] = content.trips.filter((t) => showHidden || (t.visible && !t.hidden)).map((t) => { const m = tripMeta[t.id] ?? fallbackMeta; const sAr = t.statusAr || m.statusAr; return { ...t, ...m, image: t.imageUrl || m.image, statusAr: sAr, statusDe: statusDeMap[sAr.trim()] ?? (t.statusDe || m.statusDe) }; });
   const isEditing = useSectionEditMode();
   const [tripDesignOpen, setTripDesignOpen] = useState(false);
-  const tripViewMode = content.cms?.viewModes?.["trips"] ?? "grid";
+  const [tripTypesDesignOpen, setTripTypesDesignOpen] = useState(false);
+  const upcomingViewMode = content.cms?.viewModes?.["upcoming"] ?? "grid";
+  const tripTypesViewMode = content.cms?.viewModes?.["trip-types"] ?? "grid";
   const saveTrips = (trips: TripEntry[]) => saveContent({ ...content, trips });
   const { hotels, program } = content;
   const [selected, setSelected] = useState<UpcomingTrip | null>(() => {
@@ -485,11 +487,6 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
   const upTitle = labelOf(content, "upcoming", "الرحلات القادمة", "Kommende Reisen");
   const upHidden = content.labels?.["upcoming"]?.hidden ?? false;
   const toggleUp = () => saveContent({ ...content, labels: { ...(content.labels ?? {}), upcoming: { ar: content.labels?.["upcoming"]?.ar ?? "", de: content.labels?.["upcoming"]?.de ?? "", hidden: !upHidden } } });
-  const upMenu = admin && <GearMenu>
-    <RenameTitle languageAware content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
-    <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة رحلة جديدة", de: "Neue Reise hinzufügen" }} addFields={tripFields} addBlank={{ ar: "", de: "", date: "", statusAr: "التسجيل مفتوح", statusDe: "Anmeldung offen", descAr: "", descDe: "", programAr: "", programDe: "", visible: true, hidden: false }} onAdd={(row) => saveTrips([...content.trips, { ...(row as TripEntry), id: `t${Date.now()}` }])} onRestore={() => saveTrips(defaultContent.trips)} />
-    {showHidden && <IconBtn label={upHidden ? actionLabel("إرجاع", "Wiederherstellen") : actionLabel("إخفاء", "Verbergen")} onClick={() => void toggleUp()}>{upHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
-  </GearMenu>;
   const upcomingInnerMenu = admin && <GearMenu>
     <RenameTitle languageAware content={content} labelKey="upcoming" ar={upTitle.ar} de={upTitle.de} />
     <IconBtn label={actionLabel("التصميم", "Design")} onClick={() => setTripDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
@@ -501,9 +498,9 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
     <div className="screen-enter px-4 py-7">
       <div className="relative mb-4 min-h-8">
         <div className="pl-9"><ScreenTitle icon={Luggage} ar="أنواع الزيارة" de="Reisearten" /></div>
-        <div className="absolute left-0 top-0" dir="ltr">{admin && <GearMenu><SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} /></GearMenu>}</div>
+        <div className="absolute left-0 top-0" dir="ltr">{admin && <GearMenu><IconBtn label={actionLabel("التصميم", "Design")} onClick={() => setTripTypesDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn><SectionAdminBar inline languageAware addLabel={{ ar: "إضافة نوع زيارة", de: "Reiseart hinzufügen" }} addFields={tripTypeFields} addBlank={{ ar: "", de: "", statusAr: "سيُعلن قريباً", statusDe: "Wird bald bekannt gegeben" }} onAdd={(row) => saveContent({ ...content, tripTypes: [...content.tripTypes, { ...(row as TripTypeEntry), id: `tt${Date.now()}` }] })} onRestore={() => saveContent({ ...content, tripTypes: defaultContent.tripTypes })} /></GearMenu>}</div>
       </div>
-      <div className={`grid gap-3 ${tripViewMode === "horizontal" ? "grid-cols-1" : tripViewMode === "compact" ? "grid-cols-2" : tripViewMode === "grid3" ? "grid-cols-3" : "grid-cols-2"}`}>
+      <div className={`grid gap-3 ${tripTypesViewMode === "horizontal" ? "grid-cols-1" : tripTypesViewMode === "grid3" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2"}`}>
         {tripTypesAtTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? Landmark;
           const list = content.tripTypes;
@@ -513,12 +510,13 @@ function TripsView({ content, admin, open }: { content: SiteContent; admin: Admi
       </div>
 
       <div className="my-7 border-t border-border" />
-      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} menu={upMenu} /></div>}
-      {tripDesignOpen && admin && <DesignDialog content={content} parentId="trips" onClose={() => setTripDesignOpen(false)} />}
+      {(!upHidden || showHidden) && <div className={upHidden ? "opacity-60" : ""}><FolderCard icon={CalendarDays} ar={upTitle.ar} de={upTitle.de} count={upcomingTrips.length} onOpen={openUpcoming} /></div>}
+      {tripDesignOpen && admin && <DesignDialog content={content} parentId="upcoming" onClose={() => setTripDesignOpen(false)} />}
+      {tripTypesDesignOpen && admin && <DesignDialog content={content} parentId="trip-types" onClose={() => setTripTypesDesignOpen(false)} />}
       {upcomingOpen && <FullPage title={upTitle} onBack={closeUpcoming}>
       <div className="min-h-8" dir="ltr">{upcomingInnerMenu && <div className="flex justify-start">{upcomingInnerMenu}</div>}</div>
 
-      <div className="space-y-3">
+      <div className={`grid gap-3 ${upcomingViewMode === "horizontal" ? "grid-cols-1" : upcomingViewMode === "grid3" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1"}`}>
         {upcomingTrips.map((trip) => {
           const Icon = tripIcons[trip.id] ?? (/عمر|umrah/i.test(trip.ar + trip.de) ? KaabaIcon : /حج|hadsch/i.test(trip.ar + trip.de) ? HajjIcon : /إيران|iran/i.test(trip.ar + trip.de) ? IranIcon : /عراق|حسين|irak|hussein/i.test(trip.ar + trip.de) ? IraqIcon : trip.icon);
           const raw = content.trips.find((t) => t.id === trip.id)!;
