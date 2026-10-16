@@ -430,7 +430,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
   });
   const [manage, setManage] = useState(false);
   const [designOpen, setDesignOpen] = useState(false);
-  const guideViewMode = content.cms?.viewModes?.["guidelines"] ?? "grid";
+  const guideViewMode = content.cms?.viewModes?.["guidelines"] ?? "horizontal";
   useEffect(() => {
     const restore = () => {
       const hash = window.location.hash;
