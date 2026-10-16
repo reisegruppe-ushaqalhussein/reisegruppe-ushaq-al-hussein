@@ -1899,28 +1899,14 @@ function FaqView({ content, admin }: { content: SiteContent; admin: AdminProps }
     <div className="screen-enter px-4 py-7">
       <ScreenTitle icon={HelpCircle} ar="الأسئلة الشائعة" de="Häufige Fragen (FAQ)" />
                   {admin && (
-          <div dir="ltr" className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
-            <div className="flex items-center gap-1.5">
-              <GearMenu>
-                <AddButton
-                  label={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }}
-                  fields={faqFields}
-                  blank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }}
-                  onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })}
-                  inline
-                />
-                <RestoreButton
-                  onRestore={() => {
-                    if (window.confirm("استرجاع الأسئلة الافتراضية؟ | Standardfragen wiederherstellen?")) {
-                      saveContent({ ...content, faqs: defaultContent.faqs });
-                    }
-                  }}
-                />
-              </GearMenu>
-            </div>
-            <span className="text-[10px] font-medium text-muted-foreground">
-              <Pair ar="أدوات إدارة الأسئلة" de="FAQ verwalten" />
-            </span>
+          <div className="mb-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+            <SectionAdminBar
+              addLabel={{ ar: "إضافة سؤال", de: "Frage hinzufügen" }}
+              addFields={faqFields}
+              addBlank={{ qAr: "", qDe: "", qEn: "", aAr: "", aDe: "", aEn: "" }}
+              onAdd={(row) => saveContent({ ...content, faqs: [...faqs, { ...(row as FaqEntry), id: `f${Date.now()}` }] })}
+              onRestore={() => saveContent({ ...content, faqs: defaultContent.faqs })}
+            />
           </div>
         )}
 
@@ -1945,28 +1931,14 @@ function DonationsView({ content, admin }: { content: SiteContent; admin: AdminP
   return <div className="screen-enter px-4 py-7"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><ScreenTitle icon={HandHeart} ar="المساهمة بتيسير أمر زائر" de="Spenden für einen Pilger" /></div><FavStar id="tool:donations" /></div><section className="relative rounded-lg bg-primary p-6 text-primary-foreground shadow-md"><HandHeart className="mb-5 h-10 w-10 text-secondary" aria-hidden="true" />{admin && <div className="absolute left-2 top-2 z-10"><ItemActions fields={noteFields} item={intro} onSave={(row) => saveContent({ ...content, donationIntro: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } })} onDelete={() => saveContent({ ...content, donationIntro: { ar: "", de: "" } })} /></div>}{(intro.ar || intro.de) && <p className="whitespace-pre-line text-sm"><Pair ar={intro.ar} de={intro.de} inverse /></p>}<Button asChild className="mt-6 h-14 w-full whitespace-normal bg-secondary text-secondary-foreground hover:bg-secondary/90"><a href={content.donationContact?.link || "https://wa.me/49015773055365"} target="_blank" rel="noreferrer"><MessageCircle /><Pair ar={content.donationContact?.ar || "للمساهمة تواصل مع الحاج ياسر الدر"} de={content.donationContact?.de || "Für Spenden Hajj Yasser Aldor kontaktieren"} align="center" /></a></Button>{admin && <div className="mt-2 flex justify-center"><ItemActions fields={[{ key: "ar", ar: "نص الزر", de: "Text (AR)" }, { key: "de", ar: "النص بالألمانية", de: "Text (DE)", ltr: true }, { key: "link", ar: "الرابط (واتساب مثلاً https://wa.me/49...)", de: "Link", ltr: true }]} item={{ ar: content.donationContact?.ar ?? "للمساهمة تواصل مع الحاج ياسر الدر", de: content.donationContact?.de ?? "Für Spenden Hajj Yasser Aldor kontaktieren", link: content.donationContact?.link ?? "https://wa.me/49015773055365" }} onSave={(row) => saveContent({ ...content, donationContact: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? ""), link: String(row["link"] ?? "") } })} onDelete={() => saveContent({ ...content, donationContact: undefined })} /></div>}</section>
                <div className="mt-5">
           {admin && (
-            <div dir="ltr" className="mb-4 flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
-              <div className="flex items-center gap-1.5">
-                <GearMenu>
-                  <AddButton
-                    label={{ ar: "إضافة رقم أو حساب", de: "Nummer/Konto hinzufügen" }}
-                    fields={donationFields}
-                    blank={{ ar: "", de: "", value: "" }}
-                    onAdd={(row) => saveContent({ ...content, donations: [...list, { ...(row as DonationEntry), id: `d${Date.now()}` }] })}
-                    inline
-                  />
-                  <RestoreButton
-                    onRestore={() => {
-                      if (window.confirm("استرجاع أرقام وحسابات المساهمة الافتراضية؟ | Standardkonten wiederherstellen?")) {
-                        saveContent({ ...content, donations: defaultContent.donations });
-                      }
-                    }}
-                  />
-                </GearMenu>
-              </div>
-              <span className="text-[10px] font-medium text-muted-foreground">
-                <Pair ar="أدوات إدارة المساهمة" de="Spenden verwalten" />
-              </span>
+            <div className="mb-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+              <SectionAdminBar
+                addLabel={{ ar: "إضافة رقم أو حساب", de: "Nummer/Konto hinzufügen" }}
+                addFields={donationFields}
+                addBlank={{ ar: "", de: "", value: "" }}
+                onAdd={(row) => saveContent({ ...content, donations: [...list, { ...(row as DonationEntry), id: `d${Date.now()}` }] })}
+                onRestore={() => saveContent({ ...content, donations: defaultContent.donations })}
+              />
             </div>
           )}
 
