@@ -34,7 +34,7 @@ export type PackingItem = { id: string; ar: string; de: string; hidden?: boolean
 export type PackingCategory = { id: string; ar: string; de: string; items: PackingItem[]; hidden?: boolean };
 export type LabelMap = Record<string, { ar: string; de: string; hidden?: boolean; target?: string }>;
 /** Returns an admin-renamed title or the given default. */
-export function labelOf(c: { labels?: LabelMap | undefined }, key: string, ar: string, de: string) { const l = c.labels?.[key]; return { ar: l?.ar !== undefined ? l.ar : ar, de: l?.de !== undefined ? l.de : de }; }
+export function labelOf(c: { labels?: LabelMap | undefined }, key: string, ar: string, de: string) { const l = c.labels?.[key]; return { ar: l?.ar?.trim() ? l.ar : ar, de: l?.de?.trim() ? l.de : de }; }
 export type MemoryEntry = { id: string; imageUrl: string; ar: string; de: string; place: string; date: string; hidden?: boolean };
 export type ModeLabels = { admin: string; haj: string; leader: string };
 export type AlertEntry = { ar: string; de: string; active: boolean };
