@@ -100,8 +100,8 @@ export function SectionManagementGears({ sectionActions, contentActions, classNa
   const sectionLabel = lang === "de" ? "Bereich" : lang === "en" ? "Section" : lang === "ar" ? "القسم" : "القسم | Bereich";
   const contentLabel = lang === "de" ? "Inhalt" : lang === "en" ? "Content" : lang === "ar" ? "المحتوى" : "المحتوى | Inhalt";
   return <div dir="ltr" className={`flex flex-wrap items-start justify-start gap-3 ${className}`}>
-    <div className="flex items-center gap-1.5"><span className="text-[10px] font-semibold text-muted-foreground">{sectionLabel}</span><GearMenu>{sectionActions}</GearMenu></div>
-    <div className="flex items-center gap-1.5"><span className="text-[10px] font-semibold text-muted-foreground">{contentLabel}</span><GearMenu>{contentActions}</GearMenu></div>
+    <div className="flex items-center gap-1.5"><span className="text-[10px] font-semibold text-muted-foreground">{sectionLabel}</span><GearMenu className="!mr-0">{sectionActions}</GearMenu></div>
+    <div className="flex items-center gap-1.5"><span className="text-[10px] font-semibold text-muted-foreground">{contentLabel}</span><GearMenu className="!mr-0">{contentActions}</GearMenu></div>
   </div>;
 }
 
