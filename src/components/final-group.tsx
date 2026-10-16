@@ -606,7 +606,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
                         window.history.pushState({ view: "trips", tripsPanel: "guidelines", guideFolder: nextFolder }, "", nextFolder === null ? "#trips:guidelines" : `#trips:guidelines:${encodeURIComponent(nextFolder)}`);
                         setFolder(nextFolder);
                       }}
-                      className="flex min-h-[76px] w-full items-center gap-3 p-3 pe-14 text-right transition-colors hover:bg-accent/50 active:bg-accent"
+                      className={`flex w-full items-center gap-3 pe-14 text-right transition-colors hover:bg-accent/50 active:bg-accent ${guideViewMode === "compact" ? "min-h-[60px] p-2" : "min-h-[76px] p-3"}`}
                     >
                       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent text-secondary">
                         <Folder className="h-6 w-6" />
