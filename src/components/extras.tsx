@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { BedDouble, CalendarClock, Eye, EyeOff, Landmark, MapPin, Navigation, Pencil, Phone, Plus, RotateCcw, Settings, Trash2, Users, Vibrate } from "lucide-react";
+import { BedDouble, CalendarClock, Eye, EyeOff, Landmark, MapPin, Navigation, Pencil, Phone, Plus, RotateCcw, Settings, Trash2, Users, Vibrate, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, EditDialog, ItemActions, ManageRow, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
-import { defaultContent, defaultPackingGroups, type PackingCategory } from "@/lib/site-content";
+import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, ManageRow, RestoreButton, SectionAdminBar, useSaveContent, useSectionEditMode, type FieldDef } from "@/components/inline-admin";
+import { DesignDialog } from "@/components/cms";
+import { RenameTitle } from "@/components/final-group";
+import { defaultContent, defaultPackingGroups, labelOf, type PackingCategory } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 import { FavStar } from "@/components/group2";
 import type { ContactEntry, EmergencyEntry, ItineraryEntry, LocationEntry, LocationKind, SiteContent } from "@/lib/site-content";
@@ -36,6 +38,10 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
   const showHidden = useShowHidden();
   const all = content.itinerary;
   const available = showHidden ? all : all.filter((item) => !item.hidden);
+  const [designOpen, setDesignOpen] = useState(false);
+  const [manageEvents, setManageEvents] = useState(false);
+  const itineraryTitle = labelOf(content, "itinerary", "جدول الرحلة والفعاليات", "Tagesprogramm");
+  const itineraryViewMode = content.cms?.viewModes?.["itinerary"] ?? "grid";
   const commit = (next: ItineraryEntry[]) => save({ ...content, itinerary: next });
   const dates = useMemo(() => [...new Set(available.map((e) => e.date))].sort(), [available]);
   const [day, setDay] = useState<string>(() => {
@@ -71,13 +77,20 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
   const events = available.filter((e) => e.date === day).sort((a, b) => a.time.localeCompare(b.time));
   return (
     <div className="screen-enter px-4 py-7">
-      <Title icon={CalendarClock} ar="جدول الرحلة والفعاليات" de="Tagesprogramm" />
-      {admin && <AddButton label={{ ar: "إضافة فعالية", de: "Programmpunkt hinzufügen" }} fields={itineraryFields} blank={{ id: "", date: day || todayIso(), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false, hidden: false }} onAdd={(row) => commit([...all, { ...(row as ItineraryEntry), id: `e${Date.now()}` }])} />}
+      <Title icon={CalendarClock} ar={itineraryTitle.ar} de={itineraryTitle.de} />
+      {admin && <div className="mb-4 flex justify-start" dir="ltr"><GearMenu>
+        <RenameTitle content={content} labelKey="itinerary" ar={itineraryTitle.ar} de={itineraryTitle.de} />
+        <IconBtn label="التصميم | Design" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
+        <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة فعالية", de: "Programmpunkt hinzufügen" }} addFields={itineraryFields} addBlank={{ id: "", date: day || todayIso(), time: "08:00", titleAr: "", titleDe: "", place: "", notes: "", gathering: false, hidden: false }} onAdd={(row) => commit([...all, { ...(row as ItineraryEntry), id: `e${Date.now()}` }])} onRestore={() => commit(defaultContent.itinerary)} />
+        <IconBtn label="إدارة الحذف | Löschen verwalten" onClick={() => setManageEvents(true)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+      </GearMenu></div>}
+      {designOpen && admin && <DesignDialog content={content} parentId="itinerary" onClose={() => setDesignOpen(false)} />}
+      {manageEvents && admin && <Dialog open={manageEvents} onOpenChange={setManageEvents}><DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl"><DialogHeader><DialogTitle>إدارة فعاليات الجدول | Tagesprogramm verwalten</DialogTitle><DialogDescription className="sr-only">إدارة وتعديل وحذف الفعاليات | Programmpunkte verwalten</DialogDescription></DialogHeader><div className="space-y-2">{all.map((event) => <ManageRow key={event.id} title={`${event.date} · ${event.time} · ${event.titleAr || event.titleDe}`} subtitle={event.place || ""} fields={itineraryFields} item={event} hidden={event.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => x.id === event.id ? { ...x, hidden } : x))} onSave={(row) => commit(all.map((x) => x.id === event.id ? { ...(row as ItineraryEntry), id: x.id, hidden: x.hidden ?? false } : x))} onDelete={() => commit(all.filter((x) => x.id !== event.id))} />)}</div></DialogContent></Dialog>}
       {dates.length === 0 ? <p className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground"><P ar="سيتم نشر جدول الرحلة هنا قريباً." de="Das Tagesprogramm wird hier bald veröffentlicht." /></p> : <>
         <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1" dir="ltr">
           {dates.map((d) => <button key={d} onClick={() => chooseDay(d)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold ${d === day ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-primary"}`}>{d === todayIso() ? "اليوم · Heute" : fmtDate(d)}</button>)}
         </div>
-        <ol className="relative space-y-3 border-r-2 border-secondary/40 pr-4">
+        <ol className={`relative gap-3 ${itineraryViewMode === "horizontal" ? "flex flex-col space-y-3 border-r-2 border-secondary/40 pr-4" : itineraryViewMode === "compact" ? "grid grid-cols-2" : itineraryViewMode === "grid3" ? "grid grid-cols-2 sm:grid-cols-3" : "flex flex-col space-y-3"}`}>
           {events.map((e) => (
              <li key={e.id} className={`relative ${e.hidden ? "opacity-55" : ""}`}>
               <span className={`absolute -right-[23px] top-4 h-3 w-3 rounded-full ${e.gathering ? "bg-secondary ring-4 ring-secondary/25" : "bg-primary"}`} />
