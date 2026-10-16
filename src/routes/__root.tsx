@@ -4,17 +4,8 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  useRouter,
   useNavigate,
   useLocation,
-  HeadContent,
-  Scripts,
-  type ErrorComponentProps,
-} from "@tanstack/react-router";
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -36,9 +27,10 @@ function NotFoundComponent() {
     "/qibla": "qibla",
     "/hadiths": "hadiths",
   };
-  const pathname = location.pathname.endsWith("/") && location.pathname.length > 1
-    ? location.pathname.slice(0, -1)
-    : location.pathname;
+  const pathname =
+    location.pathname.endsWith("/") && location.pathname.length > 1
+      ? location.pathname.slice(0, -1)
+      : location.pathname;
   const view = legacyViews[pathname];
 
   useEffect(() => {
@@ -54,9 +46,6 @@ function NotFoundComponent() {
       </div>
     );
   }
-
-  return (
-    // ... باقي كود 404 كما هو دون تغيير
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -179,7 +168,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useEffect(() => { registerAppServiceWorker().catch(() => {}); }, []);
+  useEffect(() => {
+    registerAppServiceWorker().catch(() => {});
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
