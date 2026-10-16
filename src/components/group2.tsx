@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, EditDialog, GearMenu, IconBtn, RestoreButton, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import { labelOf, type ResourceEntry, type SiteContent } from "@/lib/site-content";
