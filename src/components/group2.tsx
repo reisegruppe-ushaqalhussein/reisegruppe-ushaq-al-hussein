@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, RestoreButton, SectionManagementGears, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
@@ -158,40 +158,59 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   const save = useSaveContent(admin?.password ?? "");
   const list = content[kind];
   const [itemsEditMode, setItemsEditMode] = useState(false);
+  const [renameSectionOpen, setRenameSectionOpen] = useState(false);
+  const [renameItemId, setRenameItemId] = useState("");
   const showHidden = useShowHidden();
+  const labels = content.labels ?? {};
+  const sectionKey = `tile:${kind}`;
+  const sectionHidden = (content.cms?.hiddenTiles ?? []).includes(kind);
   const visible = list.filter((r) => showHidden || !r.hidden);
   const put = (next: ResourceEntry[]) => save({ ...content, [kind]: next });
-  const title = kind === "occasions" ? { ar: "المناسبات الخاصة وأعمالها", de: "Besondere Anlässe", icon: Sparkles } : { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen", icon: ScrollText };
+  const title = kind === "occasions" ? { ar: "المناسبات الخاصة وأعمالها", de: "Besondere Anlässe", icon: Sparkles } : { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" , icon: ScrollText };
+  const sectionTitle = { ar: labels[sectionKey]?.ar?.trim() || title.ar, de: labels[sectionKey]?.de?.trim() || title.de };
+  const renameFields: FieldDef[] = [
+    { key: "ar", ar: "العنوان بالعربية", de: "Titel auf Arabisch" },
+    { key: "de", ar: "العنوان بالألمانية", de: "Titel auf Deutsch", ltr: true },
+  ];
+  const renameTarget = list.find((item) => item.id === renameItemId);
+  const setSectionHidden = (hidden: boolean) => {
+    const next = new Set(content.cms?.hiddenTiles ?? []);
+    if (hidden) next.add(kind); else next.delete(kind);
+    return save({ ...content, cms: { ...(content.cms ?? {}), hiddenTiles: [...next] } });
+  };
+  const toggleContentVisibility = () => {
+    const allHidden = list.length > 0 && list.every((item) => item.hidden);
+    return put(list.map((item) => ({ ...item, hidden: !allHidden })));
+  };
   return (
-    <div className="screen-enter px-4 py-7">
-      <Title icon={title.icon} ar={title.ar} de={title.de} />
-      {admin && (
-        <div dir="ltr" className="mb-4 flex justify-start">
-          <GearMenu>
-            <IconBtn
-              label={itemsEditMode ? "إنهاء تعديل العناصر | Bearbeitung beenden" : "تعديل عناصر القسم | Elemente bearbeiten"}
-              onClick={() => setItemsEditMode((value) => !value)}
-            ><Pencil className="h-3.5 w-3.5" /></IconBtn>
-            <AddButton
-              label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }}
-              fields={resourceFields}
-              blank={blank}
-              onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
-              inline
-            />
-            <RestoreButton onRestore={() => put(defaultContent[kind])} />
-          </GearMenu>
-        </div>
-      )}
-
-
+    <div className={`screen-enter px-4 py-7 ${sectionHidden ? "opacity-60" : ""}`}>
+      <div className="mb-5 flex items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><title.icon className="h-5 w-5" /></span>
+        <h2 className="min-w-0 flex-1 text-xl text-primary"><P ar={sectionTitle.ar} de={sectionTitle.de} /></h2>
+      </div>
+      {admin && <SectionManagementGears
+        className="mb-4"
+        sectionActions={<>
+          <IconBtn label="T — إعادة تسمية القسم | Bereich umbenennen" onClick={() => setRenameSectionOpen(true)}><span className="text-xs font-black">T</span></IconBtn>
+          <IconBtn label={itemsEditMode ? "إنهاء تعديل النصوص | Textbearbeitung beenden" : "تعديل النصوص والترجمات | Texte und Übersetzungen bearbeiten"} onClick={() => setItemsEditMode((value) => !value)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+          {showHidden && <IconBtn label={sectionHidden ? "إظهار القسم | Bereich einblenden" : "إخفاء القسم | Bereich ausblenden"} onClick={() => void setSectionHidden(!sectionHidden)}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
+        </>}
+        contentActions={<>
+          <IconBtn label="T — إعادة تسمية محتوى فرعي | Unterinhalt umbenennen" onClick={() => setRenameItemId(list[0]?.id ?? "")} disabled={!list.length}><span className="text-xs font-black">T</span></IconBtn>
+          <IconBtn label="إخفاء/إظهار المحتوى | Inhalte aus-/einblenden" onClick={() => void toggleContentVisibility()}>{list.length > 0 && list.every((item) => item.hidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
+          <AddButton label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }} fields={resourceFields} blank={blank} onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])} inline />
+          <RestoreButton onRestore={() => put(defaultContent[kind])} />
+        </>}
+      />}
       <div className="space-y-3">
         {visible.map((item) => <ResourceCard key={item.id} item={item} kind={kind} admin={admin} editMode={itemsEditMode}
           onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden ?? false } : r)))}
           onDelete={() => put(list.filter((r) => r.id !== item.id))}
           onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
-        {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." en="Content coming soon." /></p>}
+        {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." /></p>}
       </div>
+      {renameSectionOpen && <EditDialog open={renameSectionOpen} onOpenChange={setRenameSectionOpen} title={{ ar: "إعادة تسمية القسم", de: "Bereich umbenennen" }} fields={renameFields} initial={sectionTitle} onSubmit={(row) => save({ ...content, labels: { ...labels, [sectionKey]: { ar: String(row.ar ?? ""), de: String(row.de ?? ""), hidden: labels[sectionKey]?.hidden } } })} />}
+      {renameTarget && <EditDialog open={true} onOpenChange={(open) => { if (!open) setRenameItemId(""); }} title={{ ar: "إعادة تسمية المحتوى", de: "Inhalt umbenennen" }} fields={renameFields} initial={{ ar: renameTarget.ar, de: renameTarget.de }} onSubmit={async (row) => { await put(list.map((item) => item.id === renameTarget.id ? { ...item, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : item)); setRenameItemId(""); }} />}
     </div>
   );
 }
