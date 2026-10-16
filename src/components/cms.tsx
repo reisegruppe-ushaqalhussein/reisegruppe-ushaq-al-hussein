@@ -472,7 +472,7 @@ export function DesignDialog({ content, parentId, onClose }: { content: SiteCont
     { id: "grid3", label: tr("شبكة فاخرة (3 أعمدة)", "Luxus (3 Spalten)") },
     { id: "horizontal", label: tr("أشرطة أفقية رشيقة", "Horizontale Leisten") },
     { id: "image", label: tr("بطاقات مصورة", "Bildkarten") }
-  ] as const;
+  ].filter((mode) => !(["trip-types", "itinerary", "guidelines"].includes(modeKey) && mode.id === "image"));
   return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent className="max-h-[90vh] w-[calc(100%-24px)] max-w-[360px] overflow-y-auto" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}>
     <DialogHeader className={lang === "de" || lang === "en" ? "text-left" : "text-right"}><DialogTitle>{tr("التصميم", "Design")}</DialogTitle><DialogDescription>{tr("يُطبّق على كل الأجهزة", "Gilt auf allen Geräten")}</DialogDescription></DialogHeader>
     <div className="space-y-4 text-sm">
