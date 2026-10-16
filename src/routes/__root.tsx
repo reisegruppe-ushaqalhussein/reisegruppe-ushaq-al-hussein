@@ -4,7 +4,17 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  import {
+  Outlet,
+  Link,
+  createRootRouteWithContext,
+  useRouter,
   useNavigate,
+  useLocation,
+  HeadContent,
+  Scripts,
+  type ErrorComponentProps,
+} from "@tanstack/react-router";
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -19,33 +29,34 @@ import { registerAppServiceWorker } from "@/lib/register-sw";
 
 function NotFoundComponent() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const legacyViews: Record<string, string> = {
+    "/tasbeeh": "tasbeeh",
+    "/qibla": "qibla",
+    "/hadiths": "hadiths",
+  };
+  const pathname = location.pathname.endsWith("/") && location.pathname.length > 1
+    ? location.pathname.slice(0, -1)
+    : location.pathname;
+  const view = legacyViews[pathname];
 
   useEffect(() => {
-    const legacyViews: Record<string, string> = {
-      "/tasbeeh": "tasbeeh",
-      "/qibla": "qibla",
-      "/hadiths": "hadiths",
-    };
-    const pathname = window.location.pathname;
-    const normalizedPath = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-    const view = legacyViews[normalizedPath];
     if (view) {
-      // Use TanStack Router navigation instead of mutating history and
-      // dispatching a synthetic popstate event.
       void navigate({ to: "/", hash: view, replace: true });
     }
-  }, [navigate]);
+  }, [navigate, view]);
 
-  const legacyPaths = ["/tasbeeh", "/qibla", "/hadiths"];
-  const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-  const normalizedCurrentPath = currentPath.endsWith("/") ? currentPath.slice(0, -1) : currentPath;
-  if (legacyPaths.includes(normalizedCurrentPath)) {
+  if (view) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">جارٍ فتح القسم… | Bereich wird geöffnet…</p>
       </div>
     );
   }
+
+  return (
+    // ... باقي كود 404 كما هو دون تغيير
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
