@@ -1,9 +1,10 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
+import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, RestoreButton, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { RenameTitle } from "@/components/final-group";
 import { labelOf, type ResourceEntry, type SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
@@ -125,6 +126,8 @@ const blank = { ar: "", de: "", en: "", place: "", textAr: "", textDe: "", textE
 
 function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }: { item: ResourceEntry; admin: Admin; onSave: (r: Record<string, unknown>) => Promise<void>; onDelete: () => Promise<void>; onHide: (h: boolean) => Promise<void>; kind: "occasions" | "hadiths"; editMode: boolean }) {
   const [open, setOpen] = useState(() => typeof window !== "undefined" && window.location.hash === `#${kind}:item:${encodeURIComponent(item.id)}`);
+  const [editOpen, setEditOpen] = useState(false);
+  const [designOpen, setDesignOpen] = useState(false);
   const toggleOpen = () => {
     const next = !open;
     window.history.pushState({ view: kind, resourceId: next ? item.id : undefined }, "", next ? `#${kind}:item:${encodeURIComponent(item.id)}` : `#${kind}`);
@@ -138,9 +141,14 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }:
   const { lang } = useLang();
   const text = lang === "ar" ? item.textAr : lang === "en" ? item.textEn || item.textDe : lang === "de" ? item.textDe : null;
   return (
-    <article className={`rounded-lg border border-border bg-card p-4 shadow-sm ${item.hidden ? "opacity-55" : ""}`}>
-      {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} editMode={editMode} />}
-      <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={toggleOpen} className="flex min-w-0 flex-1 items-start gap-2 text-right">
+    <article className={`rounded-lg border border-border p-4 shadow-sm ${item.hidden ? "opacity-55" : ""} ${item.design === "navy" ? "bg-primary text-primary-foreground" : item.design === "gold" ? "bg-secondary/20" : item.design === "plain" ? "bg-background" : "bg-card"}`}>
+      {admin && editMode && <div className="mb-2 flex justify-start" dir="ltr"><GearMenu>
+        <IconBtn label="إعادة تسمية العنوان | Titel umbenennen" onClick={() => setEditOpen(true)}><Type className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label="تصميم المحتوى | Inhalt gestalten" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
+        <IconBtn label={item.hidden ? "إظهار | Einblenden" : "إخفاء | Ausblenden"} onClick={() => void onHide(!item.hidden)}>{item.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
+        <IconBtn label="حذف المحتوى | Inhalt löschen" danger onClick={() => { if (window.confirm("هل تريد حذف هذا المحتوى؟ | Diesen Inhalt löschen?")) void onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
+      </GearMenu></div>}
+      <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={() => editMode ? setEditOpen(true) : toggleOpen()} className="flex min-w-0 flex-1 items-start gap-2 text-right">
         <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
       </button></div>
@@ -150,6 +158,8 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }:
         {item.audioUrl && <audio controls preload="none" src={item.audioUrl} className="w-full"><track kind="captions" /></audio>}
         {item.pdfUrl && <Button asChild variant="outline" className="h-11 w-full"><a href={item.pdfUrl} target="_blank" rel="noreferrer"><FileText /><P ar="فتح ملف PDF" de="PDF öffnen" en="Open PDF" /></a></Button>}
       </div>}
+      {editOpen && <EditDialog open onOpenChange={setEditOpen} title={{ ar: "تعديل المحتوى", de: "Inhalt bearbeiten" }} fields={resourceFields} initial={item as unknown as Record<string, unknown>} onSubmit={onSave} />}
+      {designOpen && <Dialog open onOpenChange={setDesignOpen}><DialogContent className="w-[calc(100%-24px)] max-w-[340px]" dir="rtl"><DialogHeader><DialogTitle>تصميم المحتوى | Inhalt gestalten</DialogTitle></DialogHeader><div className="grid grid-cols-2 gap-2"><Button variant={item.design === "navy" ? "default" : "outline"} onClick={() => { void onSave({ ...item, design: "navy" }); setDesignOpen(false); }}>كحلي | Marineblau</Button><Button variant={item.design === "gold" ? "default" : "outline"} onClick={() => { void onSave({ ...item, design: "gold" }); setDesignOpen(false); }}>ذهبي | Gold</Button><Button variant={item.design === "plain" ? "default" : "outline"} onClick={() => { void onSave({ ...item, design: "plain" }); setDesignOpen(false); }}>فاتح | Hell</Button><Button variant={!item.design || item.design === "default" ? "default" : "outline"} onClick={() => { void onSave({ ...item, design: "default" }); setDesignOpen(false); }}>عادي | Standard</Button></div></DialogContent></Dialog>}
     </article>
   );
 }
@@ -172,6 +182,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
       {admin && (
         <div dir="ltr" className="mb-4 flex justify-start">
           <GearMenu>
+            <RenameTitle content={content} labelKey={kind} ar={title.ar} de={title.de} />
             <IconBtn
               label={itemsEditMode ? "إنهاء تعديل العناصر | Bearbeitung beenden" : "تعديل عناصر القسم | Elemente bearbeiten"}
               onClick={() => setItemsEditMode((value) => !value)}
