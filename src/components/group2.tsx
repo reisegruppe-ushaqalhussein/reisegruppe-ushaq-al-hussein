@@ -171,6 +171,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   const put = (next: ResourceEntry[]) => save({ ...content, [kind]: next });
   const title = kind === "occasions" ? { ar: "المناسبات الخاصة وأعمالها", de: "Besondere Anlässe", icon: Sparkles } : { ar: "الأحاديث والروايات", de: "Hadithe & Überlieferungen" , icon: ScrollText };
   const sectionTitle = { ar: labels[sectionKey]?.ar?.trim() || title.ar, de: labels[sectionKey]?.de?.trim() || title.de };
+  const SectionIcon = title.icon;
   const renameFields: FieldDef[] = [
     { key: "ar", ar: "العنوان بالعربية", de: "Titel auf Arabisch" },
     { key: "de", ar: "العنوان بالألمانية", de: "Titel auf Deutsch", ltr: true },
@@ -188,7 +189,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
   return (
     <div className={`screen-enter px-4 py-7 ${sectionHidden ? "opacity-60" : ""}`}>
       <div className="mb-5 flex items-center gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><title.icon className="h-5 w-5" /></span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><SectionIcon className="h-5 w-5" /></span>
         <h2 className="min-w-0 flex-1 text-xl text-primary"><P ar={sectionTitle.ar} de={sectionTitle.de} /></h2>
       </div>
       {admin && <SectionManagementGears
