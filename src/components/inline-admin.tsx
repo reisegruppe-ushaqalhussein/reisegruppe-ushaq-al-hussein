@@ -94,19 +94,8 @@ export function GearMenu({ children, className = "" }: { children: React.ReactNo
   );
 }
 
-/** Two independent administration gears: one for the section itself, one for its child content. */
-export function SectionManagementGears({ sectionActions, contentActions, className = "" }: { sectionActions: React.ReactNode; contentActions: React.ReactNode; className?: string }) {
-  const { lang } = useLang();
-  const sectionLabel = lang === "de" ? "Bereich" : lang === "en" ? "Section" : lang === "ar" ? "القسم" : "القسم | Bereich";
-  const contentLabel = lang === "de" ? "Inhalt" : lang === "en" ? "Content" : lang === "ar" ? "المحتوى" : "المحتوى | Inhalt";
-  return <div dir="ltr" className={`flex flex-wrap items-start justify-start gap-3 ${className}`}>
-    <div className="flex items-center gap-1.5"><span className="text-[10px] font-semibold text-muted-foreground">{sectionLabel}</span><GearMenu className="!mr-0">{sectionActions}</GearMenu></div>
-    <div className="flex items-center gap-1.5"><span className="text-[10px] font-semibold text-muted-foreground">{contentLabel}</span><GearMenu className="!mr-0">{contentActions}</GearMenu></div>
-  </div>;
-}
-
 /** أزرار تحكم كل بطاقة (تختفي تماماً وتظهر فقط عند تفعيل زر القلم ✏️) */
-export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange, languageAware = true, editMode, allowDelete = true }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void>; languageAware?: boolean; editMode?: boolean; allowDelete?: boolean }) {
+export function ItemActions({ fields, item, onSave, onDelete, hidden = false, onVisibilityChange, languageAware = true, editMode }: { fields: FieldDef[]; item: Row; onSave: (row: Row) => Promise<void>; onDelete: () => Promise<void>; hidden?: boolean; onVisibilityChange?: (hidden: boolean) => Promise<void>; languageAware?: boolean; editMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const { lang } = useLang();
   const showHidden = useShowHidden();
@@ -121,7 +110,7 @@ export function ItemActions({ fields, item, onSave, onDelete, hidden = false, on
       <GearMenu>
         <IconBtn label={languageAware ? (lang === "en" ? "Edit" : lang === "de" ? "Bearbeiten" : lang === "ar" ? "تعديل" : "تعديل | Bearbeiten") : "تعديل | Bearbeiten"} onClick={() => setOpen(true)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
         {onVisibilityChange && showHidden && <IconBtn label={languageAware ? (lang === "en" ? (hidden ? "Show" : "Hide") : lang === "de" ? (hidden ? "Einblenden" : "Ausblenden") : lang === "ar" ? (hidden ? "إظهار" : "إخفاء") : (hidden ? "إظهار | Einblenden" : "إخفاء | Ausblenden")) : (hidden ? "إرجاع | Wiederherstellen" : "إخفاء | Verbergen")} onClick={async () => { try { await onVisibilityChange(!hidden); } catch { window.alert(languageAware ? (lang === "en" ? "Could not change visibility" : lang === "de" ? "Sichtbarkeit konnte nicht geändert werden" : lang === "ar" ? "تعذّر تغيير الظهور" : "تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden") : "تعذّر تغيير الظهور | Sichtbarkeit konnte nicht geändert werden"); } }}>{hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
-        {allowDelete && <IconBtn label={languageAware ? (lang === "en" ? "Delete" : lang === "de" ? "Löschen" : lang === "ar" ? "حذف" : "حذف | Löschen") : "حذف | Löschen"} danger onClick={async () => { if (!window.confirm(languageAware ? (lang === "en" ? "Delete this item?" : lang === "de" ? "Diesen Eintrag wirklich löschen?" : lang === "ar" ? "هل أنت متأكد من الحذف؟" : "هل أنت متأكد من الحذف؟ | Diesen Eintrag wirklich löschen?") : "هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert(languageAware ? (lang === "en" ? "Delete failed" : lang === "de" ? "Löschen fehlgeschlagen" : lang === "ar" ? "تعذّر الحذف" : "تعذّر الحذف | Löschen fehlgeschlagen") : "تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
+        <IconBtn label={languageAware ? (lang === "en" ? "Delete" : lang === "de" ? "Löschen" : lang === "ar" ? "حذف" : "حذف | Löschen") : "حذف | Löschen"} danger onClick={async () => { if (!window.confirm(languageAware ? (lang === "en" ? "Delete this item?" : lang === "de" ? "Diesen Eintrag wirklich löschen?" : lang === "ar" ? "هل أنت متأكد من الحذف؟" : "هل أنت متأكد من الحذف؟ | Diesen Eintrag wirklich löschen?") : "هل أنت متأكد من الحذف؟\nMöchten Sie diesen Eintrag wirklich löschen?")) return; try { await onDelete(); } catch { window.alert(languageAware ? (lang === "en" ? "Delete failed" : lang === "de" ? "Löschen fehlgeschlagen" : lang === "ar" ? "تعذّر الحذف" : "تعذّر الحذف | Löschen fehlgeschlagen") : "تعذّر الحذف | Löschen fehlgeschlagen"); } }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu>
       {open && <EditDialog open={open} onOpenChange={setOpen} title={{ ar: "تعديل", de: lang === "en" ? "Edit" : "Bearbeiten" }} fields={fields} initial={item} onSubmit={onSave} languageAware={languageAware} />}
     </div>
