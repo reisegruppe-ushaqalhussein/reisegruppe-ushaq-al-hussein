@@ -2021,6 +2021,26 @@ function CampaignApp({ content }: { content: SiteContent }) {
     window.addEventListener("open-campaign-qr", h);
     return () => window.removeEventListener("open-campaign-qr", h);
   }, []);
+  // Preserve the current history entry's scroll position across refresh and back/forward navigation.
+  useEffect(() => {
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    const saveScrollPosition = () => {
+      const state = window.history.state ?? {};
+      if (state.scrollY !== window.scrollY) {
+        window.history.replaceState({ ...state, scrollY: window.scrollY }, "");
+      }
+    };
+    window.addEventListener("scroll", saveScrollPosition, { passive: true });
+    const initialScrollY = Number(window.history.state?.scrollY ?? 0);
+    if (initialScrollY > 0) {
+      requestAnimationFrame(() => window.scrollTo({ top: initialScrollY, behavior: "auto" }));
+    }
+    return () => {
+      window.removeEventListener("scroll", saveScrollPosition);
+      window.history.scrollRestoration = previousRestoration;
+    };
+  }, []);
   useEffect(() => { if (customId) sessionStorage.setItem("custom-id", customId); }, [customId]);
   useEffect(() => { document.documentElement.dataset["theme"] = content.cms?.theme ?? ""; }, [content.cms?.theme]);
   useLayoutEffect(() => {
@@ -2095,7 +2115,8 @@ function CampaignApp({ content }: { content: SiteContent }) {
       if (next === "custom") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("c:") ? decodeURIComponent(rawH.slice(2)) : null));
       else if (next === "triptype") setCustomId((e.state?.custom as string | undefined) ?? (rawH.startsWith("triptype:") ? decodeURIComponent(rawH.slice("triptype:".length)) : null));
       setView(next in viewTitles ? next : "home");
-      window.scrollTo({ top: 0 });
+      const restoreY = Number(e.state?.scrollY ?? 0);
+      requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
     };
     const onOpen = (e: Event) => open(String((e as CustomEvent).detail));
     window.addEventListener("popstate", onPop);
