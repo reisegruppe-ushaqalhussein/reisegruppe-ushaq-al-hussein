@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, toggleSectionEditMode, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, GearMenu, IconBtn, ItemActions, RestoreButton, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
