@@ -451,7 +451,7 @@ export function DesignDialog({ content, parentId, onClose }: { content: SiteCont
   const qc = useQueryClient();
   const [draft, setDraft] = useState<CmsConfig>(cms);
   const modeKey = parentId ?? "home";
-  const [viewMode, setViewMode] = useState<"grid" | "compact" | "grid3" | "horizontal" | "image">(cms.viewModes?.[modeKey] ?? (parentId ? "grid" : cms.columns === 3 ? "grid3" : "grid"));
+  const [viewMode, setViewMode] = useState<"grid" | "compact" | "grid3" | "horizontal" | "image">(cms.viewModes?.[modeKey] ?? (["upcoming", "guidelines", "itinerary"].includes(modeKey) ? "horizontal" : parentId ? "grid" : cms.columns === 3 ? "grid3" : "grid"));
   const [busy, setBusy] = useState(false);
   const persist = async (next: SiteContent) => {
     if (!s || !canManage) return;
