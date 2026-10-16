@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, Type, RotateCcw } from "lucide-react";
+import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles, Eye, EyeOff, Palette, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
