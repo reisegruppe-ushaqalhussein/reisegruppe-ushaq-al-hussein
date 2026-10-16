@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Compass, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
+import { ChevronDown, Star, Compass, Eye, EyeOff, FileText, Music, Pencil, ScrollText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, RestoreButton, SectionManagementGears, useSaveContent, type FieldDef } from "@/components/inline-admin";
@@ -196,7 +196,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
           {showHidden && <IconBtn label={sectionHidden ? "إظهار القسم | Bereich einblenden" : "إخفاء القسم | Bereich ausblenden"} onClick={() => void setSectionHidden(!sectionHidden)}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
         </>}
         contentActions={<>
-          <IconBtn label="T — إعادة تسمية محتوى فرعي | Unterinhalt umbenennen" onClick={() => setRenameItemId(list[0]?.id ?? "")} disabled={!list.length}><span className="text-xs font-black">T</span></IconBtn>
+          <IconBtn label="T — إعادة تسمية محتوى فرعي | Unterinhalt umbenennen" onClick={() => setRenameItemId(list[0]?.id ?? "")}><span className="text-xs font-black">T</span></IconBtn>
           <IconBtn label="إخفاء/إظهار المحتوى | Inhalte aus-/einblenden" onClick={() => void toggleContentVisibility()}>{list.length > 0 && list.every((item) => item.hidden) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
           <AddButton label={{ ar: "إضافة عنصر جديد", de: "Neuer Eintrag" }} fields={resourceFields} blank={blank} onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])} inline />
           <RestoreButton onRestore={() => put(defaultContent[kind])} />
