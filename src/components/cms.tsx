@@ -3,7 +3,7 @@ import { useLang } from "@/lib/i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown, ArrowUp, BookOpen, Briefcase, CalendarDays, Camera, ChevronDown, ChevronRight, Compass, Eye, EyeOff, Feather, FileText, Folder, FolderInput, Gift, Globe, HandHeart, Heart, Image as ImageIcon,
-  Info, Landmark, Link2, Loader2, Luggage, Map as MapIcon, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, RotateCcw, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Upload, Users, Video,
+  Info, Landmark, Link2, Loader2, Luggage, Map as MapIcon, MapPin, Megaphone, MoonStar, Move, Music2, Palette, Pencil, RotateCcw, Phone, Plane, Plus, ScrollText, Shield, Sparkles, Star, Trash2, Type, Upload, Users, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -84,6 +84,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
   const staff = useStaffSession();
   const [arranging, setArranging] = useState(false);
   const [editing, setEditing] = useState<Tile | "new" | null>(null);
+  const [renaming, setRenaming] = useState<Tile | null>(null);
   const [moving, setMoving] = useState<Tile | null>(null);
   const [design, setDesign] = useState(false);
   const [deletePickerOpen, setDeletePickerOpen] = useState(false);
@@ -177,6 +178,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
             {arranging && <div className="absolute left-1 top-1 z-20" dir="ltr"><GearMenu>
               {shown.length > 1 && <IconBtn label="قبل | Davor" onClick={() => void move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>}
               {shown.length > 1 && <IconBtn label="بعد | Danach" onClick={() => void move(t, 1)}><ArrowDown className="h-3.5 w-3.5" /></IconBtn>}
+              {!t.tripType && <IconBtn label="إعادة تسمية | Umbenennen" onClick={() => setRenaming(t)}><Type className="h-3.5 w-3.5" /></IconBtn>}
               <IconBtn label="إخفاء/إظهار | Sichtbarkeit" onClick={() => toggleHidden(t)}>{off ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
               <IconBtn label="نقل إلى مجلد | Verschieben" onClick={() => setMoving(t)}><FolderInput className="h-3.5 w-3.5" /></IconBtn>
               {!t.tripType && <IconBtn label="تعديل | Bearbeiten" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
@@ -186,6 +188,7 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
         })}
       </div>
       {editing && <SectionDialog content={content} tile={editing === "new" ? null : editing} parentId={parentId} onClose={() => setEditing(null)} />}
+      {renaming && <TileRenameDialog content={content} tile={renaming} onClose={() => setRenaming(null)} />}
       {moving && <MoveDialog content={content} tile={moving} builtins={builtins} onClose={() => setMoving(null)} />}
       {design && <DesignDialog content={content} parentId={parentId} onClose={() => setDesign(false)} />}
       <Dialog open={deletePickerOpen} onOpenChange={setDeletePickerOpen}>
@@ -208,6 +211,29 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
       </Dialog>
     </div>
   );
+}
+
+function TileRenameDialog({ content, tile, onClose }: { content: SiteContent; tile: Tile; onClose: () => void }) {
+  const { cms, save } = useCms(content);
+  const { lang } = useLang();
+  const tr = (ar: string, de: string) => adminText(lang, ar, de);
+  const [ar, setAr] = useState(tile.ar);
+  const [de, setDe] = useState(tile.de);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!ar.trim() && !de.trim()) return;
+    setBusy(true);
+    if (tile.builtin) {
+      const key = tile.id === "system:iraq-types" ? "iraqTypes" : tile.id === "system:iraq-details" ? "iraqDetails" : "tile:" + tile.id;
+      await save(cms, { labels: { ...(content.labels ?? {}), [key]: { ar: ar.trim(), de: de.trim() } } });
+    } else if (tile.id.startsWith("c:")) {
+      const id = tile.id.slice(2);
+      await save({ ...cms, sections: (cms.sections ?? []).map((section) => section.id === id ? { ...section, ar: ar.trim(), de: de.trim() } : section) });
+    }
+    setBusy(false);
+    onClose();
+  };
+  return <Dialog open onOpenChange={(open) => !open && onClose()}><DialogContent className="w-[calc(100%-24px)] max-w-[380px]" dir={lang === "de" || lang === "en" ? "ltr" : "rtl"}><DialogHeader><DialogTitle>{tr("إعادة تسمية المجلد", "Ordner umbenennen")}</DialogTitle><DialogDescription>{tr("تغيير الاسم فقط، دون تغيير المحتوى.", "Nur den Namen ändern, nicht den Inhalt.")}</DialogDescription></DialogHeader><div className="space-y-3"><label className="block text-sm font-bold">{tr("الاسم بالعربية", "Name (AR)")}<input value={ar} onChange={(e) => setAr(e.target.value)} className={inputCls} /></label><label className="block text-sm font-bold">{tr("الاسم بالألمانية", "Name (DE)")}<input dir="ltr" value={de} onChange={(e) => setDe(e.target.value)} className={inputCls} /></label><Button disabled={busy || (!ar.trim() && !de.trim())} className="w-full" onClick={() => void submit()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : tr("حفظ", "Speichern")}</Button></div></DialogContent></Dialog>;
 }
 
 function SectionDialog({ content, tile, parentId, onClose }: { content: SiteContent; tile: Tile | null; parentId?: string | undefined; onClose: () => void }) {
