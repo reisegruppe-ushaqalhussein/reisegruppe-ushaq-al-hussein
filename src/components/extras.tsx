@@ -95,7 +95,7 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
              <li key={e.id} className={`relative ${e.hidden ? "opacity-55" : ""}`}>
               {itineraryViewMode === "horizontal" && <span className={`absolute -right-[23px] top-4 h-3 w-3 rounded-full ${e.gathering ? "bg-secondary ring-4 ring-secondary/25" : "bg-primary"}`} />}
                {admin && <ItemActions fields={itineraryFields} item={e} hidden={e.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === e.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === e.id ? { ...(row as ItineraryEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== e.id))} />}
-              <article className={`rounded-lg border bg-card p-4 shadow-sm ${e.gathering ? "border-secondary" : "border-border"}`}>
+              <article className={`rounded-lg border bg-card shadow-sm ${itineraryViewMode === "compact" ? "p-2 text-xs" : itineraryViewMode === "grid3" ? "p-2" : "p-4"} ${e.gathering ? "border-secondary" : "border-border"}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span dir="ltr" className="text-lg font-extrabold text-primary">{e.time}</span>
                   {e.gathering && <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-extrabold text-secondary-foreground">موعد تجمّع | Sammelzeit</span>}
