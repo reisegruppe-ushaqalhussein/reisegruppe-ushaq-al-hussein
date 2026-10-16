@@ -41,7 +41,7 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
   const [designOpen, setDesignOpen] = useState(false);
   const [manageEvents, setManageEvents] = useState(false);
   const itineraryTitle = labelOf(content, "itinerary", "جدول الرحلة والفعاليات", "Tagesprogramm");
-  const itineraryViewMode = content.cms?.viewModes?.["itinerary"] ?? "grid";
+  const itineraryViewMode = content.cms?.viewModes?.["itinerary"] ?? "horizontal";
   const commit = (next: ItineraryEntry[]) => save({ ...content, itinerary: next });
   const dates = useMemo(() => [...new Set(available.map((e) => e.date))].sort(), [available]);
   const [day, setDay] = useState<string>(() => {
@@ -93,7 +93,7 @@ export function ItineraryView({ content, admin }: { content: SiteContent; admin:
         <ol className={`relative gap-3 ${itineraryViewMode === "horizontal" ? "flex flex-col space-y-3 border-r-2 border-secondary/40 pr-4" : itineraryViewMode === "compact" ? "grid grid-cols-2" : itineraryViewMode === "grid3" ? "grid grid-cols-2 sm:grid-cols-3" : "flex flex-col space-y-3"}`}>
           {events.map((e) => (
              <li key={e.id} className={`relative ${e.hidden ? "opacity-55" : ""}`}>
-              <span className={`absolute -right-[23px] top-4 h-3 w-3 rounded-full ${e.gathering ? "bg-secondary ring-4 ring-secondary/25" : "bg-primary"}`} />
+              {itineraryViewMode === "horizontal" && <span className={`absolute -right-[23px] top-4 h-3 w-3 rounded-full ${e.gathering ? "bg-secondary ring-4 ring-secondary/25" : "bg-primary"}`} />}
                {admin && <ItemActions fields={itineraryFields} item={e} hidden={e.hidden ?? false} onVisibilityChange={(hidden) => commit(all.map((x) => (x.id === e.id ? { ...x, hidden } : x)))} onSave={(row) => commit(all.map((x) => (x.id === e.id ? { ...(row as ItineraryEntry), id: x.id, hidden: x.hidden ?? false } : x)))} onDelete={() => commit(all.filter((x) => x.id !== e.id))} />}
               <article className={`rounded-lg border bg-card p-4 shadow-sm ${e.gathering ? "border-secondary" : "border-border"}`}>
                 <div className="mb-2 flex items-center justify-between gap-2">
