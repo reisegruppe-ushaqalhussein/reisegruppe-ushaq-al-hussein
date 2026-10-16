@@ -174,14 +174,14 @@ export function TileGrid({ content, builtins, parentId, onOpen }: { content: Sit
               <span className={`grid shrink-0 place-items-center rounded-md ${viewMode === "compact" ? "h-7 w-7" : viewMode === "grid3" ? "h-9 w-9" : "h-11 w-11"} ${tileImage ? "bg-white/15 text-white" : "bg-accent text-primary"}`}><Icon className={viewMode === "compact" ? "h-3.5 w-3.5" : viewMode === "grid3" ? "h-4 w-4" : "h-5 w-5"} /></span>
               <span className={`${viewMode === "compact" || viewMode === "horizontal" ? "min-w-0 flex-1 text-start" : "w-full"} ${iraqFolder ? "min-h-10 flex items-start justify-center" : ""}`}><LangText ar={t.ar} de={t.de} center={viewMode !== "compact" && viewMode !== "horizontal"} /></span>
             </Button>
-            {arranging && <div className="absolute left-1 top-1 z-20" dir="ltr"><GearMenu>
+            {arranging && <div className="absolute inset-x-1 bottom-1 flex flex-wrap justify-center gap-1">
               {shown.length > 1 && <IconBtn label="قبل | Davor" onClick={() => void move(t, -1)}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>}
               {shown.length > 1 && <IconBtn label="بعد | Danach" onClick={() => void move(t, 1)}><ArrowDown className="h-3.5 w-3.5" /></IconBtn>}
               <IconBtn label="إخفاء/إظهار | Sichtbarkeit" onClick={() => toggleHidden(t)}>{off ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
               <IconBtn label="نقل إلى مجلد | Verschieben" onClick={() => setMoving(t)}><FolderInput className="h-3.5 w-3.5" /></IconBtn>
               {!t.tripType && <IconBtn label="تعديل | Bearbeiten" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" /></IconBtn>}
               {!t.builtin && !t.tripType && <IconBtn label="حذف | Löschen" danger onClick={() => remove(t)}><Trash2 className="h-3.5 w-3.5" /></IconBtn>}
-            </GearMenu></div>}
+            </div>}
           </div>;
         })}
       </div>
