@@ -4,7 +4,7 @@ import { ChevronDown, Star, Compass, Eye, EyeOff, FileText, Music, Pencil, Scrol
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
-import { AddButton, EditDialog, GearMenu, IconBtn, ItemActions, SectionManagementGears, useSaveContent, type FieldDef } from "@/components/inline-admin";
+import { AddButton, EditDialog, IconBtn, SectionManagementGears, useSaveContent, type FieldDef } from "@/components/inline-admin";
 import type { ResourceEntry, SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
@@ -124,7 +124,7 @@ const resourceFields: FieldDef[] = [
 ];
 const blank = { ar: "", de: "", en: "", place: "", textAr: "", textDe: "", textEn: "", pdfUrl: "", audioUrl: "" };
 
-function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }: { item: ResourceEntry; admin: Admin; onSave: (r: Record<string, unknown>) => Promise<void>; onDelete: () => Promise<void>; onHide: (h: boolean) => Promise<void>; kind: "occasions" | "hadiths"; editMode: boolean }) {
+function ResourceCard({ item, kind }: { item: ResourceEntry; kind: "occasions" | "hadiths" }) {
   const [open, setOpen] = useState(() => typeof window !== "undefined" && window.location.hash === `#${kind}:item:${encodeURIComponent(item.id)}`);
   const toggleOpen = () => {
     const next = !open;
@@ -140,7 +140,6 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }:
   const text = lang === "ar" ? item.textAr : lang === "en" ? item.textEn || item.textDe : lang === "de" ? item.textDe : null;
   return (
     <article className={`rounded-lg border border-border bg-card p-4 shadow-sm ${item.hidden ? "opacity-55" : ""}`}>
-      {admin && <ItemActions fields={resourceFields} item={item} hidden={item.hidden ?? false} onVisibilityChange={onHide} onSave={onSave} onDelete={onDelete} allowDelete={false} editMode={editMode} />}
       <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={toggleOpen} className="flex min-w-0 flex-1 items-start gap-2 text-right">
         <span className="min-w-0 flex-1 font-bold text-primary"><P ar={item.ar} de={item.de} en={item.en ?? ""} />{item.place && <span className="mt-1 block text-xs font-normal text-secondary">{item.place}</span>}</span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-secondary transition-transform ${open ? "rotate-180" : ""}`} />
@@ -158,7 +157,9 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }:
 export function ResourcesView({ content, admin, kind }: { content: SiteContent; admin: Admin; kind: "occasions" | "hadiths" }) {
   const save = useSaveContent(admin?.password ?? "");
   const list = content[kind];
-  const [itemsEditMode, setItemsEditMode] = useState(false);
+  const [editPickerOpen, setEditPickerOpen] = useState(false);
+  const [editDraftId, setEditDraftId] = useState("");
+  const [editItemId, setEditItemId] = useState("");
   const [renameSectionOpen, setRenameSectionOpen] = useState(false);
   const [renameItemId, setRenameItemId] = useState("");
   const [renamePickerOpen, setRenamePickerOpen] = useState(false);
@@ -177,6 +178,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
     { key: "de", ar: "العنوان بالألمانية", de: "Titel auf Deutsch", ltr: true },
   ];
   const renameTarget = list.find((item) => item.id === renameItemId);
+  const editTarget = list.find((item) => item.id === editItemId);
   const setSectionHidden = (hidden: boolean) => {
     const next = new Set(content.cms?.hiddenTiles ?? []);
     if (hidden) next.add(kind); else next.delete(kind);
@@ -196,7 +198,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
         className="mb-4"
         sectionActions={<>
           <IconBtn label="T — إعادة تسمية القسم | Bereich umbenennen" onClick={() => setRenameSectionOpen(true)}><span className="text-xs font-black">T</span></IconBtn>
-          <IconBtn label={itemsEditMode ? "إنهاء تعديل النصوص | Textbearbeitung beenden" : "تعديل النصوص والترجمات | Texte und Übersetzungen bearbeiten"} onClick={() => setItemsEditMode((value) => !value)}><Pencil className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn label="تعديل معلومة أو خانة | Eintrag oder Feld bearbeiten" onClick={() => { setEditDraftId(list[0]?.id ?? ""); setEditPickerOpen(true); }}><Pencil className="h-3.5 w-3.5" /></IconBtn>
           {showHidden && <IconBtn label={sectionHidden ? "إظهار القسم | Bereich einblenden" : "إخفاء القسم | Bereich ausblenden"} onClick={() => void setSectionHidden(!sectionHidden)}>{sectionHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>}
         </>}
         contentActions={<>
@@ -206,12 +208,25 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
         </>}
       />}
       <div className="space-y-3">
-        {visible.map((item) => <ResourceCard key={item.id} item={item} kind={kind} admin={admin} editMode={itemsEditMode}
-          onSave={(row) => put(list.map((r) => (r.id === item.id ? { ...(row as ResourceEntry), id: item.id, hidden: item.hidden ?? false } : r)))}
-          onDelete={() => put(list.filter((r) => r.id !== item.id))}
-          onHide={(hidden) => put(list.map((r) => (r.id === item.id ? { ...r, hidden } : r)))} />)}
+        {visible.map((item) => <ResourceCard key={item.id} item={item} kind={kind} />)}
         {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." /></p>}
       </div>
+      <Dialog open={editPickerOpen} onOpenChange={setEditPickerOpen}>
+        <DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[396px] overflow-y-auto" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle>اختيار المعلومة المراد تعديلها | Eintrag zum Bearbeiten auswählen</DialogTitle>
+            <DialogDescription>اختر خانة واحدة لفتح جميع معلوماتها وترجماتها. | Wähle einen Eintrag, um seine Felder und Übersetzungen zu bearbeiten.</DialogDescription>
+          </DialogHeader>
+          <select value={editDraftId} onChange={(event) => setEditDraftId(event.target.value)} className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
+            <option value="">— اختر خانة — | — Eintrag auswählen —</option>
+            {list.map((item) => <option key={item.id} value={item.id}>{item.ar || item.de}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setEditPickerOpen(false)}>إلغاء | Abbrechen</Button>
+            <Button className="flex-1" disabled={!editDraftId || !list.some((item) => item.id === editDraftId)} onClick={() => { setEditItemId(editDraftId); setEditPickerOpen(false); }}>متابعة | Weiter</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={renamePickerOpen} onOpenChange={setRenamePickerOpen}>
         <DialogContent className="w-[calc(100%-24px)] max-w-[396px]" dir="rtl">
           <DialogHeader className="text-right">
@@ -229,6 +244,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
         </DialogContent>
       </Dialog>
       {renameSectionOpen && <EditDialog open={renameSectionOpen} onOpenChange={setRenameSectionOpen} title={{ ar: "إعادة تسمية القسم", de: "Bereich umbenennen" }} fields={renameFields} initial={sectionTitle} onSubmit={(row) => save({ ...content, labels: { ...labels, [sectionKey]: { ar: String(row.ar ?? ""), de: String(row.de ?? ""), hidden: labels[sectionKey]?.hidden } } })} />}
+      {editTarget && <EditDialog open={true} onOpenChange={(open) => { if (!open) setEditItemId(""); }} title={{ ar: "تعديل المحتوى والترجمات", de: "Inhalt und Übersetzungen bearbeiten" }} fields={resourceFields} initial={editTarget as unknown as Record<string, unknown>} onSubmit={async (row) => { await put(list.map((item) => item.id === editTarget.id ? { ...item, ...(row as ResourceEntry), id: editTarget.id, hidden: item.hidden ?? false } : item)); setEditItemId(""); }} />}
       {renameTarget && <EditDialog open={true} onOpenChange={(open) => { if (!open) setRenameItemId(""); }} title={{ ar: "إعادة تسمية المحتوى", de: "Inhalt umbenennen" }} fields={renameFields} initial={{ ar: renameTarget.ar, de: renameTarget.de }} onSubmit={async (row) => { await put(list.map((item) => item.id === renameTarget.id ? { ...item, ar: String(row.ar ?? ""), de: String(row.de ?? "") } : item)); setRenameItemId(""); }} />}
     </div>
   );
