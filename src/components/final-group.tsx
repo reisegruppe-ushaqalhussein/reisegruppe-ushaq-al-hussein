@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { LangText, useLang } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/lang-switcher";
 import { createPortal } from "react-dom";
-import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft } from "lucide-react";
+import { BedDouble, BookMarked, Folder, Type, ChevronLeft, ChevronRight, ClipboardPaste, FileText, Flag, Search, Settings, Pencil, ImagePlus, ImageMinus, Eye, EyeOff, Trash2, Upload, Loader2, Link2, X, ZoomIn, Download, ArrowLeft, Palette } from "lucide-react";
+import { DesignDialog } from "@/components/cms";
+import { RestoreButton } from "@/components/inline-admin";
 import { uploadImage, normalizeUrl } from "@/lib/upload-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FavStar } from "@/components/group2";
 import { useAdminSession, useShowHidden, useCanManage } from "@/lib/admin-session";
 import { AddButton, EditDialog, GearMenu, IconBtn, ManageRow, useSaveContent, type FieldDef } from "@/components/inline-admin";
-import { labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
+import { defaultContent, labelOf, type GuidelineEntry, type RoomEntry, type SiteContent } from "@/lib/site-content";
 
 const gearCls = "h-7 w-7 shrink-0 rounded-full bg-primary text-secondary hover:bg-primary/90 hover:text-secondary";
 const inputCls = "h-11 w-full rounded-md border border-border bg-background px-3 text-sm";
@@ -427,6 +429,8 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
     try { return decodeURIComponent(match[1] ?? ""); } catch { return null; }
   });
   const [manage, setManage] = useState(false);
+  const [designOpen, setDesignOpen] = useState(false);
+  const guideViewMode = content.cms?.viewModes?.["guidelines"] ?? "grid";
   useEffect(() => {
     const restore = () => {
       const hash = window.location.hash;
@@ -513,6 +517,8 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
         de={title.de}
       />
 
+      <IconBtn label="التصميم | Design" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
+      <RestoreButton onRestore={() => commit(defaultContent.guidelines)} />
       <AddButton
         inline
         label={{
@@ -569,7 +575,6 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
           setPage(true);
           setFolder(null);
         }}
-        menu={sectionMenu}
       />
 
       {/* صفحة الإرشادات: مجلدات Accordion قابلة للفتح والإغلاق */}
@@ -581,9 +586,10 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
             setPage(false);
             setFolder(null);
           }}
-          menu={sectionMenu}
         >
-          <div className="space-y-3">
+          {canManage && <div className="mb-2 flex justify-start" dir="ltr">{sectionMenu}</div>}
+          {designOpen && canManage && <DesignDialog content={content} parentId="guidelines" onClose={() => setDesignOpen(false)} />}
+          <div className={`gap-3 ${guideViewMode === "horizontal" ? "flex flex-col" : guideViewMode === "grid3" ? "grid grid-cols-2 sm:grid-cols-3" : guideViewMode === "grid" ? "grid grid-cols-2" : guideViewMode === "compact" ? "grid grid-cols-2" : "flex flex-col"}`}>
             {folders.map((f) => {
               const isOpen = folder === f.key;
 
