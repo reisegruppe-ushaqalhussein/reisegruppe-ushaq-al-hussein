@@ -870,7 +870,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const [gpsError, setGpsError] = useState<string | null>(null);
   
   // 4. اسم الموقع المكتشف (يُحفظ ويُقرأ من التخزين المحلي حتى لا يضيع أبداً)
-  const [gpsLabel, setGpsLabel] = useState<string>(() => {
+   const [gpsLabel, setGpsLabel] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("ushaq_prayer_gps_label") || sessionStorage.getItem("ushaq_prayer_gps_label");
@@ -1242,7 +1242,7 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         setPrayerDiagnostic(activeRegion === "location"
           ? "نجح جلب المواقيت للموقع الحالي | Gebetszeiten für aktuellen Standort geladen"
           : `نجح جلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Gebetszeiten für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} geladen`);
-               if (j?.data?.meta?.timezone) {
+                      if (j?.data?.meta?.timezone) {
           setTimezone(j.data.meta.timezone);
           if (activeRegion === "location") {
             const currentSaved = localStorage.getItem("ushaq_prayer_gps_label");
@@ -1250,11 +1250,23 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
               const tzCity = j.data.meta.timezone.split("/")[1]?.replace(/_/g, " ");
               if (tzCity) {
                 setGpsLabel(tzCity);
-                try { localStorage.setItem("ushaq_prayer_gps_label", tzCity); } catch {}
+                try {
+                  localStorage.setItem("ushaq_prayer_gps_label", tzCity);
+                  sessionStorage.setItem("ushaq_prayer_gps_label", tzCity);
+                } catch {}
               }
             }
           }
         }
+      })
+      .catch(() => {
+        if (!off) {
+          setFailed(true);
+          setPrayerDiagnostic(activeRegion === "location"
+            ? "فشل طلب المواقيت للموقع الحالي | Anfrage für aktuellen Standort fehlgeschlagen"
+            : `فشل طلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Anfrage für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} fehlgeschlagen`);
+        }
+      });
 
     return () => {
       off = true;
