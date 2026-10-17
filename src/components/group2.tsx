@@ -145,7 +145,7 @@ function ResourceCard({ item, admin, onSave, onDelete, onHide, kind, editMode }:
       {admin && editMode && <div className="mb-2 flex justify-start" dir="ltr"><GearMenu>
         <IconBtn label="حذف المحتوى | Inhalt löschen" danger onClick={() => { if (window.confirm("هل تريد حذف هذا المحتوى؟ | Diesen Inhalt löschen?")) void onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></IconBtn>
         <IconBtn label={item.hidden ? "إظهار | Einblenden" : "إخفاء | Ausblenden"} onClick={() => void onHide(!item.hidden)}>{item.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}</IconBtn>
-        <IconBtn label="استرجاع المحتوى الأصلي | Originalinhalt wiederherstellen" onClick={() => { const original = defaultContent[kind].find((entry) => entry.id === item.id); if (original) void onSave(original as unknown as Record<string, unknown>); else void onSave({ ...item, design: "default" }); }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>
+       <IconBtn label="استرجاع المحتوى الأصلي | Originalinhalt wiederherstellen" onClick={() => { const defaults = (defaultContent[kind] ?? []) as ResourceEntry[]; const original = defaults.find((entry) => entry.id === item.id); if (original) void onSave(original as unknown as Record<string, unknown>); else void onSave({ ...item, design: "default" }); }}><RotateCcw className="h-3.5 w-3.5" /></IconBtn>
         <IconBtn label="تصميم المحتوى | Inhalt gestalten" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
       </GearMenu></div>}
       <div className="flex items-start gap-2"><FavStar id={`res:${item.id}`} /><button type="button" onClick={() => editMode ? setEditOpen(true) : toggleOpen()} className="flex min-w-0 flex-1 items-start gap-2 text-right">
