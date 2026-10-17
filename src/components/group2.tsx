@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLang, LangText } from "@/lib/i18n";
 import { AddButton, EditDialog, GearMenu, IconBtn, RestoreButton, useSaveContent, type FieldDef } from "@/components/inline-admin";
-import { labelOf, type ResourceEntry, type SiteContent } from "@/lib/site-content";
+import { defaultContent, labelOf, type ResourceEntry, type SiteContent } from "@/lib/site-content";
 import { useShowHidden } from "@/lib/admin-session";
 
 type Admin = { password: string; content: SiteContent } | null;
