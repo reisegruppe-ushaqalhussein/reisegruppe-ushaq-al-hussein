@@ -1676,7 +1676,7 @@ function splitGermanText(value: string) {
 
 type AdminCtx = { password: string; content: SiteContent } | null;
 
-function DuasView({ content }: { content: SiteContent }) {
+function DuasView({ content, open }: { content: SiteContent; open: (id: string) => void }) {
   const duas = content.duas;
   const adminPw = useAdminPassword(content);
   const admin: AdminCtx = adminPw ? { password: adminPw, content } : null;
@@ -2143,7 +2143,7 @@ function CampaignApp({ content }: { content: SiteContent }) {
         {view === "contacts" && <ContactsView content={content} admin={admin} />}
         {view === "news" && <NewsView content={content} admin={admin} />}
         {view === "donations" && <DonationsView content={content} admin={admin} />}
-        {view === "duas" && <DuasView content={content} />}
+        {view === "duas" && <DuasView content={content} open={open} />}
         {view === "itinerary" && <ItineraryView content={content} admin={admin} />}
         {view === "guide" && <GuideView content={content} admin={admin} />}
         {view === "tasbeeh" && <TasbeehView />}
