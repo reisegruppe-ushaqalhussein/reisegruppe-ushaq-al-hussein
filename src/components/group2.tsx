@@ -195,7 +195,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
               onAdd={(row) => put([...list, { ...(row as ResourceEntry), id: crypto.randomUUID(), hidden: false }])}
               inline
             />
-            <RestoreButton onRestore={() => put(defaultContent[kind])} />
+            <RestoreButton onRestore={() => put((defaultContent[kind] ?? []) as ResourceEntry[])} />
           </GearMenu>
         </div>
       )}
@@ -209,7 +209,7 @@ export function ResourcesView({ content, admin, kind }: { content: SiteContent; 
         {visible.length === 0 && <p className="rounded-lg bg-card p-6 text-center text-sm text-muted-foreground"><Music className="mx-auto mb-2 h-6 w-6 text-secondary" /><P ar="سيُضاف المحتوى قريباً." de="Inhalte folgen in Kürze." en="Content coming soon." /></p>}
       </div>
 
-      {titleEditOpen && <EditDialog open onOpenChange={setTitleEditOpen} title={{ ar: "إعادة تسمية القسم", de: "Bereich umbenennen" }} fields={[{ key: "ar", ar: "الاسم بالعربية", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true }]} initial={{ ar: title.ar, de: title.de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [kind]: { ar: String(row.ar ?? ""), de: String(row.de ?? "") } } })} />}
+      {titleEditOpen && <EditDialog open onOpenChange={setTitleEditOpen} title={{ ar: "إعادة تسمية القسم", de: "Bereich umbenennen" }} fields={[{ key: "ar", ar: "الاسم بالعربية", de: "Name (AR)" }, { key: "de", ar: "الاسم بالألمانية", de: "Name (DE)", ltr: true }]} initial={{ ar: title.ar, de: title.de }} onSubmit={(row) => save({ ...content, labels: { ...(content.labels ?? {}), [kind]: { ar: String(row["ar"] ?? ""), de: String(row["de"] ?? "") } } })}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}><DialogContent className="max-h-[85vh] w-[calc(100%-24px)] max-w-[380px] overflow-y-auto" dir="rtl"><DialogHeader><DialogTitle>اختيار المحتوى المراد حذفه | Inhalte auswählen</DialogTitle></DialogHeader><div className="space-y-2">{list.map((item) => <label key={item.id} className="flex items-start gap-2 rounded-md border border-border p-2 text-sm"><input type="checkbox" checked={selectedDeleteIds.includes(item.id)} onChange={(event) => setSelectedDeleteIds((old) => event.target.checked ? [...old, item.id] : old.filter((id) => id !== item.id))} className="mt-1" /><span>{item.ar || item.de}</span></label>)}</div><div className="flex gap-2 pt-2"><Button variant="outline" className="flex-1" onClick={() => setDeleteOpen(false)}>إلغاء | Abbrechen</Button><Button variant="destructive" className="flex-1" disabled={!selectedDeleteIds.length} onClick={() => { const removeIds = new Set(selectedDeleteIds); void put(list.filter((item) => !removeIds.has(item.id))); setDeleteOpen(false); }}>حذف المحدد | Auswahl löschen</Button></div></DialogContent></Dialog>
     </div>
   );
