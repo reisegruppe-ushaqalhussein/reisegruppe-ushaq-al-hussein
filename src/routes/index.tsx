@@ -819,47 +819,34 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const isSectionEditing = useSectionEditMode();
   const isEditing = canManage && (localEdit || isSectionEditing);
 
-  // الوجهة الحالية (موقعي / العراق / الحرمين / إيران)
-  const [activeRegion, setActiveRegion] = useState<string>(() => {
-    if (prayerRegionCache) return prayerRegionCache;
-    try {
-      const saved = localStorage.getItem("ushaq_prayer_region") || sessionStorage.getItem("ushaq_prayer_region");
-      return saved && ["location", "iraq", "saudi", "iran"].includes(saved) ? saved : "iraq";
-    } catch { return "iraq"; }
-  });
+// 1. قراءة آخر إحداثيات ومكان محفوظين بأمان
+const [activeRegion, setActiveRegion] = useState<string>(() => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("ushaq_prayer_region");
+    if (saved && ["location", "iraq", "saudi", "iran"].includes(saved)) return saved;
+  }
+  return prayerRegionCache || "iraq";
+});
 
-  // إحداثيات الموقع الحالي GPS
-  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
-    if (prayerGpsCache) return prayerGpsCache;
+// 2. اسم الموقع المكتشف (حفظه في التخزين المحلي حتى لا يضيع أبداً)
+const [gpsLabel, setGpsLabel] = useState<string>(() => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("ushaq_prayer_gps_label") || "موقعي";
+  }
+  return "موقعي";
+});
+
+// 3. تخزين المواقيت السابقة فوراً لمنع ظهور الخانات الفارغة -- --
+const [times, setTimes] = useState<Record<string, string> | null>(() => {
+  if (typeof window !== "undefined") {
     try {
-      const saved = localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords");
-      if (!saved) return null;
-      const parsed = JSON.parse(saved) as { lat?: number; lng?: number };
-      return typeof parsed.lat === "number" && Number.isFinite(parsed.lat) &&
-        typeof parsed.lng === "number" && Number.isFinite(parsed.lng) &&
-        Math.abs(parsed.lat) <= 90 && Math.abs(parsed.lng) <= 180
-        ? { lat: parsed.lat, lng: parsed.lng }
-        : null;
+      const cached = localStorage.getItem("ushaq_prayer_cached_times");
+      return cached ? JSON.parse(cached) : null;
     } catch { return null; }
-  });
-  // Persist the GPS state whenever it changes, including after the home card remounts.
-  useEffect(() => {
-    if (!gpsCoords || !Number.isFinite(gpsCoords.lat) || !Number.isFinite(gpsCoords.lng)) return;
-    prayerGpsCache = gpsCoords;
-    const serialized = JSON.stringify(gpsCoords);
-    try { localStorage.setItem("ushaq_prayer_gps_coords", serialized); } catch {}
-    try { sessionStorage.setItem("ushaq_prayer_gps_coords", serialized); } catch {}
-  }, [gpsCoords]);
+  }
+  return null;
+});
 
-  // مدينة مكتوبة يدوياً (تُحفظ فقط عند الإدخال اليدوي)
-  const [manualPlace, setManualPlace] = useState<{ name: string; ar?: string; de?: string; lat: number; lng: number } | null>(() => {
-    try {
-      const saved = localStorage.getItem("ushaq_prayer_manual");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeBusy, setPlaceBusy] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
