@@ -1003,8 +1003,11 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       prayerGpsCache = coords;
       setGpsCoords(coords);
+      setActiveRegion("location"); // <--- أضف هذا السطر هنا ليثبت اختيار موقعه فوراً
+      try { localStorage.setItem("ushaq_prayer_region", "location"); } catch {}
       try { localStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
       try { sessionStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
+
       setGpsLabel("GPS");
       setGpsError(null);
       setGpsLoading(false);
@@ -1100,9 +1103,17 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     requestGps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRegion, manualPlace, gpsCoords]);
-  useEffect(() => {
+    useEffect(() => {
+    if (!activeRegion) return;
     prayerRegionCache = activeRegion;
+    // لا نمسح موقع المستخدم عند أول تحميل إذا كان محفوظاً مسبقاً
     try {
+      const saved = localStorage.getItem("ushaq_prayer_region");
+      if (saved === "location" && activeRegion !== "location") {
+        // المستخدم كان على موقعه، استرجعه ولا تستبدله بالعراق
+        setActiveRegion("location");
+        return;
+      }
       localStorage.setItem("ushaq_prayer_region", activeRegion);
       sessionStorage.setItem("ushaq_prayer_region", activeRegion);
     } catch {}
@@ -1171,10 +1182,9 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
     } catch {}
   };
 
-  // جلب المواقيت
+   // جلب المواقيت (الاحتفاظ بالمواقيت السابقة أثناء التحديث في الخلفية لمنع ظهور -- --)
   useEffect(() => {
     let off = false;
-    setTimes(null);
     setFailed(false);
 
     let url = "";
