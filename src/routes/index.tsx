@@ -1205,20 +1205,25 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       })
       .then((j) => {
         if (off) return;
-        const fetchedTimes = j?.data?.timings;
+       const fetchedTimes = j?.data?.timings;
         if (!fetchedTimes || typeof fetchedTimes !== "object") {
           setTimes(null);
           setFailed(true);
           return;
         }
-       // تخزين المواقيت فوراً لتعمل دون إنترنت وتظهر بـ 0 ثانية عند التنقل بين الأقسام
-setTimes(fetchedTimes);
-try {
-  localStorage.setItem("ushaq_prayer_cached_times", JSON.stringify(fetchedTimes));
-} catch {}
-
+        // حفظ المواقيت في الحالة وفي الكاش فوراً
+        setTimes(fetchedTimes);
+        setFailed(false);
+        try {
+          localStorage.setItem("ushaq_prayer_cached_times", JSON.stringify(fetchedTimes));
+        } catch {}
+        setPrayerDiagnostic(activeRegion === "location"
+          ? "نجح جلب المواقيت للموقع الحالي | Gebetszeiten für aktuellen Standort geladen"
+          : `نجح جلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Gebetszeiten für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} geladen`);
+        if (j?.data?.meta?.timezone) setTimezone(j.data.meta.timezone);
+      })
+      .catch(() => {
         if (!off) {
-          setTimes(null);
           setFailed(true);
           setPrayerDiagnostic(activeRegion === "location"
             ? "فشل طلب المواقيت للموقع الحالي | Anfrage für aktuellen Standort fehlgeschlagen"
