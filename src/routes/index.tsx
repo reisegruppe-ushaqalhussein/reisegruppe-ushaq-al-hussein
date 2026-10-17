@@ -1809,15 +1809,30 @@ function LoadingSplash() {
 function Index() {
   const { data: content, isError } = useQuery(contentQuery);
   const [enteredWhileLoading, setEnteredWhileLoading] = useState(false);
-  const [showWelcomeWhileLoading] = useState(() => {
+  // Keep the server and first client render identical; read browser storage after hydration.
+  const [showWelcomeWhileLoading, setShowWelcomeWhileLoading] = useState(false);
+  useEffect(() => {
     try {
-      return sessionStorage.getItem("welcomed") !== "1" && localStorage.getItem("welcome-seen") !== "true";
+      setShowWelcomeWhileLoading(
+        sessionStorage.getItem("welcomed") !== "1" &&
+        localStorage.getItem("welcome-seen") !== "true",
+      );
     } catch {
-      return false;
+      setShowWelcomeWhileLoading(false);
     }
-  });
+  }, []);
   if (!content) {
-    if (isError) return <LangProvider><OfflineFallback /></LangProvider>;
+    if (isError) return <LangProvider>{typeof navigator !== "undefined" && !navigator.onLine ? <OfflineFallback /> : (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6 text-center">
+        <div className="max-w-sm rounded-lg border border-border bg-card p-6 shadow-sm">
+          <h1 className="font-bold text-primary">تعذّر تحميل المحتوى</h1>
+          <p lang="de" dir="ltr" className="mt-1 text-xs italic text-muted-foreground">Inhalt konnte nicht geladen werden</p>
+          <p className="mt-3 text-sm">تعذّر الاتصال بخادم التطبيق أو قاعدة البيانات. تحقّق من إعدادات النشر واتصال Supabase، ثم أعد المحاولة.</p>
+          <p lang="de" dir="ltr" className="mt-1 text-xs italic text-muted-foreground">Der App-Server oder die Datenbank ist nicht erreichbar. Bitte die Deployment- und Supabase-Einstellungen prüfen.</p>
+          <button onClick={() => window.location.reload()} className="mt-4 h-11 w-full rounded-md bg-primary text-sm font-bold text-primary-foreground">إعادة المحاولة | Erneut versuchen</button>
+        </div>
+      </div>
+    )}</LangProvider>;
     return <LangProvider>
       <LoadingSplash />
       {showWelcomeWhileLoading && <WelcomeScreen onEnter={() => {
@@ -1831,13 +1846,7 @@ function Index() {
 }
 
 function CampaignApp({ content }: { content: SiteContent }) {
-    const [view, setView] = useState<View>(() => {
-    if (typeof window === "undefined") return "home";
-    const h = window.location.hash.replace("#", "") as View;
-    if (h && h in viewTitles) return h;
-    const sv = sessionStorage.getItem("view") as View;
-    return (sv && sv in viewTitles) ? sv : "home";
-  });
+    const [view, setView] = useState<View>("home");
   const [welcomed, setWelcomed] = useState<boolean | null>(null);
   const [customId, setCustomId] = useState<string | null>(null);
     const [qrOpen, setQrOpen] = useState(false);
