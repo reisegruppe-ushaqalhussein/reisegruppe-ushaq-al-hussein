@@ -518,7 +518,7 @@ export function GuidelinesFolders({ content }: { content: SiteContent }) {
       />
 
       <IconBtn label="التصميم | Design" onClick={() => setDesignOpen(true)}><Palette className="h-3.5 w-3.5" /></IconBtn>
-      <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} addFields={guideFields} addBlank={blankGuide} onAdd={addNew} onRestore={() => commit(defaultContent.guidelines)} />
+      <SectionAdminBar inline languageAware addLabel={{ ar: "إضافة مجلد زيارة", de: "Ziyarat-Ordner hinzufügen" }} addFields={guideFields} addBlank={blankGuide} onAdd={addNew} onRestore={() => commit(defaultContent.guidelines ?? [])} />
 
       {showHidden && (
         <IconBtn
