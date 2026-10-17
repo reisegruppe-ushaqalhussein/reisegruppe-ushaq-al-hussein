@@ -67,30 +67,6 @@ function NotFoundComponent() {
   );
 }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">الصفحة غير موجودة</h2>
-        <p className="mt-1 text-sm font-medium text-foreground">Seite nicht gefunden</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          الصفحة المطلوبة غير متاحة أو تم نقلها.
-          <span className="mt-1 block">Die gesuchte Seite ist nicht verfügbar oder wurde verschoben.</span>
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <span>العودة للرئيسية</span>
-            <span className="ms-2 text-xs opacity-75">Zur Startseite</span>
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
