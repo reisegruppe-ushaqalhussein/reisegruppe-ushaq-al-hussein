@@ -868,16 +868,16 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-
+  
   // 4. اسم الموقع المكتشف (يُحفظ ويُقرأ من التخزين المحلي حتى لا يضيع أبداً)
   const [gpsLabel, setGpsLabel] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem("ushaq_prayer_gps_label");
-      if (saved) return saved;
-      return (localStorage.getItem("ushaq_prayer_gps_coords") || sessionStorage.getItem("ushaq_prayer_gps_coords")) ? "GPS" : "";
-    } catch {
-      return "";
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("ushaq_prayer_gps_label") || sessionStorage.getItem("ushaq_prayer_gps_label");
+        if (saved && saved !== "GPS") return saved;
+      } catch {}
     }
+    return "";
   });
 
   const [gpsDebug, setGpsDebug] = useState("");
@@ -1008,12 +1008,17 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
       try { localStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
       try { sessionStorage.setItem("ushaq_prayer_gps_coords", JSON.stringify(coords)); } catch {}
 
-      setGpsLabel("GPS");
+           // لا نستبدل اسم المدينة المحفوظ بكلمة GPS بل نحتفظ به
+      try {
+        const savedLbl = localStorage.getItem("ushaq_prayer_gps_label");
+        if (savedLbl && savedLbl !== "GPS") setGpsLabel(savedLbl);
+      } catch {}
+
       setGpsError(null);
       setGpsLoading(false);
       setGpsDebug(`±${Math.round(pos.coords.accuracy)} m`);
 
-      // اسم المدينة اختياري؛ لا نعتمد عليه للحصول على مواقيت الصلاة.
+      // جلب اسم المدينة من خريطة الموقع وحفظه في التخزين المحلي فوراً
       void fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&zoom=10&accept-language=${lang === "ar" ? "ar" : "de"}`)
         .then((response) => {
           if (!response.ok) throw new Error("reverse-geocode-failed");
@@ -1023,9 +1028,16 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
           if (!isCurrent()) return;
           const address = data.address;
           const placeName = address?.city || address?.town || address?.village || address?.municipality || address?.suburb || data.name || address?.county;
-          if (placeName) setGpsLabel(placeName);
+          if (placeName) {
+            setGpsLabel(placeName);
+            try {
+              localStorage.setItem("ushaq_prayer_gps_label", placeName);
+              sessionStorage.setItem("ushaq_prayer_gps_label", placeName);
+            } catch {}
+          }
         })
         .catch(() => {});
+
     };
     const tryLowerAccuracy = () => {
       if (settled || fallbackStarted) return;
@@ -1230,16 +1242,19 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
         setPrayerDiagnostic(activeRegion === "location"
           ? "نجح جلب المواقيت للموقع الحالي | Gebetszeiten für aktuellen Standort geladen"
           : `نجح جلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Gebetszeiten für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} geladen`);
-        if (j?.data?.meta?.timezone) setTimezone(j.data.meta.timezone);
-      })
-      .catch(() => {
-        if (!off) {
-          setFailed(true);
-          setPrayerDiagnostic(activeRegion === "location"
-            ? "فشل طلب المواقيت للموقع الحالي | Anfrage für aktuellen Standort fehlgeschlagen"
-            : `فشل طلب المواقيت للمنطقة ${activeRegion} والمدينة ${citiesList.find((c) => c.id === city)?.de ?? city} | Anfrage für ${activeRegion} / ${citiesList.find((c) => c.id === city)?.de ?? city} fehlgeschlagen`);
+               if (j?.data?.meta?.timezone) {
+          setTimezone(j.data.meta.timezone);
+          if (activeRegion === "location") {
+            const currentSaved = localStorage.getItem("ushaq_prayer_gps_label");
+            if (!currentSaved || currentSaved === "GPS") {
+              const tzCity = j.data.meta.timezone.split("/")[1]?.replace(/_/g, " ");
+              if (tzCity) {
+                setGpsLabel(tzCity);
+                try { localStorage.setItem("ushaq_prayer_gps_label", tzCity); } catch {}
+              }
+            }
+          }
         }
-      });
 
     return () => {
       off = true;
@@ -1368,9 +1383,13 @@ function PrayerTimesCard({ content }: { content?: SiteContent }) {
               {activeRegion === "location" ? (
                 manualPlace ? (
                   <Pair ar={manualPlace.ar || manualPlace.name} de={manualPlace.de || manualPlace.name} />
-                ) : (
-                  <Pair ar={gpsLabel || "موقعي"} de={gpsLabel || "Standort"} />
+                               ) : (
+                  <Pair
+                    ar={gpsLabel && gpsLabel !== "GPS" ? gpsLabel : "موقعي"}
+                    de={gpsLabel && gpsLabel !== "GPS" ? gpsLabel : "Standort"}
+                  />
                 )
+
               ) : (
                 <Pair
                   ar={citiesList.find((c) => c.id === city)?.ar || "المدينة"}
